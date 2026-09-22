@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"path/filepath"
 	"slices"
 
 	"github.com/adeelahmad/snapback/internal/config"
@@ -22,6 +23,7 @@ const (
 type seedOpts struct {
 	path     string
 	maxDepth int
+	depthSet bool
 	dryRun   bool
 	force    bool
 	jsonOut  bool
@@ -92,6 +94,7 @@ func parseSeed(args []string) (seedOpts, error) {
 		pos = append(pos, args[0])
 		args = args[1:]
 	}
+	fs.Visit(func(f *flag.Flag) { o.depthSet = o.depthSet || f.Name == "max-depth" })
 	if len(pos) > 1 {
 		return o, &UsageError{Msg: seedUsage}
 	}
@@ -130,7 +133,25 @@ func seedPlan(d Deps, env Env, o seedOpts) (seed.Plan, error) {
 	if err != nil {
 		return seed.Plan{}, err
 	}
-	return d.PlanPath(r.LocalPath, path, o.maxDepth, seedExcludes(r))
+	return d.PlanPath(r.LocalPath, path, seedDepth(r, path, o), seedExcludes(r))
+}
+
+// seedDepth returns --max-depth when given, else the max_depth of the
+// configured seed path of r equal to path, else the default.
+func seedDepth(r config.Root, path string, o seedOpts) int {
+	if o.depthSet {
+		return o.maxDepth
+	}
+	for _, sp := range r.SeedPaths {
+		p := sp.Path
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(r.LocalPath, p)
+		}
+		if filepath.Clean(p) == filepath.Clean(path) {
+			return sp.MaxDepth
+		}
+	}
+	return o.maxDepth
 }
 
 // seedRoot returns the configured root containing path.

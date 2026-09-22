@@ -54,6 +54,8 @@ release:
     cross-compiled but not tested on real hardware. Their assets carry the
     `_unverified` suffix.
 
+    The macOS (darwin) binaries are a self-contained executable; their linkage and runtime are not verified.
+
     Verify downloads against checksums.txt; checksums.txt is signed keylessly
     with cosign (checksums.txt.sig, checksums.txt.pem).
 
