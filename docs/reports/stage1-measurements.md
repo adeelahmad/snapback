@@ -195,8 +195,34 @@ stable across backups and across pack-size changes, so rung 1 can compare it
 directly for same-repository instances.
 
 Across two repositories it is **not** a usable identity in general. It survives
-re-chunking only for files small enough to be a single chunk (here up to
-1 500 000 B); for larger files the lists are disjoint, and restic exposes no
-whole-file hash to fall back on. For cross-repository comparison rung 1 must
-therefore use size plus mtime, and may use `content` only as an opportunistic
-match when both nodes have exactly one chunk.
+re-chunking only where the node's `content` holds exactly one blob — here
+`big.bin` at 1 500 000 B, `mid.txt` and `small.txt` did; for multi-chunk files
+the lists are disjoint, and restic exposes no whole-file hash to fall back on.
+For cross-repository comparison rung 1 must therefore use size plus mtime, and
+may use `content` only as an opportunistic match when both nodes have exactly
+one chunk.
+
+### Refinements (human review, 2026-09-22)
+
+**The single-chunk rule is structural, not size-based.** Chunk boundaries come
+from the per-repository Rabin polynomial (`chunker_polynomial` in the repo
+config), so blob IDs for multi-chunk files diverge across repositories. A blob
+ID is SHA-256 of the plaintext chunk, so a node whose `content` has exactly one
+entry carries an ID equal to sha256(whole file), comparable everywhere. The
+rule is `len(content) == 1`, never a byte size: files between the 512 KiB
+minimum and 8 MiB maximum chunk size can land on either side, depending on
+where the polynomial cuts.
+
+**Within one repository, `content` is the strongest signal.** The same
+polynomial means the same boundaries: an equal blob-ID list is exact content
+identity, and equal tree IDs mean identical subtrees. The primary `.snapshot`
+overlay is per repository, so for per-repository rung 1 size+mtime is the fast
+pre-filter and `content` the confirmation, not the other way round.
+
+**Chunker-copy edge case.** Stated by the human; not measured in this spike.
+`restic copy` moves blobs verbatim; it does not re-chunk. A hot-cache repository
+created without `--copy-chunker-params` holds the primary's boundaries for
+copied snapshots but its own for anything backed up into it directly, so one
+file can carry two different multi-chunk ID lists in one repository. The
+single-blob rule still holds there (still sha256(file)). Requirement for the
+§23 hot-repository item: create the cache with `--copy-chunker-params`.
