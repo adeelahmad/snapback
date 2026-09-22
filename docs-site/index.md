@@ -22,3 +22,7 @@ These backends are planned, not supported yet:
 ## Versions
 
 Versioned documentation is not yet available. Docs will be published per release once the first release ships.
+
+## Privacy
+
+This site uses Google Analytics to count visits.
