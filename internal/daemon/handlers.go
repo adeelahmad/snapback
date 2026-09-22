@@ -99,6 +99,9 @@ func (d *Daemon) handle(ctx context.Context, req ipc.Request) ipc.Response {
 		if err != nil {
 			return errResp(err)
 		}
+		if res.Created {
+			d.refreshForLinks()
+		}
 		return dataResp(res)
 	case ipc.OpDirEvent:
 		if d.dedups.seen(req.Session + "\x00" + string(req.Path)) {
@@ -123,6 +126,9 @@ func (d *Daemon) handle(ctx context.Context, req ipc.Request) ipc.Response {
 			return errResp(err)
 		}
 		d.countLinks()
+		if len(rep.Completed)+len(rep.Repaired)+len(rep.Removed) > 0 {
+			d.refreshForLinks()
+		}
 		return dataResp(rep)
 	case ipc.OpLinksRemoveManaged:
 		rep, err := d.deps.Linker.RemoveManaged(ctx)

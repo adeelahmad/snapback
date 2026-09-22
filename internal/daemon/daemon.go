@@ -122,6 +122,8 @@ type Daemon struct {
 	// errcode.MountFailure until it is ready again or a refresh succeeds.
 	mountFailed map[string]bool
 	cancel      context.CancelFunc // stops Run; nil until Run starts
+	loop        *refresh.Loop      // periodic refresh loop; nil until it starts
+	linkQueued  bool               // a refresh for new links is scheduled
 }
 
 // New returns a Daemon for cfg and deps.
@@ -250,7 +252,36 @@ func (d *Daemon) refreshEvery(ctx context.Context, interval time.Duration) {
 		<-ctx.Done()
 		return
 	}
-	_ = refresh.NewLoop(loopTarget{d}, interval, time.After).Run(ctx)
+	loop := refresh.NewLoop(loopTarget{d}, interval, time.After)
+	d.mu.Lock()
+	d.loop = loop
+	d.mu.Unlock()
+	_ = loop.Run(ctx)
+}
+
+// linkRefreshDelay coalesces a burst of new links, such as seed linking many
+// directories, into one refresh.
+const linkRefreshDelay = 500 * time.Millisecond
+
+// refreshForLinks schedules one refresh of the periodic loop linkRefreshDelay
+// from now, so new links get their history without waiting for the next
+// interval. It never blocks; calls made while one is scheduled coalesce.
+func (d *Daemon) refreshForLinks() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.linkQueued {
+		return
+	}
+	d.linkQueued = true
+	time.AfterFunc(linkRefreshDelay, func() {
+		d.mu.Lock()
+		d.linkQueued = false
+		loop := d.loop
+		d.mu.Unlock()
+		if loop != nil {
+			loop.Trigger()
+		}
+	})
 }
 
 // loopTarget adapts a Daemon to refresh.Target, recording each result for
