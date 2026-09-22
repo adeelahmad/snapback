@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const testSnapshotID = "4f1d2c3b4a5968778695a4b3c2d1e0f00112233445566778899aabbccddeeff"
+const testSnapshotID = "4f1d2c3b4a5968778695a4b3c2d1e0f000112233445566778899aabbccddeeff"
 
 // resticValueFlags are restic global flags that consume the following argument.
 var resticValueFlags = map[string]bool{"-r": true, "--repo": true, "--password-file": true, "--cache-dir": true}
@@ -503,5 +503,42 @@ func TestRunRemovesScratch(t *testing.T) {
 				t.Errorf("scratch root %q still present after Run (stat err = %v)", root, err)
 			}
 		})
+	}
+}
+
+func TestRunRejectsShortSnapshotID(t *testing.T) {
+	const shortID = "4f1d2c3b"
+	f := newRunFake()
+	f.script["restic snapshots"] = []fakeReply{{out: fmt.Appendf(nil,
+		`[{"id":%q,"time":"2026-09-22T10:00:00Z","hostname":"h","paths":["/d"]}]`, shortID)}}
+	var pwFile string
+	f.onCall = func(c runCall) {
+		if p, ok := flagValue(c.args, "--password-file"); ok && pwFile == "" {
+			pwFile = p
+		}
+	}
+
+	_, err := Run(t.Context(), newConfig(f))
+
+	if err == nil {
+		t.Error("Run error = nil, want rejection of the 8-char snapshot id")
+	} else if !strings.Contains(err.Error(), "snapshot id") && !strings.Contains(err.Error(), "snapshot ID") {
+		t.Errorf("Run error %q does not mention the snapshot id", err)
+	}
+	labels := f.labels()
+	for _, want := range []string{"rclone purge", "rclone lsf"} {
+		if !slices.Contains(labels, want) {
+			t.Errorf("%q not called after the short-id rejection; operations = %q", want, labels)
+		}
+	}
+	if n := len(labels); n < 2 || labels[n-2] != "rclone purge" || labels[n-1] != "rclone lsf" {
+		t.Errorf("cleanup does not end with purge then lsf; operations = %q", labels)
+	}
+	if pwFile == "" {
+		t.Fatal("scratch root never captured: no call carried --password-file")
+	}
+	root := filepath.Dir(pwFile)
+	if _, statErr := os.Stat(root); !os.IsNotExist(statErr) {
+		t.Errorf("scratch root %q still present after Run (stat err = %v)", root, statErr)
 	}
 }
