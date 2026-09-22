@@ -1,7 +1,29 @@
 package resolver
 
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+)
+
 // HistoryTarget joins a snapshot root and a tree path, refusing any tree
 // path that could escape the root.
 func HistoryTarget(snapshotRoot, treePath string) (string, error) {
-	panic("SUB-AGENT-TODO: T3 root absolute non-empty, filepath.Clean; strip one leading /; reject leading /, empty/./.. component, NUL -> \"\", error prefixed resolver:; empty tree -> root else root+\"/\"+treePath")
+	if snapshotRoot == "" || !filepath.IsAbs(snapshotRoot) {
+		return "", fmt.Errorf("resolver: snapshot root %q is not absolute", snapshotRoot)
+	}
+	root := filepath.Clean(snapshotRoot)
+	tree := strings.TrimPrefix(treePath, "/")
+	if tree == "" {
+		return root, nil
+	}
+	if strings.ContainsRune(tree, 0) {
+		return "", fmt.Errorf("resolver: tree path %q contains NUL", treePath)
+	}
+	for _, c := range strings.Split(tree, "/") {
+		if c == "" || c == "." || c == ".." {
+			return "", fmt.Errorf("resolver: tree path %q has invalid component %q", treePath, c)
+		}
+	}
+	return root + "/" + tree, nil
 }
