@@ -180,3 +180,62 @@ func TestLinkUsage(t *testing.T) {
 		})
 	}
 }
+
+func TestLinkHelpPrintsUsage(t *testing.T) {
+	for _, arg := range []string{"-h", "--help"} {
+		t.Run(arg, func(t *testing.T) {
+			l := &fakeLinker{}
+			var execs int
+			env, out, errb := newEnv(nil)
+
+			got := LinkCommand(linkDeps(l, "/w", &execs)).Run(context.Background(), env, []string{arg})
+
+			if got != 0 {
+				t.Errorf("link %s = %d, want 0", arg, got)
+			}
+			if l.calls() != 0 {
+				t.Errorf("linker calls = %d, want 0", l.calls())
+			}
+			if out.Len() != 0 {
+				t.Errorf("link %s stdout = %q, want empty", arg, out.String())
+			}
+			for _, want := range []string{"snapback link [flags] DIR", "DIR", "-json", "Example:"} {
+				if !strings.Contains(errb.String(), want) {
+					t.Errorf("link %s stderr = %q, want it to contain %q", arg, errb.String(), want)
+				}
+			}
+		})
+	}
+}
+
+func TestLinkPrintsNextStep(t *testing.T) {
+	l := &fakeLinker{ensureRes: links.Result{Key: "k1", Created: true, Path: "/w/rel/d/.snapshot"}}
+	var execs int
+	env, out, _ := newEnv(nil)
+
+	if got := LinkCommand(linkDeps(l, "/w", &execs)).Run(context.Background(), env, []string{"rel/d"}); got != 0 {
+		t.Fatalf("link rel/d = %d, want 0", got)
+	}
+	if !strings.Contains(out.String(), "/w/rel/d/.snapshot") {
+		t.Errorf("link rel/d stdout = %q, want it to contain the link path", out.String())
+	}
+	if want := "next: ls /w/rel/d/.snapshot\n"; !strings.HasSuffix(out.String(), want) {
+		t.Errorf("link rel/d stdout = %q, want it to end with %q", out.String(), want)
+	}
+}
+
+func TestLinkJSONOmitsNextStep(t *testing.T) {
+	l := &fakeLinker{ensureRes: links.Result{Key: "k1", Created: true, Path: "/abs/d/.snapshot"}}
+	var execs int
+	env, out, _ := newEnv(nil)
+
+	if got := LinkCommand(linkDeps(l, "/w", &execs)).Run(context.Background(), env, []string{"--json", "/abs/d"}); got != 0 {
+		t.Fatalf("link --json /abs/d = %d, want 0", got)
+	}
+	if strings.Contains(out.String(), "next:") {
+		t.Errorf("link --json stdout = %q, want no next-step line", out.String())
+	}
+	if e := decodeEnvelope(t, out.Bytes()); !e.OK {
+		t.Errorf("link --json ok = false, want true")
+	}
+}
