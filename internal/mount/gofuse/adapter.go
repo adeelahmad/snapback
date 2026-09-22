@@ -28,27 +28,32 @@ type Option func(*Adapter)
 
 // WithGate makes the adapter consult g on lookup and readdir.
 func WithGate(g mount.Gate) Option {
-	panic("SUB-AGENT-TODO: return an Option that sets the adapter's gate to g; lookup and readdir consult the gate before touching the catalog (tasks.md T4)")
+	return func(a *Adapter) { a.gate = g }
 }
 
 var (
-	_ mount.Adapter = (*Adapter)(nil)
-	_ mount.Catalog = (*projection.Generation)(nil)
+	_ mount.Adapter   = (*Adapter)(nil)
+	_ mount.Publisher = (*Adapter)(nil)
+	_ mount.Catalog   = (*projection.Generation)(nil)
 )
 
 // NewAdapter returns an Adapter that reports catalog reads to obs.
 func NewAdapter(obs mount.Observer, opts ...Option) *Adapter {
-	return &Adapter{obs: obs}
+	a := &Adapter{obs: obs}
+	for _, opt := range opts {
+		opt(a)
+	}
+	return a
 }
 
 // Publish swaps the catalog the adapter serves.
 func (a *Adapter) Publish(cat mount.Catalog) {
-	panic("SUB-AGENT-TODO: atomically store cat in the adapter's catalog pointer so every node sees the new generation; *Adapter implements mount.Publisher (tasks.md T4)")
+	a.cat.Store(&cat)
 }
 
 // rootNode returns a root node bound to the adapter's current catalog.
 func (a *Adapter) rootNode() *dirNode {
-	panic("SUB-AGENT-TODO: build the root dirNode sharing the adapter's atomic catalog pointer and gate instead of a captured catalog; Mount publishes cat first and serves rootNode (tasks.md T4)")
+	return &dirNode{cat: &a.cat, obs: a.obs, gate: a.gate, ino: mount.RootIno, path: ""}
 }
 
 func mountOptions() fuse.MountOptions {
@@ -65,8 +70,9 @@ func (a *Adapter) Mount(dir string, cat mount.Catalog) error {
 	if err := preflight(dir); err != nil {
 		return err
 	}
+	a.Publish(cat)
 	opts := mountOptions()
-	server, err := fs.Mount(dir, newRoot(cat, a.obs), &fs.Options{MountOptions: opts})
+	server, err := fs.Mount(dir, a.rootNode(), &fs.Options{MountOptions: opts})
 	if err != nil {
 		return fmt.Errorf("mount %s: %w", dir, err)
 	}
