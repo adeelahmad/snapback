@@ -56,7 +56,8 @@ func newHistRepo(t *testing.T) histRepo {
 }
 
 // writeHistConfig writes a config with one repository and one root at
-// h.proj, and returns the sandboxed env that uses it.
+// h.fx.Root that seeds its proj subdirectory (h.proj), and returns the
+// sandboxed env that uses it.
 func writeHistConfig(t *testing.T, h histRepo) env {
 	t.Helper()
 	e := newEnv(t)
@@ -95,11 +96,11 @@ roots:
     snapshots:
       hostname: %[6]s
     seed_paths:
-      - path: .
+      - path: proj
         max_depth: 4
     snap:
       tags: [snapback:adhoc]
-`, state, h.fx.Repo, resticBin, h.fx.PasswordFile, h.proj, histHost)
+`, state, h.fx.Repo, resticBin, h.fx.PasswordFile, h.fx.Root, histHost)
 	dir := filepath.Join(e.Config, "snapback")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir config dir: %v", err)
@@ -210,9 +211,9 @@ func TestAcc03AliasBytesMetadataReadOnly(t *testing.T) {
 	h := newHistRepo(t)
 	base := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	writeFiles(t, h.proj, map[string]string{"a.txt": "s1 bytes\n"})
-	s1 := backup(t, h.fx, "", histHost, base, "daily", h.proj)
+	s1 := backup(t, h.fx, "", histHost, base, "daily", h.fx.Root)
 	writeFiles(t, h.proj, map[string]string{"a.txt": "s2 bytes, longer\n"})
-	backup(t, h.fx, "", histHost, base.Add(24*time.Hour), "daily", h.proj)
+	backup(t, h.fx, "", histHost, base.Add(24*time.Hour), "daily", h.fx.Root)
 
 	e := writeHistConfig(t, h)
 	startHistDaemon(t, e, h.proj)

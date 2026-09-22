@@ -16,7 +16,7 @@ func TestAcc04LatestNoFallback(t *testing.T) {
 	h := newHistRepo(t)
 	base := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	writeFiles(t, h.proj, map[string]string{"gone.txt": "bye\n", "olddir/old.txt": "s1\n"})
-	backup(t, h.fx, "", histHost, base, "daily", h.proj)
+	backup(t, h.fx, "", histHost, base, "daily", h.fx.Root)
 
 	if err := os.Remove(filepath.Join(h.proj, "gone.txt")); err != nil {
 		t.Fatalf("remove gone.txt: %v", err)
@@ -25,13 +25,13 @@ func TestAcc04LatestNoFallback(t *testing.T) {
 		t.Fatalf("remove olddir: %v", err)
 	}
 	writeFiles(t, h.proj, map[string]string{"new.txt": "new\n"})
-	backup(t, h.fx, "", histHost, base.Add(24*time.Hour), "daily", h.proj)
+	backup(t, h.fx, "", histHost, base.Add(24*time.Hour), "daily", h.fx.Root)
 
 	olddir := filepath.Join(h.proj, "olddir")
 	if err := os.Mkdir(olddir, 0o755); err != nil {
 		t.Fatalf("recreate olddir: %v", err)
 	}
-	backup(t, h.fx, "", histHost, base.Add(48*time.Hour), "daily", h.proj)
+	backup(t, h.fx, "", histHost, base.Add(48*time.Hour), "daily", h.fx.Root)
 
 	e := writeHistConfig(t, h)
 	startHistDaemon(t, e, h.proj, olddir)

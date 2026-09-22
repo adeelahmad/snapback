@@ -15,7 +15,7 @@ func TestAcc05SnapSubdirOnly(t *testing.T) {
 	h := newHistRepo(t)
 	base := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
 	writeFiles(t, h.proj, map[string]string{"top.txt": "full\n", "docs/readme.md": "v1\n", "docs/sub/x.txt": "x\n"})
-	backup(t, h.fx, "", histHost, base, "daily", h.proj)
+	backup(t, h.fx, "", histHost, base, "daily", h.fx.Root)
 
 	docs := filepath.Join(h.proj, "docs")
 	sub := filepath.Join(docs, "sub")
