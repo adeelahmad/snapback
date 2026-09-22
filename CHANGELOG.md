@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.0](https://github.com/adeelahmad/snapback/compare/v1.2.0...v1.3.0) (2026-09-22)
+
+### Features
+
+* add google analytics to site and docs ([#4](https://github.com/adeelahmad/snapback/issues/4)) ([1eac08d](https://github.com/adeelahmad/snapback/commit/1eac08dce885ba9901558084917daa3eaf5f8a32))
+
 ## [1.2.0](https://github.com/adeelahmad/snapback/compare/v1.1.1...v1.2.0) (2026-09-22)
 
 ### Features
