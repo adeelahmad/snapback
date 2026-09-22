@@ -5,6 +5,7 @@ package acceptance
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -93,7 +94,24 @@ func (e env) environ() []string {
 
 func runSnapback(t *testing.T, e env, args ...string) (stdout, stderr string, code int) {
 	t.Helper()
-	cmd := exec.CommandContext(t.Context(), snapbackBin, args...)
+	return runSnapbackCtx(t.Context(), t, e, args...)
+}
+
+// cleanupCmdCap bounds a command run from a cleanup function.
+const cleanupCmdCap = 30 * time.Second
+
+// cleanupContext returns a live context for commands a cleanup function runs,
+// because Go cancels t.Context before the cleanup functions run. The caller
+// cancels it.
+func cleanupContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), cleanupCmdCap)
+}
+
+// runSnapbackCtx runs the binary under ctx. Callers inside t.Cleanup pass a
+// context from cleanupContext, not t.Context.
+func runSnapbackCtx(ctx context.Context, t *testing.T, e env, args ...string) (stdout, stderr string, code int) {
+	t.Helper()
+	cmd := exec.CommandContext(ctx, snapbackBin, args...)
 	cmd.Env = e.environ()
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb

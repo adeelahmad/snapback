@@ -3,6 +3,7 @@
 package acceptance
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -120,7 +121,14 @@ func logUserService(t *testing.T, e env) {
 
 func systemctlUser(t *testing.T, e env, args ...string) error {
 	t.Helper()
-	cmd := exec.CommandContext(t.Context(), "systemctl", append([]string{"--user"}, args...)...)
+	return systemctlUserCtx(t.Context(), t, e, args...)
+}
+
+// systemctlUserCtx runs systemctl --user under ctx. Callers inside t.Cleanup
+// pass a context from cleanupContext, not t.Context.
+func systemctlUserCtx(ctx context.Context, t *testing.T, e env, args ...string) error {
+	t.Helper()
+	cmd := exec.CommandContext(ctx, "systemctl", append([]string{"--user"}, args...)...)
 	cmd.Env = e.environ()
 	return cmd.Run()
 }
@@ -142,9 +150,11 @@ func TestAcc17SystemdUserUnitVisibleAndClean(t *testing.T) {
 		// Diagnostics first: uninstall removes the unit, after which
 		// systemctl and journalctl only report "no such unit".
 		logUserService(t, e)
-		_, _, _ = runSnapback(t, e, "service", "uninstall")
+		ctx, cancel := cleanupContext()
+		defer cancel()
+		_, _, _ = runSnapbackCtx(ctx, t, e, "service", "uninstall")
 		_ = os.Remove(filepath.Join(e.Config, "systemd", "user", "snapback.service"))
-		_ = systemctlUser(t, e, "daemon-reload")
+		_ = systemctlUserCtx(ctx, t, e, "daemon-reload")
 	})
 
 	if _, stderr, code := runSnapback(t, e, "install", "service", "--scope", "user"); code != 0 {
