@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/resolver"
 )
 
 var hexKey = regexp.MustCompile(`^[0-9a-f]{32}$`)
@@ -20,7 +21,7 @@ func newPlaceFixture(t *testing.T) (pol Policy, r, h string) {
 	pol = Policy{
 		LinkName:     ".snapshot",
 		HistoryMount: h,
-		Roots:        []resolverRootSpec{{ID: "home", LocalPath: r}},
+		Roots:        []resolver.RootSpec{{ID: "home", LocalPath: r}},
 		Excluded:     []string{filepath.Join(r, "state")},
 	}
 	return pol, r, h
@@ -35,7 +36,7 @@ func TestPlaceComputesTarget(t *testing.T) {
 		t.Fatalf("place(%q) error = %v, want nil", dir, err)
 	}
 
-	wantKey := resolverDirectoryKey("home", "docs/proj")
+	wantKey := resolver.DirectoryKey("home", "docs/proj")
 	if got.rootID != "home" {
 		t.Errorf("place(%q).rootID = %q, want %q", dir, got.rootID, "home")
 	}
@@ -91,7 +92,7 @@ func TestPlaceRefusesExcludedPaths(t *testing.T) {
 	pol, r, h := newPlaceFixture(t)
 	inner := filepath.Join(h, "inner")
 	withInner := pol
-	withInner.Roots = append([]resolverRootSpec{{ID: "inner", LocalPath: inner}}, pol.Roots...)
+	withInner.Roots = append([]resolver.RootSpec{{ID: "inner", LocalPath: inner}}, pol.Roots...)
 
 	tests := []struct {
 		name string
