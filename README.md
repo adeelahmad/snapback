@@ -29,3 +29,15 @@ curl -fsSL https://snapback.example.com/install.sh | sh
 The domain above is a placeholder; the real install URL will be announced with the first release. Snapback targets Linux and macOS, requires the `restic` CLI and FUSE (macFUSE on macOS), and `snapback doctor` will explain anything missing.
 
 The planned onboarding is three commands: `snapback config`, `snapback web` and `snapback install service`.
+
+## Prior art and credit
+
+Snapback stands on the shoulders of [httm](https://github.com/kimono-koans/httm) by kimono-koans, released under the MPL-2.0 license. httm showed how pleasant it is to browse and restore past versions of a file right from where it lives, and Snapback's in-directory `.snapshot` idea owes a great deal to it.
+
+## Documentation
+
+- [SPEC.md](SPEC.md): the product specification.
+- [ARCHITECTURE.md](ARCHITECTURE.md): how the code is organised.
+- [CONTRIBUTING.md](CONTRIBUTING.md): how to build, test and send changes.
+- [SECURITY.md](SECURITY.md): how to report a vulnerability.
+- Docs site: https://adeelahmad.github.io/snapback/
