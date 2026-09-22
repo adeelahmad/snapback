@@ -181,3 +181,26 @@ func TestFileReadFiresOneReadEvent(t *testing.T) {
 		t.Errorf("events after one Read = %+v, want exactly [%+v]", got, want)
 	}
 }
+
+func TestFileNodeServesCurrentGenerationAfterPublish(t *testing.T) {
+	const infoJSON2 = `{"state":"refreshed"}`
+	gen1 := buildGen(t, nil, projection.Spec{Files: []projection.File{{Name: "info.json", Data: []byte(infoJSON)}}})
+	gen2 := buildGen(t, gen1, projection.Spec{Files: []projection.File{{Name: "info.json", Data: []byte(infoJSON2)}}})
+	ino1, _ := catalogPath(t, gen1, "info.json")
+	ino2, _ := catalogPath(t, gen2, "info.json")
+	if ino1 != ino2 {
+		t.Fatalf("info.json inode = %d in gen1, %d in gen2, want equal", ino1, ino2)
+	}
+	a := NewAdapter(&recorder{})
+	root := attachedRoot(t, a, gen1)
+	n := lookupNode(t, root, "info.json").Operations()
+	if got := string(readAt(t, n, 64, 0)); got != infoJSON {
+		t.Fatalf("Read(64, 0) before Publish(gen2) = %q, want %q", got, infoJSON)
+	}
+
+	a.Publish(gen2)
+
+	if got := string(readAt(t, n, 64, 0)); got != infoJSON2 {
+		t.Errorf("Read(64, 0) on same node after Publish(gen2) = %q, want %q", got, infoJSON2)
+	}
+}
