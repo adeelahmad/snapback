@@ -84,6 +84,10 @@ var allowedFontFamilies = []string{
 	"var(--font-sans)", "var(--font-mono)", "var(--font-mono-display)", "inherit",
 }
 
+// surfaceOnlyTextTokens are text tokens only ever placed on --surface, so
+// their contrast is checked against --surface alone.
+var surfaceOnlyTextTokens = []string{"--yellow-text"}
+
 // minTextContrast is the WCAG AA contrast ratio for normal text.
 const minTextContrast = 4.5
 
@@ -224,10 +228,14 @@ func TestAppCSSTextColoursAllowed(t *testing.T) {
 	colours := 0
 	for _, r := range rules {
 		usesOnAccent := false
+		usesYellowText := false
 		background := ""
 		for _, d := range r.decls {
 			if strings.Contains(d.value, "var(--on-accent)") {
 				usesOnAccent = true
+			}
+			if strings.Contains(d.value, "var(--yellow-text)") {
+				usesYellowText = true
 			}
 			if d.prop == "background" || d.prop == "background-color" {
 				background = d.value
@@ -242,6 +250,9 @@ func TestAppCSSTextColoursAllowed(t *testing.T) {
 		}
 		if usesOnAccent && background != "var(--accent)" {
 			t.Errorf("app.css %s uses var(--on-accent) with background %q, want background var(--accent)", r.selector, background)
+		}
+		if usesYellowText && background != "var(--surface)" {
+			t.Errorf("app.css %s uses var(--yellow-text) with background %q, want background var(--surface)", r.selector, background)
 		}
 	}
 	if colours == 0 {
@@ -272,7 +283,10 @@ func TestTextTokenContrast(t *testing.T) {
 		type pair struct{ fg, bg string }
 		var pairs []pair
 		for _, fg := range textTokens {
-			pairs = append(pairs, pair{fg, "--surface"}, pair{fg, "--canvas"})
+			pairs = append(pairs, pair{fg, "--surface"})
+			if !slices.Contains(surfaceOnlyTextTokens, fg) {
+				pairs = append(pairs, pair{fg, "--canvas"})
+			}
 		}
 		pairs = append(pairs, pair{"--on-accent", "--accent"})
 		for _, p := range pairs {
