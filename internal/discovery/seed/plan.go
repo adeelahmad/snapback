@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/pathutil"
 )
 
 // Plan is the ordered set of directories a seed run would create links in.
@@ -35,7 +36,7 @@ func PlanPath(root, seedPath string, maxDepth int, excludes []string) (Plan, err
 			start = filepath.Join(root, start)
 		}
 		start = filepath.Clean(start)
-		if !within(start, root) {
+		if !pathutil.Under(root, start) {
 			return Plan{}, errcode.New(errcode.InvalidConfig, "seed.PlanPath", fmt.Errorf("seed path %q is outside root %q", seedPath, root))
 		}
 	}
@@ -74,7 +75,7 @@ func PlanPath(root, seedPath string, maxDepth int, excludes []string) (Plan, err
 // excluded reports whether dir lies outside root or matches DefaultExcludes
 // or excludes (root-relative or absolute paths).
 func excluded(root, dir string, excludes []string) bool {
-	if !within(dir, root) {
+	if !pathutil.Under(root, dir) {
 		return true
 	}
 	rel, err := filepath.Rel(root, dir)
@@ -84,7 +85,7 @@ func excluded(root, dir string, excludes []string) bool {
 	parts := strings.Split(rel, string(filepath.Separator))
 	for _, d := range DefaultExcludes {
 		if strings.ContainsRune(d, filepath.Separator) {
-			if within(rel, d) {
+			if pathutil.Under(filepath.Join(root, d), dir) {
 				return true
 			}
 		} else if slices.Contains(parts, d) {
@@ -95,14 +96,9 @@ func excluded(root, dir string, excludes []string) bool {
 		if !filepath.IsAbs(x) {
 			x = filepath.Join(root, x)
 		}
-		if within(dir, filepath.Clean(x)) {
+		if pathutil.Under(filepath.Clean(x), dir) {
 			return true
 		}
 	}
 	return false
-}
-
-// within reports whether path equals base or lies below it, component-wise.
-func within(path, base string) bool {
-	return path == base || strings.HasPrefix(path, base+string(filepath.Separator))
 }

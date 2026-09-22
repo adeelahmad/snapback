@@ -11,6 +11,7 @@ const (
 	resolverPkg = "github.com/adeelahmad/snapback/internal/resolver"
 	rawpathPkg  = "github.com/adeelahmad/snapback/internal/rawpath"
 	providerPkg = "github.com/adeelahmad/snapback/internal/provider"
+	pathutilPkg = "github.com/adeelahmad/snapback/internal/pathutil"
 )
 
 // goList runs "go list" with args and returns the non-empty output lines.
@@ -40,7 +41,7 @@ func TestDepsPureNoFilesystem(t *testing.T) {
 		pkg           string
 		allowedNonStd []string
 	}{
-		{pkg: resolverPkg, allowedNonStd: []string{providerPkg}},
+		{pkg: resolverPkg, allowedNonStd: []string{providerPkg, pathutilPkg}},
 		{pkg: rawpathPkg},
 	}
 	for _, tt := range tests {

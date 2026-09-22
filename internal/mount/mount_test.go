@@ -137,7 +137,9 @@ func TestOpString(t *testing.T) {
 		{OpLookup, "lookup"},
 		{OpReadDir, "readdir"},
 		{OpReadlink, "readlink"},
+		{OpRead, "read"},
 		{Op(0), "unknown"},
+		{Op(99), "unknown"},
 		{Op(255), "unknown"},
 	}
 	for _, c := range cases {
@@ -145,7 +147,7 @@ func TestOpString(t *testing.T) {
 			t.Errorf("Op(%d).String() = %q, want %q", uint8(c.op), got, c.want)
 		}
 	}
-	valid := []Op{OpLookup, OpReadDir, OpReadlink}
+	valid := []Op{OpLookup, OpReadDir, OpReadlink, OpRead}
 	for i, a := range valid {
 		if a == 0 {
 			t.Errorf("valid op #%d is zero", i)
@@ -165,8 +167,19 @@ func TestKindAndRootConstants(t *testing.T) {
 	if KindSymlink != 2 {
 		t.Errorf("KindSymlink = %d, want 2", KindSymlink)
 	}
-	if KindDir == 0 || KindSymlink == 0 || KindDir == KindSymlink {
-		t.Errorf("kinds must be distinct and non-zero: KindDir=%d KindSymlink=%d", KindDir, KindSymlink)
+	if KindFile != 3 {
+		t.Errorf("KindFile = %d, want 3", KindFile)
+	}
+	kinds := []Kind{KindDir, KindSymlink, KindFile}
+	for i, a := range kinds {
+		if a == 0 {
+			t.Errorf("kind #%d is zero, want non-zero", i)
+		}
+		for _, b := range kinds[i+1:] {
+			if a == b {
+				t.Errorf("kinds are not distinct: %d == %d", a, b)
+			}
+		}
 	}
 	if RootIno != 1 {
 		t.Errorf("RootIno = %d, want 1", RootIno)
@@ -174,7 +187,7 @@ func TestKindAndRootConstants(t *testing.T) {
 }
 
 type fakeNode struct {
-	isDir    bool
+	kind     Kind
 	children map[string]uint64
 	target   string
 }
@@ -185,27 +198,27 @@ type fakeCatalog struct {
 
 func newFakeCatalog() fakeCatalog {
 	return fakeCatalog{nodes: map[uint64]fakeNode{
-		RootIno: {isDir: true, children: map[string]uint64{"docs": 2, "link": 3}},
-		2:       {isDir: true, children: map[string]uint64{}},
-		3:       {target: "../x"},
+		RootIno: {kind: KindDir, children: map[string]uint64{"docs": 2, "link": 3}},
+		2:       {kind: KindDir, children: map[string]uint64{}},
+		3:       {kind: KindSymlink, target: "../x"},
 	}}
 }
 
-func (c fakeCatalog) Lookup(parent uint64, name string) (ino uint64, isDir bool, found bool) {
+func (c fakeCatalog) Lookup(parent uint64, name string) (ino uint64, kind Kind, found bool) {
 	p, ok := c.nodes[parent]
-	if !ok || !p.isDir {
-		return 0, false, false
+	if !ok || p.kind != KindDir {
+		return 0, 0, false
 	}
 	ino, ok = p.children[name]
 	if !ok {
-		return 0, false, false
+		return 0, 0, false
 	}
-	return ino, c.nodes[ino].isDir, true
+	return ino, c.nodes[ino].kind, true
 }
 
 func (c fakeCatalog) ReadDir(dir uint64) (names []string, found bool) {
 	n, ok := c.nodes[dir]
-	if !ok || !n.isDir {
+	if !ok || n.kind != KindDir {
 		return nil, false
 	}
 	names = make([]string, 0, len(n.children))
@@ -218,10 +231,18 @@ func (c fakeCatalog) ReadDir(dir uint64) (names []string, found bool) {
 
 func (c fakeCatalog) Readlink(ino uint64) (target string, found bool) {
 	n, ok := c.nodes[ino]
-	if !ok || n.isDir {
+	if !ok || n.kind != KindSymlink {
 		return "", false
 	}
 	return n.target, true
+}
+
+func (c fakeCatalog) ReadFile(ino uint64) (data []byte, found bool) {
+	n, ok := c.nodes[ino]
+	if !ok || n.kind != KindFile {
+		return nil, false
+	}
+	return []byte(n.target), true
 }
 
 type fakeAdapter struct {
@@ -247,20 +268,53 @@ func (o recordingObserver) Observe(ev Event) {
 	*o.events = append(*o.events, ev)
 }
 
+type recordingGate struct {
+	seen  *[]Event
+	allow bool
+}
+
+func (g recordingGate) Allow(ev Event) bool {
+	*g.seen = append(*g.seen, ev)
+	return g.allow
+}
+
+type fakePublisher struct {
+	published *[]Catalog
+}
+
+func (p fakePublisher) Publish(cat Catalog) {
+	*p.published = append(*p.published, cat)
+}
+
 var (
-	_ Catalog  = fakeCatalog{}
-	_ Adapter  = fakeAdapter{}
-	_ Observer = recordingObserver{}
+	_ Catalog   = fakeCatalog{}
+	_ Adapter   = fakeAdapter{}
+	_ Observer  = recordingObserver{}
+	_ Gate      = recordingGate{}
+	_ Publisher = fakePublisher{}
 )
 
 func TestFakesSatisfyInterfaces(t *testing.T) {
 	var cat Catalog = newFakeCatalog()
 
-	if ino, isDir, found := cat.Lookup(RootIno, "docs"); ino != 2 || !isDir || !found {
-		t.Errorf("Lookup(root, docs) = (%d,%v,%v), want (2,true,true)", ino, isDir, found)
+	lookups := []struct {
+		name      string
+		wantIno   uint64
+		wantKind  Kind
+		wantFound bool
+	}{
+		{"docs", 2, KindDir, true},
+		{"link", 3, KindSymlink, true},
+		{"nope", 0, 0, false},
 	}
-	if ino, isDir, found := cat.Lookup(RootIno, "nope"); ino != 0 || isDir || found {
-		t.Errorf("Lookup(root, nope) = (%d,%v,%v), want (0,false,false)", ino, isDir, found)
+	for _, l := range lookups {
+		ino, kind, found := cat.Lookup(RootIno, l.name)
+		if ino != l.wantIno || kind != l.wantKind || found != l.wantFound {
+			t.Errorf("Lookup(root, %q) = (%d, %d, %v), want (%d, %d, %v)", l.name, ino, kind, found, l.wantIno, l.wantKind, l.wantFound)
+		}
+	}
+	if data, found := cat.ReadFile(2); data != nil || found {
+		t.Errorf("ReadFile(2) = (%q, %v), want (nil, false)", data, found)
 	}
 	names, found := cat.ReadDir(RootIno)
 	if !found || !slices.Equal(names, []string{"docs", "link"}) {
@@ -293,5 +347,38 @@ func TestFakesSatisfyInterfaces(t *testing.T) {
 	obs.Observe(sent)
 	if len(events) != 1 || events[0] != sent {
 		t.Errorf("observer recorded %+v, want exactly [%+v]", events, sent)
+	}
+
+	var seen []Event
+	var gate Gate = recordingGate{seen: &seen, allow: true}
+	if !gate.Allow(sent) {
+		t.Errorf("Gate.Allow(%+v) = false, want true", sent)
+	}
+	if len(seen) != 1 || seen[0] != sent {
+		t.Errorf("gate recorded %+v, want exactly [%+v]", seen, sent)
+	}
+
+	var published []Catalog
+	var pub Publisher = fakePublisher{published: &published}
+	pub.Publish(cat)
+	if len(published) != 1 {
+		t.Errorf("publisher recorded %d catalogs, want 1", len(published))
+	}
+}
+
+func TestEventCarriesPID(t *testing.T) {
+	in := Event{Op: OpLookup, Path: "a/b", PID: 4242}
+	var seen []Event
+	var gate Gate = recordingGate{seen: &seen, allow: true}
+	gate.Allow(in)
+	if len(seen) != 1 {
+		t.Fatalf("gate recorded %d events, want 1", len(seen))
+	}
+	if got := seen[0]; got.Op != in.Op || got.Path != in.Path || got.PID != in.PID {
+		t.Errorf("gate recorded %+v, want %+v", got, in)
+	}
+	noPID := Event{Op: OpReadDir, Path: "a"}
+	if noPID.PID != 0 {
+		t.Errorf("Event{Op, Path}.PID = %d, want 0", noPID.PID)
 	}
 }

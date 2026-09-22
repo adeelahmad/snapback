@@ -6,13 +6,14 @@ import (
 	"testing"
 )
 
-// TestGenerationSatisfiesCatalogContract pins the S2-01 mount.Catalog shape
+// TestGenerationSatisfiesCatalogContract pins the S3-05 mount.Catalog shape
 // structurally (without importing mount) and the read-only exported surface.
 func TestGenerationSatisfiesCatalogContract(t *testing.T) {
 	type catalog interface {
-		Lookup(parent uint64, name string) (ino uint64, isDir bool, found bool)
+		Lookup(parent uint64, name string) (ino uint64, kind uint8, found bool)
 		ReadDir(dir uint64) (names []string, found bool)
 		Readlink(ino uint64) (target string, found bool)
+		ReadFile(ino uint64) (data []byte, found bool)
 	}
 	var _ catalog = (*Generation)(nil)
 
@@ -26,9 +27,9 @@ func TestGenerationSatisfiesCatalogContract(t *testing.T) {
 		t.Fatalf("ReadDir(RootIno) = %q, want it to contain \"snapshots\"", rootNames)
 	}
 
-	snapshotsIno, isDir, found := c.Lookup(RootIno, "snapshots")
-	if !found || !isDir {
-		t.Fatalf("Lookup(RootIno, \"snapshots\") = (%d, isDir=%v, found=%v), want a found directory", snapshotsIno, isDir, found)
+	snapshotsIno, kind, found := c.Lookup(RootIno, "snapshots")
+	if !found || kind != kindDir {
+		t.Fatalf("Lookup(RootIno, \"snapshots\") = (%d, %d, %v), want (_, %d, true)", snapshotsIno, kind, found, kindDir)
 	}
 	ids, found := c.ReadDir(snapshotsIno)
 	if !found || !slices.Equal(ids, []string{fullID}) {
@@ -38,13 +39,16 @@ func TestGenerationSatisfiesCatalogContract(t *testing.T) {
 		t.Fatalf("snapshot entry length = %d, want 64", len(ids[0]))
 	}
 
-	linkIno, isDir, found := c.Lookup(snapshotsIno, fullID)
-	if !found || isDir {
-		t.Fatalf("Lookup(snapshots, fullID) = (%d, isDir=%v, found=%v), want a found symlink", linkIno, isDir, found)
+	linkIno, kind, found := c.Lookup(snapshotsIno, fullID)
+	if !found || kind != kindSymlink {
+		t.Fatalf("Lookup(snapshots, fullID) = (%d, %d, %v), want (_, %d, true)", linkIno, kind, found, kindSymlink)
 	}
 	target, found := c.Readlink(linkIno)
 	if !found || target != "../ids/"+fullID {
 		t.Fatalf("Readlink(%d) = (%q, %v), want (%q, true)", linkIno, target, found, "../ids/"+fullID)
+	}
+	if data, found := c.ReadFile(linkIno); data != nil || found {
+		t.Fatalf("ReadFile(%d) = (%q, %v), want (nil, false)", linkIno, data, found)
 	}
 
 	typ := reflect.TypeOf((*Generation)(nil))
@@ -52,7 +56,7 @@ func TestGenerationSatisfiesCatalogContract(t *testing.T) {
 	for i := range typ.NumMethod() {
 		methods = append(methods, typ.Method(i).Name)
 	}
-	want := []string{"Lookup", "ReadDir", "Readlink"}
+	want := []string{"Lookup", "ReadDir", "ReadFile", "Readlink"}
 	if !slices.Equal(methods, want) {
 		t.Errorf("exported methods of *Generation = %q, want exactly %q (read-only surface)", methods, want)
 	}

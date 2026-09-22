@@ -22,7 +22,7 @@ func buildFixtureGen(t *testing.T) *projection.Generation {
 	return gen
 }
 
-func lookupViaCatalog(cat mount.Catalog, parent uint64, name string) (ino uint64, isDir, found bool) {
+func lookupViaCatalog(cat mount.Catalog, parent uint64, name string) (ino uint64, kind mount.Kind, found bool) {
 	return cat.Lookup(parent, name)
 }
 
@@ -39,12 +39,12 @@ func TestAdapterSatisfiesMountAdapter(t *testing.T) {
 
 func TestProjectionGenerationSatisfiesMountCatalog(t *testing.T) {
 	gen := buildFixtureGen(t)
-	ino, isDir, found := lookupViaCatalog(gen, mount.RootIno, "docs")
+	ino, kind, found := lookupViaCatalog(gen, mount.RootIno, "docs")
 	if !found {
 		t.Fatal(`Catalog.Lookup(root, "docs") found = false, want true`)
 	}
-	if !isDir {
-		t.Error(`Catalog.Lookup(root, "docs") isDir = false, want true`)
+	if kind != mount.KindDir {
+		t.Errorf(`Catalog.Lookup(root, "docs") kind = %d, want %d`, kind, mount.KindDir)
 	}
 	if ino == 0 || ino == mount.RootIno {
 		t.Errorf(`Catalog.Lookup(root, "docs") ino = %d, want a non-zero, non-root inode`, ino)

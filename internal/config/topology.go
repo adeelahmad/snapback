@@ -5,24 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-)
 
-// within reports whether child is parent or lies below it, comparing
-// cleaned paths component by component rather than by string prefix.
-func within(parent, child string) bool {
-	p, c := filepath.Clean(parent), filepath.Clean(child)
-	if p == c {
-		return true
-	}
-	if !strings.HasSuffix(p, string(filepath.Separator)) {
-		p += string(filepath.Separator)
-	}
-	return strings.HasPrefix(c, p)
-}
+	"github.com/adeelahmad/snapback/internal/pathutil"
+)
 
 // overlaps reports whether a and b are equal or one contains the other.
 func overlaps(a, b string) bool {
-	return within(a, b) || within(b, a)
+	return pathutil.Under(a, b) || pathutil.Under(b, a)
 }
 
 // localStorage returns the local directory of a repository and whether it
@@ -43,7 +32,7 @@ func checkTopology(c *Config) []FieldError {
 	}
 	for _, m := range mounts {
 		for i, r := range c.Roots {
-			if within(m.dir, r.LocalPath) {
+			if pathutil.Under(m.dir, r.LocalPath) {
 				errs = append(errs, FieldError{Path: m.path, Msg: fmt.Sprintf("must not be at or above roots[%d].local_path", i)})
 			}
 		}
@@ -52,7 +41,7 @@ func checkTopology(c *Config) []FieldError {
 				errs = append(errs, FieldError{Path: m.path, Msg: fmt.Sprintf("must not overlap repositories[%d].repository", i)})
 			}
 		}
-		if within(m.dir, c.StateDir) {
+		if pathutil.Under(m.dir, c.StateDir) {
 			errs = append(errs, FieldError{Path: "state_dir", Msg: fmt.Sprintf("must not be inside %s", m.path)})
 		}
 	}
