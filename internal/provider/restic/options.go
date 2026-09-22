@@ -3,8 +3,15 @@ package restic
 
 import (
 	"context"
+	"errors"
 	"os"
+	"path/filepath"
+	"runtime"
+	"slices"
 )
+
+// reservedEnv lists child variables that Options.Env may not set.
+var reservedEnv = []string{"PATH", "RESTIC_REPOSITORY", "RESTIC_PASSWORD", "RESTIC_PASSWORD_COMMAND"}
 
 // Options configures a restic-backed provider.
 type Options struct {
@@ -37,17 +44,66 @@ type Provider struct {
 
 // New validates opts and returns a restic-backed provider.
 func New(opts Options) (*Provider, error) {
-	panic("SUB-AGENT-TODO: validate per tasks.md decisions (Binary, PasswordFile absolute; RcloneBinary, CacheDir absolute when set; Repository non-empty; not CacheDir with NoCache; Env may not set PATH, RESTIC_REPOSITORY, RESTIC_PASSWORD, RESTIC_PASSWORD_COMMAND; errors never contain the repository); nil Runner becomes ExecRunner{}; lstat defaults to os.Lstat, goos to runtime.GOOS")
+	switch {
+	case !filepath.IsAbs(opts.Binary):
+		return nil, errors.New("restic: binary must be an absolute path")
+	case opts.Repository == "":
+		return nil, errors.New("restic: repository is required")
+	case !filepath.IsAbs(opts.PasswordFile):
+		return nil, errors.New("restic: password file must be an absolute path")
+	case opts.RcloneBinary != "" && !filepath.IsAbs(opts.RcloneBinary):
+		return nil, errors.New("restic: rclone binary must be an absolute path")
+	case opts.CacheDir != "" && !filepath.IsAbs(opts.CacheDir):
+		return nil, errors.New("restic: cache dir must be an absolute path")
+	case opts.CacheDir != "" && opts.NoCache:
+		return nil, errors.New("restic: cache dir and no cache are mutually exclusive")
+	}
+	for _, k := range reservedEnv {
+		if _, ok := opts.Env[k]; ok {
+			return nil, errors.New("restic: env may not set " + k)
+		}
+	}
+	runner := opts.Runner
+	if runner == nil {
+		runner = ExecRunner{}
+	}
+	return &Provider{opts: opts, runner: runner, lstat: os.Lstat, goos: runtime.GOOS}, nil
 }
 
 func (p *Provider) globalArgs() []string {
-	panic("SUB-AGENT-TODO: --password-file <PasswordFile>, then --cache-dir <CacheDir> when set or --no-cache when NoCache, then --no-lock when NoLock")
+	args := []string{"--password-file", p.opts.PasswordFile}
+	if p.opts.CacheDir != "" {
+		args = append(args, "--cache-dir", p.opts.CacheDir)
+	} else if p.opts.NoCache {
+		args = append(args, "--no-cache")
+	}
+	if p.opts.NoLock {
+		args = append(args, "--no-lock")
+	}
+	return args
 }
 
 func (p *Provider) childEnv() []string {
-	panic("SUB-AGENT-TODO: sorted K=V list of Env entries, HOME from the process only when non-empty, PATH=<dir(RcloneBinary)>:/usr/bin:/bin (or /usr/bin:/bin), RESTIC_REPOSITORY=<repo>; never os.Environ()")
+	env := make([]string, 0, len(p.opts.Env)+3)
+	for k, v := range p.opts.Env {
+		env = append(env, k+"="+v)
+	}
+	if home := os.Getenv("HOME"); home != "" {
+		env = append(env, "HOME="+home)
+	}
+	path := "/usr/bin:/bin"
+	if p.opts.RcloneBinary != "" {
+		path = filepath.Dir(p.opts.RcloneBinary) + ":" + path
+	}
+	env = append(env, "PATH="+path, "RESTIC_REPOSITORY="+p.opts.Repository)
+	slices.Sort(env)
+	return env
 }
 
 func (p *Provider) secrets() []string {
-	panic("SUB-AGENT-TODO: the repository plus every Env value, for classify redaction")
+	s := []string{p.opts.Repository}
+	for _, v := range p.opts.Env {
+		s = append(s, v)
+	}
+	return s
 }

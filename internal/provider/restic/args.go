@@ -1,23 +1,38 @@
 package restic
 
-import "github.com/adeelahmad/snapback/internal/provider"
+import (
+	"slices"
+
+	"github.com/adeelahmad/snapback/internal/provider"
+)
 
 func (p *Provider) validateArgs() []string {
-	panic("SUB-AGENT-TODO: globalArgs() + cat config --json")
+	return append(p.globalArgs(), "cat", "config", "--json")
 }
 
 func (p *Provider) listArgs() []string {
-	panic("SUB-AGENT-TODO: globalArgs() + snapshots --json")
+	return append(p.globalArgs(), "snapshots", "--json")
 }
 
 func (p *Provider) mountArgs(dir string) []string {
-	panic("SUB-AGENT-TODO: globalArgs() + mount --path-template ids/%I <dir>")
+	return append(p.globalArgs(), "mount", "--path-template", "ids/%I", dir)
 }
 
 func (p *Provider) lsArgs(id provider.SnapshotID) []string {
-	panic("SUB-AGENT-TODO: globalArgs() + ls --json <id>")
+	return append(p.globalArgs(), "ls", "--json", string(id))
 }
 
 func (p *Provider) snapArgs(req provider.SnapRequest) []string {
-	panic("SUB-AGENT-TODO: globalArgs() without --no-lock + backup --json --host <Host> --tag snapback:adhoc [--tag T]... (snapback:adhoc deduped) [--exclude E]... -- <Path>")
+	// Backup needs its non-exclusive lock, so --no-lock is never passed.
+	args := slices.DeleteFunc(p.globalArgs(), func(a string) bool { return a == "--no-lock" })
+	args = append(args, "backup", "--json", "--host", req.Host, "--tag", "snapback:adhoc")
+	for _, t := range req.Tags {
+		if t != "snapback:adhoc" {
+			args = append(args, "--tag", t)
+		}
+	}
+	for _, e := range req.Excludes {
+		args = append(args, "--exclude", e)
+	}
+	return append(args, "--", req.Path)
 }
