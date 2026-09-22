@@ -13,7 +13,16 @@ type SnapshotID string
 
 // Valid reports whether id is exactly 64 lowercase hex characters.
 func (id SnapshotID) Valid() bool {
-	panic("SUB-AGENT-TODO: return true only when len(id) == 64 and every byte is 0-9 or a-f")
+	if len(id) != 64 {
+		return false
+	}
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 // Snapshot is one snapshot's metadata as listed by the repository.
@@ -44,7 +53,16 @@ const (
 
 // String returns dir, not_dir, absent, or unknown.
 func (r ProbeResult) String() string {
-	panic("SUB-AGENT-TODO: switch r: ProbeDir->\"dir\", ProbeNotDir->\"not_dir\", ProbeAbsent->\"absent\", default->\"unknown\"")
+	switch r {
+	case ProbeDir:
+		return "dir"
+	case ProbeNotDir:
+		return "not_dir"
+	case ProbeAbsent:
+		return "absent"
+	default:
+		return "unknown"
+	}
 }
 
 // SnapRequest describes an ad-hoc snapshot of one path.
