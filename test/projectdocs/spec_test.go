@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	specSHA256    = "6bc35dadf698271b23790db43d2b521859d724081fae39dd1e281726e0fafe28"
-	specSize      = 64847
+	specSHA256    = "d345ca5535ef4d5c3675df6f764551a4e75e10e77c1bdb1e51e48fac2d2b03b5"
+	specSize      = 68524
 	specFirstLine = "# Snapback — Implementation Specification"
 )
 
@@ -25,7 +25,7 @@ func sha256Hex(s string) string {
 func TestSpecHashMatchesStage0Readme(t *testing.T) {
 	spec := readDoc(t, "SPEC.md")
 	if got := sha256Hex(spec); got != specSHA256 {
-		t.Fatalf("SPEC.md sha256 = %s, want %s: spec altered; restore from git show e13192d:README.md", got, specSHA256)
+		t.Fatalf("SPEC.md sha256 = %s, want %s: spec altered; update this pin only for a reviewed spec revision", got, specSHA256)
 	}
 }
 

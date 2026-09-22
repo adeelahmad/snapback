@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" role="img" aria-label="snapback">
+<style>
+.blk{fill:#1e7e43}.lin{stroke:#202124}
+@media (prefers-color-scheme:dark){.blk{fill:#1e7e43}.lin{stroke:#e8eaed}}
+</style>
+<rect x="11" y="2" width="3" height="3" fill="none" class="lin" stroke-width="1.4"/>
+<path d="M12.6 6.4 A 6.4 6.4 0 0 1 7.5 9.4" fill="none" class="lin" stroke-width="1.5"/>
+<rect x="1.5" y="9" width="6" height="6" class="blk"/></svg>

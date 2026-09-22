@@ -4,18 +4,18 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 14
-- **Stage:** 0 — Scaffolding (Sprint 1)
-- **Phase:** SPRINT 1 FINAL-GATE PASS (stage-0 @ e83ecd8). Awaiting human confirmation to push to GitHub for Stage 0 exit evidence (CI green on master, Pages deploys)
-- **Last gate:** GREEN on stage-0 @ e83ecd8 (01:18Z) after S1-08 merge: gofmt, goimports, build, vet, golangci-lint, test -race, cov 87.5%, govulncheck, actionlint, shellcheck, mkdocs --strict — all PASS
-- **Human gate pending:** YES — GitHub push (outward-facing) required for Stage 0 exit evidence
+- **Tick:** 43
+- **Stage:** 1 — Compatibility milestone (Sprint 2)
+- **Phase:** SPRINT 2 — all stories merged on stage-1 (ccbfbbe); FINAL GATE → commit-subject rewrite → promotion
+- **Last gate:** FINAL GATE GREEN on stage-1 @ af90d5d (after 2 fixes)
+- **Human gate pending:** latency go/no-go (numbers recorded tick 35)
 
 ## Stage table (README §22)
 
 | Stage | Scope | Exit evidence | Status | Evidence recorded |
 | --- | --- | --- | --- | --- |
-| 0. Scaffolding | Repository furniture, CI, lint, race tests, semantic release, docs site pipeline, installer script skeleton | Green CI on an empty binary; docs site deploys | implemented + locally gated (FINAL-GATE PASS @ e83ecd8); GitHub exit evidence NOT YET VERIFIED | local: full matrix green, 178/178 plan-ready ticked; GitHub CI/Pages: pending push |
-| 1. Compatibility milestone | Pin deps; disposable Restic repo; verify `--path-template ids/%I`; tiny FUSE catalog Linux+macOS; metadata fidelity; rclone/GDrive latency; crawler test | Numbers recorded in the report; go/no-go on latency | not started | — |
+| 0. Scaffolding | Repository furniture, CI, lint, race tests, semantic release, docs site pipeline, installer script skeleton | Green CI on an empty binary; docs site deploys | **DONE** | CI success on master (runs 35676441800, 35676870835); docs deployed, https://adeelahmad.github.io/snapback/ → HTTP/2 200; release v1.0.1 published with 7 archives + cosign-signed checksums.txt (run 35676870860). v1.0.0 exists without assets (first GoReleaser run failed; fixed by S1-06/fix2+fix3) |
+| 1. Compatibility milestone | Pin deps; disposable Restic repo; verify `--path-template ids/%I`; tiny FUSE catalog Linux+macOS; metadata fidelity; rclone/GDrive latency; crawler test | Numbers recorded in the report; go/no-go on latency | executing (Sprint 2) | — |
 | 2. Core vertical slice | Config, SnapshotProvider + Restic, resolver, private Restic mount, virtual catalog, `link`/`open`/`snap`, ownership registry | Acceptance 3–8, 10 on Linux | not started | — |
 | 3. Reliable background operation | Daemon, refresh, pre-warm, IPC, shell hooks, seeding + watcher + inode budget, reader policy, crash recovery, shutdown | Acceptance 1, 2, 9, 11–15 | not started | — |
 | 4. Web UI and services | Setup, Configuration, History, Status, Integrations; launchd/systemd/OpenRC; `install service`; packages + installer | Acceptance 16, 17; all channels publish from a tag | not started | — |
@@ -250,8 +250,246 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 12 | S1/final-gate | final-gate | spawned 01:18Z | — |
 | 13 | S1-03+S1-05+S1-07/review | structural-reviewer | passed — verdict CLEAN (ownership exact, S1-03↔S1-06 naming contract byte-identical, workflows least-privilege + pinned, no in-package dupes, no markers); gate FAIL = known _test.go false positive only. Ran 3m08s | — |
 | 14 | S1/final-gate | final-gate | PASS — full matrix green (cov 87.5%), 0 suppressions (6 t.Skip all plan-allowed tool-absent; only commitlint+goreleaser actually skip), 178/178 plan-ready [x], gate-final exit 0; GitHub-only DoD items NOT YET VERIFIED. Ran 4m57s | — |
+| 14 | GitHub push | orchestrator | human chose push+merge; master ff e13192d→9c3c2a6 pushed; Pages enabled (build_type workflow) | — |
+| 14 | GitHub runs | orchestrator | CI success; docs success (Pages 200); release: semantic-release published v1.0.0 (+chore(release) commit 4d44590), GoReleaser FAILED — `field formats not found in type config.Archive` (pinned v2.5.1 predates `formats`). Root cause: config never tool-validated (goreleaser absent locally — flagged risk). goreleaser 2.18.2 installed locally: `goreleaser check` validates config | fix task: S1-06/fix2 (bump pin to v2.18.2, fix: commit → v1.0.1 with assets) |
+| 14 | S1-06/fix2 | green-worker | ESCALATED (partial pass) — pin v2.5.1→v2.18.2 done (61a1906): goreleaser check PASS, TestGoreleaserCheck RUNS+PASS, actionlint clean; matrix red ONLY on TestChangelogSeededHeader — pre-existing on master: release commit 4d44590 ([skip ci], bot) rewrote CHANGELOG.md without title → master red locally, CI skipped. chain/s1-06-fix → 61a1906 | split → S1-06/fix3 (.releaserc changelogTitle + restore header) |
+| 14 | S1-06/fix3 | green-worker | passed — changelogTitle added + header restored; 34/34 release tests PASS; full matrix green | — |
+| 14 | fix2+fix3 push | orchestrator | master ff 4d44590→41722b6; local full gate GREEN incl. goreleaser check; pushed. CI/docs/release all SUCCESS; v1.0.1 published with all 7 contract-named archives + checksums.txt(.sig/.pem) | — |
+| 14 | STAGE 0 | orchestrator | EXIT EVIDENCE RECORDED — Stage 0 DONE (01:45Z) | — |
+| 15 | sprint2/retrospective | archivist | spawned 01:46Z | — |
+| 15 | sprint2/intake | intake | spawned 01:46Z | — |
+| 15 | sprint2/standards | standards | spawned 01:46Z | — |
+| 15 | sprint2/intake | intake | passed (gate-intake PASS); 4 blocking questions → human answered 01:57Z: remote gdrive:snapback-stage1; disposable restic repo on Drive allowed, DELETE afterwards; Linux proof = CI fuse3 mount test on ubuntu-latest + local macFUSE; latency go/no-go decided by human after seeing numbers | — |
+| 15 | sprint2/standards | standards | passed (gate-standards-cited PASS re-run); Stage 1 rules cited to SPEC §5/§7/§20/§22; integration-test gating (build tag + SNAPBACK_FUSE_TESTS / SNAPBACK_RCLONE_REMOTE, skip must name prerequisite) | — |
+| 15 | sprint2/retrospective | archivist | passed with plugin override — memory.md (13 role-tagged entries) md-db valid; gate-memory false BLOCK (validates whole docs/agents dir vs memory schema) | — |
+| 15 | sprint2/planner-stage1 | planner | spawned 01:57Z | — |
+| 15 | sprint2/planner-stage1 | planner | passed — md-db 0 errors (re-run); 9 stories, no owned-file overlap, gate matrix = standards.md. Planner questions: go-fuse v2.11.0, SNAPBACK_EVIDENCE_DIR, strict remote name, restic checksum → accepted under auto-approve; fd missing → orchestrator installed fd (brew); cgofuse fallback → ask human only if go-fuse fails on macFUSE | — |
+| 15 | sprint2/stage2/S2-01 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-02 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-03 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-04 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-05 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-06 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-07 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-08 | planner | spawned 02:03Z | — |
+| 16 | sprint2/stage2/S2-05 | planner | passed — gate-plan-shape exit 0 (re-run), 16 tests, 2 serial tasks; restic 0.19.0 amd64 SHA256 pinned from official SHA256SUMS. Q1 (if-no-files-found warn→error once evidence stories merge) → accepted, follow-up task queued after S2-03/04/06/07 merge; Q2 amd64-only → accepted | follow-up: S2-05 fix (evidence upload → error) |
+| 16 | sprint2/stage2/S2-08 | planner | passed — gate-plan-shape exit 0 (re-run), 34 tests, 6 tasks (T1-T4 parallel); no network in tests; real run = orchestrator command, human-gated. Q1: no gated integration test for S2-08 (decision: keep network out of tests; finalize planner amends stories.md). Q3: assumes S2-03 runner supports long-running mount + --cache-dir → finalize planner reconciles with S2-03 plan | — |
+| 16 | sprint2/stage2/S2-01 | planner | passed — gate-plan-shape exit 0 (re-run), 15 tests, 3 serial tasks. Binding Catalog signatures (builtin types; RootIno=1) relayed to S2-02 planner. Q2 names-only ReadDir accepted; Q3 dir-name mismatch (plan.md says s2-01-mount-seam) → finalize planner; Q4 placeholder imports accepted | — |
+| 16 | sprint2/stage2/S2-07 | planner | passed — gate-plan-shape exit 0 (re-run), 26 tests (24 unit + 2 gated), 5 tasks; measurement only (no reader policy). Q1 --hidden --no-ignore / -H -I worst-case flags accepted (recorded in JSON); Q4 fd now installed (brew) | — |
+| 16 | sprint2/stage2/S2-03 | planner | passed — gate-plan-shape exit 0 (re-run), 32 tests (31 unit + 1 gated), 7 tasks; Runner interface w/ long-running mount supervisor (satisfies S2-08 Q3). Q2 Linux evidence PENDING until CI artifact → accepted; Q3 leaked-mount check should match the test's temp path → finalize planner tightens; Q4 Destroy never touches rclone (S2-08 owns remote deletion) → confirmed; Q5 S2-05 installs fuse3 ✓ | — |
+| 16 | sprint2/stage2/S2-04 | planner | passed — gate-plan-shape exit 0 (re-run), 21 tests (20 unit + 1 real-mount), 4 tasks; explicit EROFS on every mutation interface; statfs reports read-only (accepted). Names follow S2-01's binding Catalog signatures | — |
+| 16 | sprint2/stage2/S2-06 | planner | gate-plan-shape exit 0, 26 tests; PLAN DEFECT: invented timestamp alias format `2006-01-02T15-04-05Z` vs SPEC §3 `YYYY-MM-DD_HHMMZ` → sent back (attempt 2). Q3 zero mtime tolerance accepted (widening = human) | targeted fix |
+| 16 | sprint2/stage2/S2-06 | planner | passed attempt 2 — alias format now SPEC §3 `2006-01-02_1504Z` (verified by grep), gate-plan-shape exit 0 | — |
+| 16 | sprint2/stage2/S2-02 | planner | passed — gate-plan-shape exit 0 (re-run), 18 tests, 6 serial tasks; binding Catalog signatures adopted; names fixed: projection.Build(Spec) (*Generation, error). Q1 empty/NUL symlink targets not rejected (beyond story) → logged tech debt | — |
+| 17 | sprint2/stage2/S2-09+finalize | planner | spawned 02:08Z | — |
+| 17 | user question | orchestrator | bootable USB/ZFS appliance image question — answered feasibility; asked whether it is Snapback scope (would need spec amendment + planning) or a separate project; NOT added to Sprint 2 | — |
+| 17 | sprint2/stage2/S2-09+finalize | planner | passed — gate-stage2-complete exit 0, gate-tooling exit 0, gate-plan-shape exit 0 on all 9 plan.md (all re-run by orchestrator); S2-09 21 tests; reconciliations applied (S2-08 no network test; S2-03 leaked-mount check scoped; S2-05 T3 warn→error; cross-story names; SPEC §3 alias format; human-decision section) | — |
+| 17 | sprint2/approval | human (auto-approve) | APPROVED — 9 stories, 45 tasks, 210 tests | — |
+| 17 | S2-01/T1 | red-worker | spawned 02:14Z (wave 1 tick 1) | — |
+| 17 | S2-02/T1 | red-worker | spawned 02:14Z (wave 1 tick 1) | — |
+| 17 | S2-02/T2 | red-worker | spawned 02:14Z (wave 1 tick 1) | — |
+| 17 | S2-03/T1 | red-worker | spawned 02:14Z (wave 1 tick 1) | — |
+| 17 | S2-03/T2 | red-worker | spawned 02:14Z (wave 1 tick 1) | — |
+| 17 | S2-03/T3 | red-worker | spawned 02:14Z (wave 1 tick 1) | — |
+| 17 | S2-03/T4 | red-worker | spawned 02:14Z (wave 1 tick 1) | — |
+| 17 | S2-05/T1 | red-worker | spawned 02:14Z (wave 1 tick 1) | — |
+| 18 | S2-01/T1 | red-worker | passed — 3/3 FAIL by assertion (go-fuse absent); chain2/s2-01 → 3bfcc97 | — |
+| 18 | S2-02/T1 | red-worker | PASS-ON-RED adjudicated — TestDepsStdlibOnly passes pre-GREEN (`go list -deps` exits 0 on test-only dir under go1.27; tasks.md assumption wrong); static dependency guard kept unweakened; gate-red-verify BLOCK overridden on record | — |
+| 18 | S2-02/T2 | red-worker | passed — TestValidateName FAIL (6 reject rows); T1+T2 cherry-picked → chain2/s2-02 a6e3740 | — |
+| 18 | S2-03/T1..T4 | red-worker | passed — T1 3 FAIL, T2 6 FAIL, T3 4 FAIL, T4 3 FAIL (all by assertion). Parallel-shim conflict: NewPasswordFile declared in T2 and T4 shims → T1+T2+T3 combined (compiles, 13 FAIL) → chain2/s2-03 93e2ce1; T4 (0f755b9) held for scaffolder dedup | sequencing: scaffolder combines T1-T6 and dedups before T7 |
+| 18 | S2-05/T1 | red-worker | passed — 8/8 FAIL by assertion (job absent), 22 existing still PASS; chain2/s2-05 → c1aaa8d | — |
+| 18 | S2-01/T2 | red-worker | spawned 02:17Z | — |
+| 18 | S2-02/T3 | red-worker | spawned 02:17Z | — |
+| 18 | S2-03/T5 | red-worker | spawned 02:17Z | — |
+| 18 | S2-03/T6 | red-worker | spawned 02:17Z | — |
+| 18 | S2-05/T2 | red-worker | spawned 02:17Z | — |
+| 18 | S2-02/T3 | red-worker | passed — 3/3 FAIL by assertion (Build stub accepts everything); chain2/s2-02 → a6e9554 | — |
+| 18 | S2-02/T4 | red-worker | spawned 02:18Z | — |
+| 18 | S2-05/T2 | red-worker | passed — 8/8 T2 FAIL by assertion (38 tests in package); chain2/s2-05 → 4c8bd48; S2-05 T1+T2 RED done (T3 is final-wave); plan-ready written; SCAFFOLD vacuous | — |
+| 18 | S2-01/T2 | red-worker | passed — TestOpString, TestKindAndRootConstants FAIL by assertion; 2 PASS-ON-RED guards (no go-fuse dep; interface assignability) accepted; chain2/s2-01 → 3cf9adb | — |
+| 18 | orchestrator bug | orchestrator | acc2.sh advanced `chain/s2-01` instead of `chain2/s2-01` (copied from sprint-1 script) — caught by S2-01 T2 worker (reset to T1 SHA directly, no work lost); script fixed, stray branch deleted | — |
+| 18 | S2-03/T5 | red-worker | passed — 7/7 FAIL by assertion (20 FAIL in package on T1-T3+T5 base) | — |
+| 18 | S2-03/T6 | red-worker | passed — 5/5 FAIL by assertion; avoided NewPasswordFile (test-local helper) | — |
+| 18 | S2-03 combine | orchestrator | T1-T3+T5 (6619940) + T4 + T6 cherry-picked → chain2/s2-03 6cf7488; does NOT compile (NewPasswordFile redeclared t2/t4) — by design, scaffolder consolidates | — |
+| 18 | S2-03/scaffold | scaffolder | spawned 02:20Z | — |
+| 18 | S2-01/T3 | red-worker | spawned 02:20Z | — |
+| 18 | S2-05/T1 | green-worker | spawned 02:20Z | — |
+| 19 | S2-02/T4 | red-worker | passed — 5/5 FAIL by assertion under -race; fixture helpers shared; chain2/s2-02 → a640c37 | — |
+| 19 | S2-02/T5 | red-worker | spawned 02:21Z | — |
+| 19 | S2-05/T1 | green-worker | passed — 8 T1 + 22 existing PASS -race; only 5 T2 tests fail; actionlint clean; no @latest/secrets; T1 ticked (8); chain2/s2-05 → 5e3fbea | — |
+| 19 | S2-05/T2 | green-worker | spawned 02:22Z (full matrix) | — |
+| 19 | S2-02/T5 | red-worker | passed — 4/4 FAIL (2 stop at Lookup-shim setup t.Fatal, noted); chain2/s2-02 → e98208a | — |
+| 19 | S2-02/T6 | red-worker | spawned 02:22Z | — |
+| 19 | S2-01/T3 | red-worker | ESCALATED (plan ordering defect) — 8 tests written (4746ea7) but cannot compile until go-fuse is in go.mod (GREEN T1); worker proved in a scratch copy with go-fuse that all 8 compile and FAIL by assertion. Held. | re-sequence: scaffold T1-T2 → GREEN T1+T2 → cherry-pick 4746ea7 + verify → scaffold T3 → GREEN T3 |
+| 19 | S2-01/scaffold (T1-T2) | scaffolder | spawned 02:23Z | — |
+| 19 | S2-05/T2 | green-worker | passed — 38/38 test/ci PASS, full matrix green in worktree; T2 ticked; chain2/s2-05 → 1b75c3a | — |
+| 19 | S2-05 merge (T1-T2) | orchestrator | no-ff → stage-1 b3ab71d; FULL GATE GREEN (all 13 checks; cov 87.5%) | — |
+| 19 | S2-03/scaffold | scaffolder | passed — 29 symbols, 10 production files, NewPasswordFile once (password.go), shims deleted, compiles, 0 newly passing; chain2/s2-03 → abf9354 | — |
+| 19 | S2-02/T6 | red-worker | passed — 4/4 FAIL (contract test keeps method-set + walk together); chain2/s2-02 → e51df7e; S2-02 RED complete | — |
+| 19 | S2-01/scaffold (T1-T2) | scaffolder | passed — mount.go stubs (13 symbols), shim deleted, guards still pass; Op.String omitted from scaffold-symbols (gate counts by bare name → false dup with version.String) | — |
+| 19 | S2-03/T1 | green-worker | spawned 02:26Z | — |
+| 19 | S2-03/T2 | green-worker | spawned 02:26Z | — |
+| 19 | S2-03/T3 | green-worker | spawned 02:26Z | — |
+| 19 | S2-03/T4 | green-worker | spawned 02:26Z | — |
+| 19 | S2-03/T6 | green-worker | spawned 02:26Z | — |
+| 19 | S2-02/scaffold | scaffolder | spawned 02:26Z | — |
+| 19 | S2-01/T1 | green-worker | spawned 02:26Z | — |
+| 19 | S2-01/T2 | green-worker | spawned 02:26Z | — |
+| 20 | disk | orchestrator | CRITICAL: 543 MiB free (was 4.6 GiB). Not project growth: worktrees 66 MB, session scratch <10 MB; large items belong to other projects (/private/tmp/claude-501/-Users-adeelahmad-work-nametag 726 MB, bash-edit-diff 173 MB) — not touched. Removed finished worktrees + site/cov temp. Go build cache (557 MB) to be cleared when no worker is compiling. Human asked to free disk | — |
+| 20 | S2-03/T3 | green-worker | passed — 4/4 PASS -race (re-run), diff = snapshots.go; commit edf4bcf held for S2-03 combine | — |
+| 20 | S2-03/T1 | green-worker | passed — 3/3 PASS -race (re-run), diff = version.go+guard.go; commit abc894c held | — |
+| 20 | S2-01/T2 | green-worker | passed — TestOpString, TestKindAndRootConstants + 2 guards PASS (re-run), diff = mount.go; commit b4696ef held for S2-01 combine with T1 | — |
+| 20 | S2-03/T2 | green-worker | passed 5/6 — TestArgsNeverContainPassword blocked on T4's NewPasswordFile stub (worker proved it passes with a real NewPasswordFile in scratch); diff = args.go; commit 7583f84 held; re-verify after combine | — |
+| 20 | S2-03/T4 | green-worker | passed — 3/3 PASS; commit a786f20 | — |
+| 20 | S2-01/T1 | green-worker | passed — go-fuse v2.11.0 pinned, 3 T1 tests PASS, tidy-diff empty; govulncheck: no reachable vulns; module-level GO-2026-5024 in indirect golang.org/x/sys v0.28.0 (Windows-only, not called) → tech debt: bump x/sys ≥ v0.44.0 | — |
+| 20 | S2-01 combine + T3 RED replay | orchestrator | T1 6658766 + T2 b4696ef cherry-picked on d41aa8b → all mount tests PASS; T3 RED 4746ea7 replayed → compiles, vet ok, 8/8 FAIL by assertion (verified by orchestrator); chain2/s2-01 → 2606f2c; T1,T2 ticked | — |
+| 20 | S2-03/T6 | green-worker | passed — evidence tests PASS; TestMissingPrerequisite needs T1 GREEN (verified in combine) | — |
+| 20 | S2-03 combine (GREEN T1-T4,T6) | orchestrator | cherry-picked onto abf9354 → e06cf09: every test passes except T5's 7 (runner/fixture); cross-task deps (NewPasswordFile, CheckPinnedVersion) satisfied; 1 staticcheck finding left (recheck after T5); ticked T1,T2,T3,T4,T6; chain2/s2-03 → e06cf09 | — |
+| 20 | S2-02/scaffold | scaffolder | passed — 12 symbols in doc/name/spec/build/catalog.go, shims deleted, only guard passes; chain2/s2-02 → b50e403 | — |
+| 20 | S2-03/T5 | green-worker | spawned 02:31Z | — |
+| 20 | S2-02/T2 | green-worker | spawned 02:31Z | — |
+| 20 | S2-01/scaffold-T3 | scaffolder | spawned 02:31Z | — |
+| 21 | S2-02/T2 | green-worker | passed — TestValidateName 15/15 PASS -race (re-run), diff = name.go; lint: SA4008 at lookup_test.go:128 (T4 RED file; recheck after T4 GREEN — may be stub-induced); chain2/s2-02 → 333187e | — |
+| 21 | S2-02/T3 | green-worker | spawned 02:32Z | — |
+| 21 | S2-01/scaffold-T3 | scaffolder | passed — attr.go stubs (6 funcs + 4 consts), shim deleted, vet/build/tidy ok, 8 T3 still FAIL; go-fuse-colliding names omitted from scaffold-symbols (plugin bare-name limitation); chain2/s2-01 → 71cdb8b | — |
+| 21 | S2-03/T5 | green-worker | passed — 7/7 PASS; whole resticfx package PASS -race (re-run); lint 0 issues (SA4006 cleared once stubs real); T5 ticked; chain2/s2-03 → 436df17 | — |
+| 21 | S2-01/T3 | green-worker | spawned 02:33Z (final, full matrix) | — |
+| 21 | S2-03/T7 | red-worker | spawned 02:33Z | — |
+| 21 | S2-02/T3 | green-worker | passed — 3 TestBuild* + earlier PASS -race (re-run, anchored); diff = spec.go+build.go; 3 stub-induced staticcheck findings in T4/T5 test files (recheck after T5); chain2/s2-02 → 891cc7d | — |
+| 21 | S2-02/T4 | green-worker | spawned 02:34Z | — |
+| 21 | USER CORRECTION | human | "always use my git authorship!" — 161 commits carried Co-Authored-By: Claude / Claude-Session trailers (authors were correct = Adeel Ahmad). Violated ~/.claude/rules/common/git-workflow.md ("Attribution disabled"). Fixes: memory saved; no-trailer rule added to red/green protocols; running workers told to amend. Human approved: rewrite + force-push master (move v1.0.0/v1.0.1 tags) and release commits authored as the user | history rewrite queued; release.yml author fix task queued |
+| 21 | S2-02/T4 | green-worker | passed — 5 lookup + earlier tests PASS -race (re-run); worker amended away trailer → 6a7e6f8; 1 lint finding left at readdir_test.go:29 (SA4006, T5 RED file); chain2/s2-02 → 6a7e6f8 | — |
+| 21 | domain | human | snapback.run is live → follow-up: replace example.invalid (install.sh), snapback.example.com (README), docs site_url; Pages custom domain (CNAME) pending human confirmation of hosting | follow-up task queued |
+| 21 | S2-01/T3 | green-worker | passed (task) / ESCALATED (story gate) — 8 T3 + all S2-01 tests PASS -race (re-run), cov 96.9%, lint 0; full matrix red ONLY on test/projectdocs TestNoticeCoversGoModRequires: NOTICE lacks go-fuse + golang.org/x/sys (S1-08 guard working as designed); commit af79267 (no trailer); chain2/s2-01 → af79267 | fix task: S2-01/fix-notice (NOTICE scope) before merge |
+| 21 | S2-03/T7 | red-worker | passed — 3 mount-supervisor unit tests FAIL by assertion; gated TestPathTemplateIntegration skips naming SNAPBACK_FUSE_TESTS; T1-T6 still PASS; lint 0 (incl. -tags integration); no trailer; chain2/s2-03 → 961ee77 | — |
+| 21 | HISTORY REWRITE | orchestrator | human-approved. Backup bundle saved (scratchpad/pre-rewrite-backup.bundle). filter-branch --msg-filter stripped `Co-Authored-By: Claude` / `Claude-Session:` from master, stage-0, stage-1, chain/*, chain2/*, v1.0.0, v1.0.1. Verified: 0 trailers; trees identical (stage-1, old origin/master); authors unchanged. Pushed: origin master 9b6a97d→f0f0d5b (--force-with-lease), tags v1.0.0→d8833fb, v1.0.1→f0f0d5b (v1.0.1 release keeps 10 assets). Deleted refs/original + 129 local worker scratch branches. Note: CHANGELOG.md / GitHub release notes reference pre-rewrite commit SHAs (now dangling links) | tech debt: refresh CHANGELOG commit links |
+| 21 | S2-01/fix-notice | green-worker (full matrix) | spawned 02:40Z | — |
+| 21 | S2-02/T5 | green-worker | spawned 02:40Z | — |
+| 21 | S2-03/scaffold-T7 | scaffolder | spawned 02:40Z | — |
+| 21 | S1-06/author-fix | red-worker | spawned 02:40Z | — |
+| 22 | S2-02/T5 | green-worker | passed — 4 ReadDir + earlier PASS -race (re-run); lint 0 issues (earlier stub-induced findings cleared); no trailer; chain2/s2-02 → ce4c091 | — |
+| 22 | S1-06/author-fix RED | red-worker | passed — TestWorkflowReleaseCommitsAuthoredByUser FAIL by assertion; other 34 release tests PASS; chain2/rel-author → 38fa995 | — |
+| 22 | S2-02/T6 | green-worker | spawned 02:42Z (final, full matrix + cov) | — |
+| 22 | S1-06/author-fix GREEN | green-worker | spawned 02:42Z (full matrix) | — |
+| 23 | S2-01/fix-notice | green-worker | passed — NOTICE lists go-fuse + x/sys (BSD-3-Clause); full matrix green (cov 96.9%); chain2/s2-01 → 968e890 | — |
+| 23 | S2-03/T7 scaffold | scaffolder | passed — mount.go stubs, shim removed, T1-T6 PASS, T7 unit FAIL on SUB-AGENT-TODO; chain2/s2-03 → 965cde8 | — |
+| 23 | S2-02/T6 | green-worker | passed — Readlink verbatim; 18/18 PASS -race; pkg cov 100%; full matrix green; chain2/s2-02 → 05d8b8b | — |
+| 23 | S1-06/author-fix GREEN | green-worker | passed — semrel env GIT_AUTHOR_*/GIT_COMMITTER_* = Adeel Ahmad; 35/35 release tests; full matrix green; chain2/rel-author → 7f7a40c | — |
+| 23 | MERGE S2-01 → stage-1 | orchestrator | f8e74c7; full gate GREEN (cov 96.9%) | — |
+| 23 | MERGE S2-02 + S1-06/author-fix → stage-1 | orchestrator | 248099a, 4376285; full gate GREEN (cov 98.8%); 0 AI trailers in e83fd2f..stage-1 | — |
+| 23 | S2-03/T7 GREEN | green-worker | spawned (final; full matrix + local integration evidence) | — |
+| 23 | S2-04/T1 RED | red-worker | spawned 02:47Z (S2-01+S2-02 landed on stage-1 → wave 2 unblocked) | — |
+| 23 | S2-01+S2-02 structural | structural-reviewer | spawned 02:47Z | — |
+| 24 | S2-03/T7 GREEN | green-worker | passed — mount supervisor; 33/33 PASS -race; integration TestPathTemplateIntegration PASS on darwin/arm64 (restic 0.19.0 + macFUSE, disposable repo) → docs/reports/stage1/pathtemplate-darwin.json (implemented and tested); full matrix green; chain2/s2-03 → c0c7abb | follow-up opened: S2-03/fix-hang (helper `select{}` deadlocks → Stop-on-ignored-SIGINT path untested; WaitReady early-exit dropped) |
+| 24 | MERGE S2-03 → stage-1 | orchestrator | e893fea; full gate GREEN (cov 88.6%) | — |
+| 24 | S2-04/T1 RED | red-worker | passed — 9/9 FAIL by assertion (ENOSYS from shim), attr tests PASS, vet ok; chain2/s2-04 → 3a027b8; plan-ready 21 boxes | — |
+| 24 | S2-04/T1 scaffold | scaffolder | spawned 02:50Z | — |
+| 24 | S2-08/T1,T2,T3 RED | red-worker ×3 | spawned 02:50Z in parallel (disjoint files + per-task shims; S2-03 landed → S2-08 unblocked) | — |
+| 25 | S2-08/T1,T2,T3 RED | red-worker ×3 | passed — combined by cherry-pick: 14 FAIL by assertion + TestNoThresholdSymbolsInPackage PASS-ON-RED (static negative guard); lint 0; chain2/s2-08 → e85e18b; plan-ready 34 boxes | — |
+| 25 | S2-04/T1 scaffold | scaffolder | passed — fs.go stubs, shim deleted, attr tests PASS; chain2/s2-04 → e8bde6b | — |
+| 25 | S2-04/T1 GREEN | green-worker | passed — 18/18 PASS -race; lint 0; chain2/s2-04 → 4c448ed | — |
+| 25 | S2-01+S2-02 structural | structural-reviewer | KILLED at ~6.5 min (no findings written) | split → S2-01/structural + S2-02/structural, git-grep scope only, no whole-repo plugin gate |
+| 25 | S2-08/T1-T3 scaffold, S2-08/T4 RED, S2-03/fix-hang RED, S2-04/T2 RED, S2-04/T3 RED, S2-01/structural, S2-02/structural | various | spawned 02:54Z (7 running; non-overlapping files) | — |
+| 26 | S2-03/fix-hang RED | red-worker | passed — hang helper now `signal.Ignore(os.Interrupt); time.Sleep` (Stop grace+kill path now exercised, existing 3 PASS); new TestMountWaitReadyReturnsWhenProcessExits FAIL by assertion; chain2/s2-03 → 642f50d | — |
+| 26 | S2-08/T4 RED | red-worker | passed — 4 FAIL by assertion; Runner mirrors resticfx Run(ctx,name,args) | — |
+| 26 | S2-08/T1-T3 scaffold | scaffolder | passed — 11 symbols stubbed once, shims removed, NoThreshold guard PASS; combined with T4 RED → chain2/s2-08 891548e | — |
+| 26 | S2-04/T2 RED + T3 RED | red-worker ×2 | passed — combined: 10 FAIL by assertion; TestProjectionGenerationSatisfiesMountCatalog PASS-ON-RED (cross-story contract already satisfied by merged S2-02 — override on record, accepted); constructor chosen NewAdapter(obs mount.Observer); chain2/s2-04 → a693b36 | — |
+| 26 | S2-03/fix-hang GREEN, S2-08/T1,T2,T3 GREEN, S2-04/T2+T3 scaffold, S2-08/T4 scaffold | various | spawned 02:57Z (8 running incl. 2 structural) | — |
+| 27 | S2-08/T1,T2,T3 GREEN | green-worker ×3 | passed — combined c48ed37: 15 PASS -race (T1-T3 + guard), T4 4 FAIL as expected; lint 0 | — |
+| 27 | S2-08/T4 scaffold | scaffolder | passed — cleanup.go stubs; Runner = Run(ctx,name,args); chain2/s2-08 → 6c19b46 | — |
+| 27 | S2-03/fix-hang GREEN | green-worker | passed — WaitReady returns wrapped exit error when process dies before ids (ids checked first); 6/6 mount tests PASS -race; full matrix green; chain2/s2-03 → 1ff6f0a | — |
+| 27 | MERGE S2-03/fix-hang → stage-1 | orchestrator | bc2a030; full gate GREEN (cov 88.2%) | — |
+| 27 | S2-08/T5 RED, S2-08/T4 GREEN | red/green | spawned 02:59Z | — |
+| 28 | S2-01/structural | structural-reviewer | passed — no findings in S2-01 files; cross-story note: projection.RootIno duplicates mount.RootIno (forced by projection deps_test forbidding internal/mount import) → tech debt; plugin gate HIGHs judged false positives (BASE_REF predates sprint) | — |
+| 28 | S2-02/structural | structural-reviewer | passed — no findings; INFO: projection has no production importer until S2-04 wires it | — |
+| 28 | S2-08/T4 GREEN | green-worker | passed — 19/19 latency tests PASS -race; lint 0; chain2/s2-08 → 0f13fbd | — |
+| 29 | S2-04/T2 GREEN + T3 GREEN | green-worker ×2 | passed — combined d372b41: gofuse pkg all PASS -race, cov 84.4%, lint 0 (T2's reported SA4006 was a stub artifact, gone after T3); chain2/s2-04 → d372b41 | — |
+| 29 | S2-02/structural | structural-reviewer | passed (report relayed); plugin gate 16 HIGH all traced to bare-name matcher / no Go _test.go exemption | — |
+| 29 | S2-08/T5 RED | red-worker | passed — 10 FAIL by assertion, 44 other PASS lines, lint 0; chain2/s2-08 → fec3c57. DECISION (orchestrator, auto-approve): accept Config{Remote,Runner,Mounter,Clock} + Mounter/Mounted interfaces (tasks.md said Config{Remote,Runner,Clock}, but a blocking Runner.Run cannot hold the long-running mount) | — |
+| 29 | S2-04/T4 RED, S2-08/T5 scaffold, S2-08/T6 RED | various | spawned 03:03Z | — |
+| 30 | S2-08/T5 scaffold | scaffolder | passed — run.go stubs; chain2/s2-08 → 72df2f8 | — |
+| 30 | S2-08/T6 RED | red-worker | passed — 5 FAIL by assertion (TestMainIsThin t.Fatal on missing main.go); fakes injected via package var newConfig; lint 0; chain2/s2-08 → 2e97947 | — |
+| 30 | S2-04/T4 RED | red-worker | PASS-ON-RED — TestCatalogMountLifecycle passes on real macFUSE (T1-T3 already satisfy it); override on record, accepted (gate-red-verify has no PASS-ON-RED path → plugin issue). Orchestrator re-ran: PASS 1.42s, no leftover mount (first re-run FAILed only because orchestrator passed a non-existent SNAPBACK_EVIDENCE_DIR). chain2/s2-04 → 864025d | T4 GREEN = evidence + full matrix only |
+| 30 | S2-08/T5 GREEN, S2-04/T4 GREEN (evidence), S2-08/T6 scaffold | various | spawned 03:06Z | — |
+| 31 | S2-08/T5 GREEN | green-worker | passed — Run orchestration, 29 PASS -race, cov 84.3%; found testSnapshotID 63 chars → follow-up | S2-08/fix-id opened |
+| 31 | S2-08/T6 scaffold | scaffolder | passed — main.go real (4 lines), deps.go/run.go stubs; chain2/s2-08 → 664e9b7 | — |
+| 31 | S2-08/fix-id RED + GREEN | red/green | passed — 64-hex test id + TestRunRejectsShortSnapshotID; Run rejects non-64-hex ids, cleanup still runs; c425188 held for combine | — |
+| 31 | S2-04/T4 GREEN | green-worker | passed — catalog-darwin.json from real macFUSE run (darwin/arm64, go-fuse v2.11.0, 12 ops, pass); full matrix green (cov 89.9%) | — |
+| 31 | MERGE S2-04 → stage-1 | orchestrator | 366b1a1; full gate GREEN (cov 86.6%); integration suite (-tags integration, SNAPBACK_FUSE_TESTS=1) PASS on merged tree, no leftover mounts | wave 3 unblocked |
+| 31 | S2-06/T1,T2 RED, S2-07/T1,T2,T4 RED | red-worker ×5 | spawned 03:12Z (chains from stage-1 366b1a1) | — |
+| 32 | S2-08/T6 GREEN | green-worker | passed in isolation (5/5, full matrix, cov 82.2%); deps.go real wiring 0% covered (implemented but not tested here) | — |
+| 32 | MERGE S2-08 → stage-1 | orchestrator | GATE RED on scratch merge ce48066 (not applied; stage-1 untouched): T6 CLI fakes use 63-hex snapshot id that fix-id now rejects → TestRunWritesJSONAndExits0 / TestRunRemoteNotDeletedExits1Loudly FAIL | split → S2-08/fix-cli-id (test-data RED) |
+| 32 | S2-06/T1,T2 RED | red-worker ×2 | passed — combined 6c43d9e: 14 FAIL by assertion, lint 0 | — |
+| 32 | S2-07/T1,T2,T4 RED | red-worker ×3 | passed — combined c326407: 16 FAIL by assertion, -race, lint 0 | — |
+| 32 | C1 domain (human request: README → snapback.run) | red-worker | spawned 03:17Z. Facts: snapback.run 200 on GitHub Pages; /install.sh 404 → docs workflow must publish install.sh; install.sh base → github releases/latest/download | — |
+| 32 | C2 Makefile (human request) | red-worker | spawned 03:17Z | — |
+| 32 | S2-08/fix-cli-id RED, S2-06/T3+T4 RED, S2-07/T3 RED, S2-06 T1+T2 scaffold, S2-07 T1+T2+T4 scaffold | various | spawned 03:17Z (8 running) | — |
+| 33 | S2-08/fix-cli-id | red-worker | passed — CLI fake id → 64 hex; before/after evidence recorded (FAIL at 9d4d630, PASS at 9999a0a); PASS-ON-RED waived by orchestrator | — |
+| 33 | MERGE S2-08 → stage-1 (retry) | orchestrator | e687157; full gate GREEN (cov 82.1%) | S2-08 done except latency run (human-confirmed) |
+| 33 | S2-06 T1+T2 scaffold, T3 RED, T4 RED | scaffolder/red | passed — chain2/s2-06 → 1369260 (T3 5 FAIL, T4 6 FAIL by assertion; darwin+linux vet ok) | — |
+| 33 | S2-07 T1+T2+T4 scaffold, T3 RED | scaffolder/red | passed — chain2/s2-07 → 7bde0d0 (T3 8 FAIL by assertion; JSON tags deliberately absent until GREEN) | — |
+| 33 | C1/T1 RED (domain) | red-worker | passed — 5 FAIL by assertion (README install line, no placeholders, installer base URL, mkdocs site_url, docs workflow publishes install.sh); chain2/c1-domain → 48d9718 | scope ext → C1/T1b (readme_links_test pins github.io docs URL) |
+| 33 | C2/T1 RED (Makefile) | red-worker | passed — 8 FAIL by assertion (Makefile missing; CONTRIBUTING lacks make ci/install); chain2/c2-make → 918f32f | — |
+| 33 | C2 GREEN, C1/T1b RED, S2-07 T1/T2/T4 GREEN, S2-06 T1+T2 GREEN, S2-06 T3+T4 scaffold, S2-07 T3 scaffold | various | spawned 03:21Z (8 running) | — |
+| 34 | S2-07 T1/T2/T4 GREEN + T3 scaffold | green/scaffolder | passed — combined 43cf0aa: T1/T2/T4 PASS -race, lint 0 (earlier SA4006 were stub artifacts) | — |
+| 34 | S2-07/T3 GREEN | green-worker | passed — 24/24 crawler PASS -race, lint 0; chain2/s2-07 → 9bf61b7 | — |
+| 34 | S2-06 T1+T2 GREEN + T3+T4 scaffold | green/scaffolder | passed — combined 53c16ae: 14 T1/T2 PASS (orchestrator re-ran by exact name); darwin+linux vet ok | — |
+| 34 | S2-06/T4 GREEN | green-worker | passed — 6 T4 PASS; note wording follows test/tasks.md ("recorded, not claimed") over stub recipe; held 0278d76 for combine with T3 | — |
+| 34 | C1 GREEN + C2 GREEN | green-worker ×2 | passed — C1: README/install.sh/mkdocs/docs.yml → snapback.run + GitHub releases URL; C2: Makefile (help/build/install/uninstall/test/cover/lint/fmt/vet/vuln/docs/release-check/ci/clean), `make ci` run for real exit 0 | — |
+| 34 | MERGE C1 + C2 → stage-1 | orchestrator | a3c617d, dbfa7c8; full gate GREEN (cov 82.1%); `make -n ci` ok | Pages custom domain / deploy need push (human) |
+| 34 | C3 site (human request: React site in snapback design system) | planner | spawned 03:26Z — intake written from the user's design-system artifact (tokens, IBM Plex, Liquid Glass, man-page voice) | — |
+| 34 | S2-06/T3 GREEN (running), S2-07/T5 RED | green/red | spawned | — |
+| 35 | HUMAN | human | "told u auto approve was enabled" → auto-approve covers plan-listed real runs and pushes | memory updated |
+| 35 | LATENCY RUN (gdrive:snapback-stage1) | orchestrator | exit 0; remote_deleted true; rclone lsf → directory not found. cold_listing 32.7 ms (n=1), warm_prewarmed_listing median 1.44 ms (n=3), cold_first_file_read 3012 ms (n=1), warm_listing_after_restart median 6.39 ms (n=3); 100×4 KiB generated files; committed 38bf8c4 docs/reports/stage1/latency.json | go/no-go = human |
+| 35 | PUSH stage-1 + draft PR #1 → master | orchestrator | pushed; PR #1 opened (CI runs on pull_request; fuse-linux evidence artifact) | — |
+| 35 | S2-07/T5 RED | red-worker | PASS-ON-RED (accepted): real macFUSE; non-following rg/fd/find/rsync 0 hits, rg -L 761 / fd -L 482 / find -L 400; chain2/s2-07 → 46a91cf | T5 GREEN = evidence + full matrix |
+| 35 | S2-06/T5 RED | red-worker | FAIL by assertion on real run: symlink size/linktarget absent from restic 0.19 `ls --json`; 8 regular files exact (mtime delta 0). chain2/s2-06 → 05571b5 | ORCHESTRATOR CONTRACT RULING → S2-06/T5b: symlinks compared on mode+mtime vs ls --json; target checked via alias vs generator; evidence records size/target as not reported |
+| 35 | C3 plan | planner | passed — plan-shape 0; Vite+React+TS in web/, no Tailwind, Go test/site + vitest, Node 26.0.0 pinned; 8 tasks; APPROVED via auto-approve | brand assets fetched to scratchpad/brand (26 files) |
+| 35 | C1/C2 merged earlier; S2-06/T5b RED, S2-07/T5 GREEN, S2-12/T1 RED | various | spawned 03:32Z | — |
+| 36 | S2-07/T5 GREEN | green-worker | passed — crawler-darwin.json; full matrix green (cov 87.6%) | — |
+| 36 | MERGE S2-07 → stage-1 | orchestrator | 16a1c87; full gate GREEN (gate re-run after a lost tool result) | — |
+| 36 | S2-06/T5b RED | red-worker | PASS-ON-RED waived: symlink compared on mode+mtime vs ls --json, target via alias; 8 regular files exact | tech debt: evidence note injected by test |
+| 36 | S2-06/T5 GREEN | green-worker | passed — fidelity-darwin.json (mtime delta 0 ns all files); full matrix green (cov 87.1%) | — |
+| 36 | MERGE S2-06 → stage-1 | orchestrator | b2572b2; full gate GREEN; full -tags integration suite PASS on merged tree, no leftover mounts; pushed stage-1 (PR #1 CI for linux evidence) | — |
+| 36 | S2-05/T3 RED, S2-12/T1 RED | red-worker ×2 | passed — T3 FAIL (warn≠error); C3 T1 7 FAIL by assertion (+ vitest test, TEST_GLOBS widened to **/*.test.tsx) | — |
+| 36 | HUMAN launch kit | human | supplied README/REPO-SETUP/github-kit.tar.gz; kit README over-claims (non-existent subcommands, "overlay works", snapback-dev/main, /install) → adopted shape + brand only, content kept true | story S2-13 (C4) |
+| 36 | REPO SETTINGS (auto-approve) | orchestrator | description (honest, "Early development."), homepage https://snapback.run, 12 topics, Discussions on, Pages https_enforced=true (cert approved; CNAME snapback.run already set) | social preview upload = manual (no API) |
+| 36 | S2-05/T3 GREEN, S2-09/T1 RED, S2-12/T1 GREEN, S2-13/T1 RED | various | spawned 03:38Z | — |
+| 37 | S2-05/T3 GREEN | green-worker | passed — upload if-no-files-found: error; full matrix green | — |
+| 37 | MERGE S2-05 + linux evidence → stage-1 | orchestrator | 83d482d + 86833b4 (4 *-linux.json from CI run 35683903691, no secrets/paths); full gate GREEN | all 9 evidence files present |
+| 37 | S2-09 T1 RED/GREEN, T2 RED/GREEN | red/green | passed — report skeleton + inventory; pinned versions (go-fuse v2.11.0, restic 0.19.0, rclone v1.75.0, go1.27.1); chain2/s2-09 → bcf052b | — |
+| 37 | S2-13 (C4 launch) RED/GREEN | red/green | passed — README in kit shape but true (only `snapback version` works; design goal labelled), badges on adeelahmad/snapback, docs/brand 12 files, YAML issue forms, old .md templates removed; full matrix green | — |
+| 37 | MERGE S2-13 → stage-1 | orchestrator | df2d91f; full gate GREEN | — |
+| 37 | C3 T2/T3/T4/T6/T8 RED; T2 GREEN; T8 GREEN | red/green | passed — tokens generated from design system (contrast: accent-text/canvas 4.83, line-strong/canvas 3.49); site CI job; chain2/c3-site → 8335795 | T2 shim was test-support code → orchestrator exception let GREEN replace it |
+| 37 | C3 T3 GREEN, C3 T4 scaffold, C3 T7 RED (side chain from stage-1), S2-09 T3 RED | various | spawned 03:49Z | — |
+| 38 | C3 T3/T4/T6/T7 GREEN, T4 scaffold, T7 RED | various | passed — fonts+brand assets byte-copied (+NOTICE OFL); header/hero/how-it-works (13 vitest PASS, build ok; brand glass highlight gradient replaced by inset shadow because test bans linear-gradient); head meta (4/5 — TestThemeColorPerScheme test bug: single-string tokens) ; Pages layout on side chain c3-t7 (_site: web at /, mkdocs at /docs/, install.sh). chain2/c3-site → 477c6ee | T6fix RED opened |
+| 38 | S2-09 T3 RED/GREEN | red/green | passed — path-template, catalog, fidelity sections from JSON (symlink ls --json gap stated); 10 tests PASS | — |
+| 38 | S2-09/T4 RED, C3 T5 RED, C3 T6fix RED | red | spawned 03:54Z | — |
+| 39 | S2-09 T4/T5 RED+GREEN | red/green | passed — latency + crawler sections generated from JSON (jq); 16 report tests PASS; chain2/s2-09 → c49c36e | — |
+| 39 | C3 T5 scaffold+GREEN, T6fix | various | passed — limits/install/status/footer; 21 vitest PASS; full matrix green; chain2/c3-site → 81ea7e0 (all 8 C3 tasks done) | — |
+| 39 | Structural S2-03/04/08 | structural-reviewer | passed — no findings beyond 2 LOW (logged) | — |
+| 39 | Structural S2-06/07 | structural-reviewer | findings: SNAPBACK_FUSE_TESTS truthiness drift (fidelity "any non-empty" vs resticfx/crawler "=1") → REAL BUG; evidence writer duplication → tech debt | S2-06/fix-gate RED spawned |
+| 39 | MERGE C3 → stage-1 (orchestrator attempt) | orchestrator | CONFLICT in ci.yml (S2-05 upload=error vs new site job) → aborted; delegated to S2-12/integrate worker (keep both sides) | — |
+| 39 | S2-09/T6 RED, S2-12/integrate, S2-06/fix-gate RED | various | spawned 04:02Z | — |
+| 40 | S2-12/integrate | green-worker | passed — ci.yml conflict resolved keeping both (upload=error + site job); Pages dry run: _site/index.html, _site/docs/index.html, _site/install.sh | — |
+| 40 | MERGE S2-12 site → stage-1 | orchestrator | 5cd1001; full gate GREEN; web: 21 vitest PASS, tsc clean, build ok | — |
+| 40 | S2-06/fix-gate RED+GREEN | red/green | passed — MissingPrereq requires SNAPBACK_FUSE_TESTS=="1"; full matrix green | — |
+| 40 | MERGE S2-06 fix-gate → stage-1 | orchestrator | 9b097ab; full gate GREEN | — |
+| 40 | S2-09/T6 RED+GREEN | red/green | passed — requirement matrix (8 rows, all implemented and tested, reasons cite evidence), open item "Latency go/no-go: PENDING — human decision" + 3 options; 21 report tests PASS; full matrix green | — |
+| 40 | MERGE S2-09 → stage-1 | orchestrator | ccbfbbe; full gate GREEN — ALL SPRINT 2 STORIES MERGED | final-gate next |
+| 41 | FINAL GATE (attempt 1) | final-gate | REJECT on 2 items; all else green (full matrix cov 84.0%, web gates 21/21, integration suite 8 pkgs on macOS, 0 suppressions, honesty ok, 0 AI trailers) — (1) unticked plan-ready box S2-02 TestDepsStdlibOnly (test exists+passes; PASS-ON-RED guard never ticked), (2) tracked file named zz_agentic_shim_t2_test.go | fixes below |
+| 41 | fix (1) | orchestrator | ticked the box (bookkeeping; test verified PASS) | — |
+| 41 | fix (2) S2-12/rename | red-worker | git mv → test/site/contrast_helpers_test.go (af90d5d); stage-1 ff | — |
+| 41 | FINAL GATE re-verify | orchestrator | 0 shim-named files, 0 SUB-AGENT-TODO/agentic:shim in code, 0 unticked boxes, full gate GREEN @ af90d5d. OVERRIDE ON RECORD: remaining `zz_agentic_shim` text occurrences are in planning logs/ledger only (not code) — accepted | SIGN-OFF: GREEN |
+| 42 | COMMIT SUBJECT REWRITE | orchestrator | msg-filter origin/master..stage-1: merge:→chore: merge, build:→chore:, drop '# Conflicts' lines; then fold body lines to ≤100; trees identical, 187 commits all Adeel Ahmad, 0 trailers; bundle backup scratchpad/pre-subject-rewrite.bundle; force-pushed stage-1 (→413d568) | — |
+| 42 | PR #1 CI | orchestrator | all jobs green (build/test, 7 builds, FUSE linux, site build) except commitlint → PR TITLE (not commits) failed; renamed to "feat: stage 1 compatibility milestone"; needs a new push event to re-lint | — |
+| 42 | HUMAN SPEC REVIEW | human | 8-point refinement of SPEC.md (FUSE wording, linkage claims, versions dedup semantics, canonical source_paths_exact, reader_policy not a security boundary, explicit v0.1 release contract, preserve invariants, keep central idea) | story S2-14 (C5) green-worker spawned 04:22Z |
+| 43 | S2-14 SPEC refinements | green-worker | passed — 8 points applied (FUSE wording §1; Linux static w/ evidence, macOS self-contained §1/§17; versions panel shows every occurrence, size+mtime only "likely identical" §15; canonical source_paths_exact §6; reader_policy not an access-control boundary §7; new §22.1 first public release contract + reconciled §2/§9/§17/§18/§20/§22/§24; invariants untouched; central idea + design anchor in §1); spec pin updated; OpenRC placed in follow-up (orchestrator accepts; human may move) | — |
+| 43 | MERGE S2-14 → stage-1 | orchestrator | 23095b1; full gate GREEN | — |
 
 ## Plugin issues found
+
+- gate-red-verify has no PASS-ON-RED path: a RED whose only test is legitimately already satisfied (S2-04 T4 integration test after T1-T3) cannot pass selfcheck; orchestrator override required.
 
 - `gate-plan-shape` given a directory exits 0 (grep 'Is a directory') — false pass. Orchestrator always passes the plan.md file path. Report upstream to agentic-agile.
 - `md-db validate` prints `files: []` even when files are valid; S1-05 planner confirmed via a negative test that it does read them.
@@ -262,7 +500,40 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 - gate-green-verify runs the WHOLE-repo matrix per task; with RED-first per story, sibling tasks' panic stubs make it red until the last GREEN. Intermediate GREENs run with GATE_RUN_MATRIX=0 + orchestrator package-scoped matrix; full matrix enforced at story merge.
 - gate-structural-integrity `norm_high` test-file carve-out matches only .ts/.tsx/.js/.mjs/.rs — Go `_test.go` function-local duplicates (e.g. `var stdout` in two tests) are misreported as HIGH foundation-poisoning. Needs a `_test.go` carve-out upstream.
 
+- `gate-memory` validates the whole parent dir of memory.md against memory.kdl → 56 false 'unknown document type' errors; should validate the file alone.
+
+- `gate-validate-artifact` run directly fails with `CLAUDE_PLUGIN_ROOT: unbound variable` unless exported.
+
+- gate-scaffold-verify counts symbols by bare name across the repo → a method `Op.String` collides with unrelated `version.String()`.
+
 ## Technical debt (for next planning session)
+
+- MED (S2-06/07 structural): evidence writers duplicated across fidelity/crawler/resticfx with two file-name contracts (runtime.GOOS vs caller field); consolidate into one helper later.
+
+- LOW (S2-03/08 structural): latency.Runner mirrors resticfx.Runner (deliberate decoupling); latency runner.versions and resticfx Fixture.ToolVersions both fetch tool versions — consolidate later.
+
+- S2-06 evidence: symlink `restic_ls_unreported` note is injected by the integration test post-write (T5b could only edit the test). Add a real `FileEvidence` field in production code in a follow-up.
+
+- PR #1 commitlint fails: 10 orchestrator integration commits use `merge:` and C2 used `build:` (not in type-enum). Decision: from tick 35 integration merges use `chore: merge …`; before promoting stage-1 to master, rewrite those subjects (msg-filter, authors/trees unchanged) and force-push stage-1.
+
+- projection.RootIno (internal/projection/spec.go:12) duplicates mount.RootIno by design (projection must stay stdlib-only). Guard: add a gofuse-package test asserting `projection.RootIno == mount.RootIno` (gofuse imports both) — candidate for S2-04 follow-up.
+
+- CHANGELOG.md and GitHub release notes for v1.0.0/v1.0.1 link pre-rewrite commit SHAs (dangling after the authorship rewrite).
+
+- Bump golang.org/x/sys (indirect via go-fuse) from v0.28.0 to ≥ v0.44.0 to clear module-level GO-2026-5024 (Windows-only, unreachable).
+
+- projection.Build accepts empty/NUL symlink targets (would break FUSE layer) — decide in Stage 2 whether Build or the adapter rejects them.
+
+- v1.0.0 GitHub release exists with NO assets (GoReleaser failed); fix2 should publish v1.0.1 with assets. Deleting/annotating v1.0.0 is a human decision.
+- goreleaser warns `builds.goarm is ignored when builds.targets is set` — harmless (arm asset name still bare) but the goarm/gomips lines are dead config.
 
 - Consolidate duplicated Go test helpers (repoRoot, readRepoFile, indentOf, topLevelBlock, jobBlock, section helpers) across test/ci, test/commitlint, test/release, test/docs, test/community, test/projectdocs into one shared test-support package — needs a test/**-scoped task (no single story may touch others' tests). Source: S1-02+S1-04 and S1-06 structural reviews.
 - Human decisions surfaced by workers: installer falls back to ~/.local/bin when /usr/local/bin is unwritable OR not on PATH (S1-03 T5); SECURITY.md promises 7-day acknowledgement (S1-05 T3).
+
+## Human decisions
+
+- 03:12Z 2026-09-22: human supplied `docs/agents/go-styleguide/` (Google Go Style Guide) — now MANDATORY in red/green protocols (guide.md + decisions.md normative, best-practices advisory; plan contracts win on conflict). Applies to workers spawned from tick 31 on. (Sprint 2)
+
+- Latency backend: `gdrive:snapback-stage1`; disposable restic repo with generated data only; delete after measuring; keep numbers in the report.
+- Linux FUSE proof: CI job with fuse3 on ubuntu-latest counts; macOS proof = local macFUSE test on this host.
+- Latency go/no-go: record numbers first; human decides.

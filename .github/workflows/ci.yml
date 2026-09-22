@@ -93,3 +93,75 @@ jobs:
       - name: Static linkage evidence
         if: matrix.goos == 'linux'
         run: file snapback
+
+  fuse-linux:
+    name: FUSE integration (linux)
+    runs-on: ubuntu-latest
+    env:
+      SNAPBACK_FUSE_TESTS: "1"
+      SNAPBACK_EVIDENCE_DIR: ${{ github.workspace }}/stage1-evidence
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install FUSE and crawler tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fuse3 ripgrep fd-find rsync
+
+      - name: Install restic 0.19.0
+        run: |
+          curl -fsSL -o restic.bz2 https://github.com/restic/restic/releases/download/v0.19.0/restic_0.19.0_linux_amd64.bz2
+          echo "13176fe6d89d4357947a2cd107218ab2873a5f9d8e1ac2d4cd1c8e07e6839c21  restic.bz2" | sha256sum -c -
+          bunzip2 restic.bz2
+          sudo install -m 0755 restic /usr/local/bin/restic
+          restic version | grep -F 'restic 0.19.0'
+
+      - name: Check FUSE device
+        run: test -c /dev/fuse
+
+      - name: Integration tests
+        run: |
+          mkdir -p "$SNAPBACK_EVIDENCE_DIR"
+          go test -race -tags=integration ./...
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage1-evidence-linux
+          path: ${{ env.SNAPBACK_EVIDENCE_DIR }}
+          if-no-files-found: error
+
+  site:
+    name: Site build and test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: No third-party origins in dist
+        run: "! grep -rEl 'https?://(fonts\\.googleapis|fonts\\.gstatic|cdn\\.|unpkg|jsdelivr)' dist"

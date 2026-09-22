@@ -1,0 +1,309 @@
+{
+  "files": [
+    {
+      "birth_time": {
+        "claimed": false,
+        "note": "not exposed; recorded, not claimed",
+        "value": null
+      },
+      "ctime": {
+        "claimed": false,
+        "note": "FUSE-approximated; recorded, not claimed",
+        "value": "2026-09-22T03:39:14.346732651Z"
+      },
+      "expected": {
+        "mode": 420,
+        "mtime": "2021-06-01T12:00:00Z",
+        "size": 0
+      },
+      "mode_ok": true,
+      "mtime_delta_ns": 0,
+      "mtime_ok": true,
+      "observed": {
+        "mode": 420,
+        "mtime": "2021-06-01T12:00:00Z",
+        "size": 0
+      },
+      "path": "empty.txt",
+      "restic_ls": {
+        "mode": 420,
+        "mtime": "2021-06-01T12:00:00Z",
+        "size": 0
+      },
+      "size_ok": true
+    },
+    {
+      "birth_time": {
+        "claimed": false,
+        "note": "not exposed; recorded, not claimed",
+        "value": null
+      },
+      "ctime": {
+        "claimed": false,
+        "note": "FUSE-approximated; recorded, not claimed",
+        "value": "2026-09-22T03:39:14.347221443Z"
+      },
+      "expected": {
+        "mode": 420,
+        "mtime": "2022-01-02T03:04:07.123456789Z",
+        "size": 1024
+      },
+      "mode_ok": true,
+      "mtime_delta_ns": 0,
+      "mtime_ok": true,
+      "observed": {
+        "mode": 420,
+        "mtime": "2022-01-02T03:04:07.123456789Z",
+        "size": 1024
+      },
+      "path": "small.txt",
+      "restic_ls": {
+        "mode": 420,
+        "mtime": "2022-01-02T03:04:07.123456789Z",
+        "size": 1024
+      },
+      "size_ok": true
+    },
+    {
+      "birth_time": {
+        "claimed": false,
+        "note": "not exposed; recorded, not claimed",
+        "value": null
+      },
+      "ctime": {
+        "claimed": false,
+        "note": "FUSE-approximated; recorded, not claimed",
+        "value": "2026-09-22T03:39:14.429735085Z"
+      },
+      "expected": {
+        "mode": 384,
+        "mtime": "1998-03-14T09:26:53Z",
+        "size": 3145728
+      },
+      "mode_ok": true,
+      "mtime_delta_ns": 0,
+      "mtime_ok": true,
+      "observed": {
+        "mode": 384,
+        "mtime": "1998-03-14T09:26:53Z",
+        "size": 3145728
+      },
+      "path": "large.bin",
+      "restic_ls": {
+        "mode": 384,
+        "mtime": "1998-03-14T09:26:53Z",
+        "size": 3145728
+      },
+      "size_ok": true
+    },
+    {
+      "birth_time": {
+        "claimed": false,
+        "note": "not exposed; recorded, not claimed",
+        "value": null
+      },
+      "ctime": {
+        "claimed": false,
+        "note": "FUSE-approximated; recorded, not claimed",
+        "value": "2026-09-22T03:39:14.429735085Z"
+      },
+      "expected": {
+        "mode": 493,
+        "mtime": "2019-11-05T08:30:00Z",
+        "size": 64
+      },
+      "mode_ok": true,
+      "mtime_delta_ns": 0,
+      "mtime_ok": true,
+      "observed": {
+        "mode": 493,
+        "mtime": "2019-11-05T08:30:00Z",
+        "size": 64
+      },
+      "path": "run.sh",
+      "restic_ls": {
+        "mode": 493,
+        "mtime": "2019-11-05T08:30:00Z",
+        "size": 64
+      },
+      "size_ok": true
+    },
+    {
+      "birth_time": {
+        "claimed": false,
+        "note": "not exposed; recorded, not claimed",
+        "value": null
+      },
+      "ctime": {
+        "claimed": false,
+        "note": "FUSE-approximated; recorded, not claimed",
+        "value": "2026-09-22T03:39:14.430217379Z"
+      },
+      "expected": {
+        "mode": 292,
+        "mtime": "2020-02-29T23:59:59Z",
+        "size": 128
+      },
+      "mode_ok": true,
+      "mtime_delta_ns": 0,
+      "mtime_ok": true,
+      "observed": {
+        "mode": 292,
+        "mtime": "2020-02-29T23:59:59Z",
+        "size": 128
+      },
+      "path": "readonly.txt",
+      "restic_ls": {
+        "mode": 292,
+        "mtime": "2020-02-29T23:59:59Z",
+        "size": 128
+      },
+      "size_ok": true
+    },
+    {
+      "birth_time": {
+        "claimed": false,
+        "note": "not exposed; recorded, not claimed",
+        "value": null
+      },
+      "ctime": {
+        "claimed": false,
+        "note": "FUSE-approximated; recorded, not claimed",
+        "value": "2026-09-22T03:39:14.430313384Z"
+      },
+      "expected": {
+        "mode": 420,
+        "mtime": "2023-07-15T16:45:00Z",
+        "size": 32
+      },
+      "mode_ok": true,
+      "mtime_delta_ns": 0,
+      "mtime_ok": true,
+      "observed": {
+        "mode": 420,
+        "mtime": "2023-07-15T16:45:00Z",
+        "size": 32
+      },
+      "path": "with space.txt",
+      "restic_ls": {
+        "mode": 420,
+        "mtime": "2023-07-15T16:45:00Z",
+        "size": 32
+      },
+      "size_ok": true
+    },
+    {
+      "birth_time": {
+        "claimed": false,
+        "note": "not exposed; recorded, not claimed",
+        "value": null
+      },
+      "ctime": {
+        "claimed": false,
+        "note": "FUSE-approximated; recorded, not claimed",
+        "value": "2026-09-22T03:39:14.430402158Z"
+      },
+      "expected": {
+        "mode": 420,
+        "mtime": "2024-04-01T10:00:00Z",
+        "size": 48
+      },
+      "mode_ok": true,
+      "mtime_delta_ns": 0,
+      "mtime_ok": true,
+      "observed": {
+        "mode": 420,
+        "mtime": "2024-04-01T10:00:00Z",
+        "size": 48
+      },
+      "path": "café-日本.txt",
+      "restic_ls": {
+        "mode": 420,
+        "mtime": "2024-04-01T10:00:00Z",
+        "size": 48
+      },
+      "size_ok": true
+    },
+    {
+      "birth_time": {
+        "claimed": false,
+        "note": "not exposed; recorded, not claimed",
+        "value": null
+      },
+      "ctime": {
+        "claimed": false,
+        "note": "FUSE-approximated; recorded, not claimed",
+        "value": "2026-09-22T03:39:14.430555249Z"
+      },
+      "expected": {
+        "mode": 420,
+        "mtime": "2025-09-09T09:09:09Z",
+        "size": 16
+      },
+      "mode_ok": true,
+      "mtime_delta_ns": 0,
+      "mtime_ok": true,
+      "observed": {
+        "mode": 420,
+        "mtime": "2025-09-09T09:09:09Z",
+        "size": 16
+      },
+      "path": "sub/nested.txt",
+      "restic_ls": {
+        "mode": 420,
+        "mtime": "2025-09-09T09:09:09Z",
+        "size": 16
+      },
+      "size_ok": true
+    },
+    {
+      "birth_time": {
+        "claimed": false,
+        "note": "not exposed; recorded, not claimed",
+        "value": null
+      },
+      "ctime": {
+        "claimed": false,
+        "note": "FUSE-approximated; recorded, not claimed",
+        "value": "2026-09-22T03:39:14.430555249Z"
+      },
+      "expected": {
+        "mode": 134218239,
+        "mtime": "0001-01-01T00:00:00Z",
+        "size": 0
+      },
+      "mode_ok": true,
+      "mtime_delta_ns": 0,
+      "mtime_ok": true,
+      "observed": {
+        "mode": 134218239,
+        "mtime": "2026-09-22T03:39:14.430555249Z",
+        "size": 9
+      },
+      "path": "link-to-small",
+      "restic_ls": {
+        "mode": 134218239,
+        "mtime": "2026-09-22T03:39:14.430555249Z",
+        "size": 0
+      },
+      "restic_ls_unreported": {
+        "fields": [
+          "size",
+          "linktarget"
+        ],
+        "note": "not reported by restic ls --json 0.19"
+      },
+      "size_ok": false
+    }
+  ],
+  "files_compared": 9,
+  "files_generated": 9,
+  "mtime_precision_ns": 1,
+  "mtime_tolerance_ns": 0,
+  "pass": true,
+  "platform": "linux/amd64",
+  "resolved_inside_restic_mount": true,
+  "restic_version": "0.19.0",
+  "snapshot_alias": ".snapshot/2026-09-22_0339Z",
+  "snapshot_id": "e241bb03cb944c53ef41234a2b3aa47d89c784375a30cd37ec89ebfedc71c29b"
+}

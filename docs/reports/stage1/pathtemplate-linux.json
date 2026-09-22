@@ -1,0 +1,13 @@
+{
+  "goos": "linux",
+  "goarch": "amd64",
+  "restic_version": "0.19.0",
+  "path_template": "ids/%I",
+  "snapshot_id": "cc439810023786886736bf838bb44e4a6f5fd2d1050687ca2f049abdcd3d7dea",
+  "observed_dir": "cc439810023786886736bf838bb44e4a6f5fd2d1050687ca2f049abdcd3d7dea",
+  "ids_entries": [
+    "cc439810023786886736bf838bb44e4a6f5fd2d1050687ca2f049abdcd3d7dea"
+  ],
+  "result": "pass",
+  "generated_at": "2026-09-22T03:39:21Z"
+}

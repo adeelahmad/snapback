@@ -4,5 +4,15 @@ Copyright (c) 2026 Adeel Ahmad
 This product includes software developed by third parties:
 
 - Go standard library — BSD-3-Clause (https://go.dev/LICENSE)
+- github.com/hanwen/go-fuse/v2 — BSD-3-Clause (https://github.com/hanwen/go-fuse/blob/master/LICENSE)
+- golang.org/x/sys — BSD-3-Clause (https://cs.opensource.google/go/x/sys/+/master:LICENSE)
+- react — MIT (https://github.com/facebook/react/blob/main/LICENSE)
+- react-dom — MIT (https://github.com/facebook/react/blob/main/LICENSE)
+
+The website self-hosts these fonts, licensed under the SIL Open Font License 1.1 (https://openfontlicense.org):
+
+- IBM Plex Sans — SIL Open Font License 1.1 (https://github.com/IBM/plex/blob/master/LICENSE.txt)
+- IBM Plex Mono — SIL Open Font License 1.1 (https://github.com/IBM/plex/blob/master/LICENSE.txt)
+- JetBrains Mono — SIL Open Font License 1.1 (https://github.com/JetBrains/JetBrainsMono/blob/master/OFL.txt)
 
 This list is updated as dependencies are added.

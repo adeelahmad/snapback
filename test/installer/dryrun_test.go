@@ -40,14 +40,19 @@ func TestDryRunPrintsPlanWithoutNetwork(t *testing.T) {
 	}
 }
 
-func TestDryRunDefaultBaseURLIsPlaceholder(t *testing.T) {
+const defaultBaseURL = "https://github.com/adeelahmad/snapback/releases/latest/download"
+
+func TestDryRunDefaultBaseURLIsGitHubReleases(t *testing.T) {
 	stdout, stderr, code := runInstaller(t, dryRunEnv("Linux", "x86_64"))
 
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr)
 	}
-	if !strings.Contains(stdout, "example.invalid") {
-		t.Errorf("stdout does not contain %q; stdout=%q", "example.invalid", stdout)
+	if want := defaultBaseURL + "/snapback_linux_amd64.tar.gz"; !strings.Contains(stdout, want) {
+		t.Errorf("stdout does not contain %q; stdout=%q", want, stdout)
+	}
+	if strings.Contains(stdout+stderr, "example.invalid") {
+		t.Errorf("output contains placeholder %q; stdout=%q", "example.invalid", stdout)
 	}
 }
 

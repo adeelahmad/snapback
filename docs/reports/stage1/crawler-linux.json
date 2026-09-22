@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "goos": "linux",
+  "goarch": "amd64",
+  "seed": {
+    "Depth": 3,
+    "Fanout": 3
+  },
+  "positive_control_hits": 4,
+  "rows": [
+    {
+      "tool": "rg",
+      "argv": [
+        "rg",
+        "--files",
+        "--hidden",
+        "--no-ignore",
+        "/tmp/TestCrawlerToolMatrix1439453151/001/tree/live"
+      ],
+      "follows": false,
+      "status": "tested",
+      "hits": 0,
+      "ops": {},
+      "version": "ripgrep 14.1.0",
+      "exit_code": 0,
+      "duration": 6450007,
+      "reason": ""
+    },
+    {
+      "tool": "rg -L",
+      "argv": [
+        "rg",
+        "--files",
+        "--hidden",
+        "--no-ignore",
+        "-L",
+        "/tmp/TestCrawlerToolMatrix1439453151/001/tree/live"
+      ],
+      "follows": true,
+      "status": "tested",
+      "hits": 640,
+      "ops": {
+        "lookup": 120,
+        "readdir": 40,
+        "readlink": 480
+      },
+      "version": "ripgrep 14.1.0",
+      "exit_code": 0,
+      "duration": 102709637,
+      "reason": ""
+    },
+    {
+      "tool": "fd",
+      "argv": [
+        "fd",
+        "-H",
+        "-I",
+        ".",
+        "/tmp/TestCrawlerToolMatrix1439453151/001/tree/live"
+      ],
+      "follows": false,
+      "status": "tested",
+      "hits": 0,
+      "ops": {},
+      "version": "fdfind 9.0.0",
+      "exit_code": 0,
+      "duration": 6057936,
+      "reason": ""
+    },
+    {
+      "tool": "fd -L",
+      "argv": [
+        "fd",
+        "-H",
+        "-I",
+        "-L",
+        ".",
+        "/tmp/TestCrawlerToolMatrix1439453151/001/tree/live"
+      ],
+      "follows": true,
+      "status": "tested",
+      "hits": 640,
+      "ops": {
+        "lookup": 120,
+        "readdir": 40,
+        "readlink": 480
+      },
+      "version": "fdfind 9.0.0",
+      "exit_code": 0,
+      "duration": 126750242,
+      "reason": ""
+    },
+    {
+      "tool": "find",
+      "argv": [
+        "find",
+        "/tmp/TestCrawlerToolMatrix1439453151/001/tree/live"
+      ],
+      "follows": false,
+      "status": "tested",
+      "hits": 0,
+      "ops": {},
+      "version": "find (GNU findutils) 4.9.0",
+      "exit_code": 0,
+      "duration": 3398079,
+      "reason": ""
+    },
+    {
+      "tool": "find -L",
+      "argv": [
+        "find",
+        "-L",
+        "/tmp/TestCrawlerToolMatrix1439453151/001/tree/live"
+      ],
+      "follows": true,
+      "status": "tested",
+      "hits": 880,
+      "ops": {
+        "lookup": 120,
+        "readdir": 40,
+        "readlink": 720
+      },
+      "version": "find (GNU findutils) 4.9.0",
+      "exit_code": 0,
+      "duration": 137617287,
+      "reason": ""
+    },
+    {
+      "tool": "rsync -a",
+      "argv": [
+        "rsync",
+        "-a",
+        "/tmp/TestCrawlerToolMatrix1439453151/001/tree/live",
+        "/tmp/TestCrawlerToolMatrixrsync_-a1837927086/001/"
+      ],
+      "follows": false,
+      "status": "tested",
+      "hits": 0,
+      "ops": {},
+      "version": "rsync  version 3.2.7  protocol version 31",
+      "exit_code": 0,
+      "duration": 56533181,
+      "reason": ""
+    },
+    {
+      "tool": "vscode search",
+      "argv": null,
+      "follows": false,
+      "status": "not-tested-here",
+      "ops": null,
+      "version": "",
+      "exit_code": 0,
+      "duration": 0,
+      "reason": "VS Code search needs a GUI session; it follows symlinks only when search.followSymlinks is true (the default)"
+    }
+  ]
+}

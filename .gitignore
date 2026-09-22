@@ -35,3 +35,10 @@ dist/
 
 .agentic
 .claude
+
+# Local build output
+/bin/
+
+# Site build
+web/node_modules/
+_site/
