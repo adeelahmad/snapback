@@ -114,6 +114,31 @@ type fakeLinker struct {
 	calls  map[string]int
 	result map[string]links.Result
 	errs   map[string]error
+
+	records   []links.Record
+	repair    links.RepairReport
+	removed   links.RepairReport
+	listErr   error
+	repairErr error
+	removeErr error
+}
+
+func (f *fakeLinker) List() ([]links.Record, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.records, f.listErr
+}
+
+func (f *fakeLinker) Repair(context.Context) (links.RepairReport, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.repair, f.repairErr
+}
+
+func (f *fakeLinker) RemoveManaged(context.Context) (links.RepairReport, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.removed, f.removeErr
 }
 
 func (f *fakeLinker) Ensure(_ context.Context, dir string) (links.Result, error) {
