@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/config"
@@ -32,29 +31,13 @@ func (f failedRepo) List(context.Context) ([]provider.Snapshot, error) { return 
 // resticRepos builds a restic provider for repo. It runs restic with
 // --no-lock so the doctor never writes to the repository.
 func resticRepos(repo config.Repository) (provider.Validator, provider.Lister) {
-	bin := repo.ResticBinary
-	if bin == "" {
-		bin = "restic"
-	}
-	path, err := exec.LookPath(bin)
+	opts, err := restic.FromConfig(&config.Config{Repositories: []config.Repository{repo}}, repo.ID)
 	if err != nil {
-		f := failedRepo{errcode.New(errcode.PrereqMissing, "doctor repository",
-			fmt.Errorf("restic binary %s not found: %w", bin, err))}
+		f := failedRepo{err}
 		return f, f
 	}
-	if abs, err := filepath.Abs(path); err == nil {
-		path = abs
-	}
-	p, err := restic.New(restic.Options{
-		Binary:       path,
-		Repository:   repo.Repository,
-		PasswordFile: repo.PasswordFile,
-		CacheDir:     repo.CacheDir,
-		NoCache:      repo.NoCache,
-		RcloneBinary: repo.RcloneBinary,
-		NoLock:       true,
-		Env:          repo.Environment,
-	})
+	opts.NoLock = true
+	p, err := restic.New(opts)
 	if err != nil {
 		f := failedRepo{errcode.New(errcode.InvalidConfig, "doctor repository", err)}
 		return f, f

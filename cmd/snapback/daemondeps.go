@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"time"
@@ -106,27 +105,11 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 // daemonProvider returns the restic provider for repository r, or
 // errcode.PrereqMissing when its restic binary cannot be found.
 func daemonProvider(r config.Repository) (*restic.Provider, error) {
-	bin := r.ResticBinary
-	if bin == "" {
-		bin = "restic"
-	}
-	path, err := exec.LookPath(bin)
+	opts, err := restic.FromConfig(&config.Config{Repositories: []config.Repository{r}}, r.ID)
 	if err != nil {
-		return nil, errcode.New(errcode.PrereqMissing, daemonOp, fmt.Errorf("restic binary %s not found: %w", bin, err))
-	}
-	if path, err = filepath.Abs(path); err != nil {
 		return nil, err
 	}
-	p, err := restic.New(restic.Options{
-		Binary:       path,
-		Repository:   r.Repository,
-		PasswordFile: r.PasswordFile,
-		CacheDir:     r.CacheDir,
-		NoCache:      r.NoCache,
-		NoLock:       r.LockMode == "none",
-		RcloneBinary: r.RcloneBinary,
-		Env:          r.Environment,
-	})
+	p, err := restic.New(opts)
 	if err != nil {
 		return nil, errcode.New(errcode.InvalidConfig, daemonOp, err)
 	}

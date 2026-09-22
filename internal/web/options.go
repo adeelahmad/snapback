@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -180,27 +179,12 @@ type resticValidator struct{}
 
 func (resticValidator) Validate(ctx context.Context, c *config.Config) error {
 	for _, repo := range c.Repositories {
-		bin := repo.ResticBinary
-		if bin == "" {
-			bin = "restic"
-		}
-		path, err := exec.LookPath(bin)
+		opts, err := restic.FromConfig(c, repo.ID)
 		if err != nil {
-			return errcode.New(errcode.PrereqMissing, "web validate", fmt.Errorf("restic binary %s not found: %w", bin, err))
+			return err
 		}
-		if abs, err := filepath.Abs(path); err == nil {
-			path = abs
-		}
-		p, err := restic.New(restic.Options{
-			Binary:       path,
-			Repository:   repo.Repository,
-			PasswordFile: repo.PasswordFile,
-			CacheDir:     repo.CacheDir,
-			NoCache:      repo.NoCache,
-			RcloneBinary: repo.RcloneBinary,
-			NoLock:       true,
-			Env:          repo.Environment,
-		})
+		opts.NoLock = true
+		p, err := restic.New(opts)
 		if err != nil {
 			return errcode.New(errcode.InvalidConfig, "web validate", err)
 		}
