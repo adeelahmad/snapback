@@ -41,6 +41,7 @@ type Options struct {
 	Stdout    io.Writer
 	Validator SetupValidator
 	Opener    func(ctx context.Context, dir string) error
+	Daemon    DaemonControl
 }
 
 // Server is the local web server.
@@ -120,6 +121,7 @@ func (s *Server) routes() http.Handler {
 	mux.Handle("PUT /api/config", s.requireSession(http.HandlerFunc(s.handleAPIConfigPut)))
 	mux.Handle("POST /api/setup/validate", s.requireSession(http.HandlerFunc(s.handleAPISetupValidate)))
 	mux.Handle("GET /api/integrations", s.requireSession(http.HandlerFunc(s.handleAPIIntegrations)))
+	s.registerDaemonRoutes(mux)
 	if s.opts.History != nil {
 		mux.Handle("GET /api/roots", s.requireSession(http.HandlerFunc(s.handleAPIRoots)))
 		mux.Handle("GET /api/history", s.requireSession(http.HandlerFunc(s.handleAPIHistory)))
