@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -36,6 +37,7 @@ type setupOpts struct {
 	force        bool
 	noPrompt     bool
 	mount        string
+	mountSet     bool
 	roots        []string
 }
 
@@ -73,11 +75,16 @@ func parseSetup(env Env, args []string) (setupOpts, bool, error) {
 	fs.BoolVar(&o.dryRun, "dry-run", false, "report the configuration without writing it")
 	fs.BoolVar(&o.force, "force", false, "overwrite an existing configuration")
 	fs.BoolVar(&o.noPrompt, "no-prompt", false, "do not ask any question, keep every default")
-	fs.StringVar(&o.mount, "mount", "", "")
+	fs.StringVar(&o.mount, "mount", "", "mount point for this repository's restores (default /mnt/<repository id>); empty disables it")
 	help, err := ParseWithUsage(fs, args)
 	if help || err != nil {
 		return o, help, err
 	}
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "mount" {
+			o.mountSet = true
+		}
+	})
 	o.roots = fs.Args()
 	return o, false, nil
 }
@@ -144,6 +151,20 @@ func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) int {
 			cfg.Telemetry.Enabled = true
 			save = true
 		}
+	}
+	if o.mountSet {
+		setSetupMountPoint(cfg, o.mount)
+	} else if def, derr := setupDefaultMountPoint(d, env, cfg); derr != nil {
+		_, _ = fmt.Fprintf(env.Stdout, "note: %s\n", derr)
+	} else if o.dryRun || o.noPrompt {
+		setSetupMountPoint(cfg, def)
+	} else {
+		mp, merr := setup.AskMountPoint(setupStdin, env.Stdout, setupInteractive(), def)
+		if merr != nil {
+			mp = def
+		}
+		setSetupMountPoint(cfg, mp)
+		save = true
 	}
 	if o.dryRun {
 		b, err := config.Marshal(cfg)
@@ -298,4 +319,22 @@ func setupUndetected(env Env, res setup.Result, err error) int {
 	}
 	_, _ = fmt.Fprintf(env.Stderr, "fix: %s\n", setupFix)
 	return 1
+}
+
+// setSetupMountPoint records the mount point on the first repository, if there
+// is one; an empty value deliberately leaves the repository unmounted.
+func setSetupMountPoint(cfg *config.Config, mount string) {
+	if len(cfg.Repositories) == 0 {
+		return
+	}
+	cfg.Repositories[0].MountPoint = mount
+}
+
+// setupDefaultMountPoint is the mount point setup proposes for the first
+// repository when --mount is absent.
+func setupDefaultMountPoint(d Deps, env Env, cfg *config.Config) (string, error) {
+	if len(cfg.Repositories) == 0 {
+		return "", nil
+	}
+	return setup.DefaultMountPoint(setupGOOS(d), env.Getenv("HOME"), cfg.Repositories[0].ID)
 }
