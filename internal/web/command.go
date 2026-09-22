@@ -63,6 +63,13 @@ var newDaemon = func(stateDir string) DaemonControl {
 // has returned, on a context detached from the cancelled one.
 const daemonStopTimeout = 10 * time.Second
 
+// originList collects a repeatable --allow-origin flag in the order given.
+type originList []string
+
+func (o *originList) String() string { return strings.Join(*o, ",") }
+
+func (o *originList) Set(string) error { return nil }
+
 // Command returns the `web [--open] [--assets DIR]` subcommand.
 func Command() cli.Command {
 	return cli.Command{
@@ -73,6 +80,10 @@ func Command() cli.Command {
 			open := fs.Bool("open", false, "open the web UI in a browser")
 			assets := fs.String("assets", "", "load templates and assets from DIR")
 			withDaemon := fs.Bool("with-daemon", false, "run a snapback daemon for the lifetime of this command")
+			fs.String("bind", "", "")
+			fs.Bool("allow-remote", false, "")
+			var origins originList
+			fs.Var(&origins, "allow-origin", "")
 			help, err := cli.ParseWithUsage(fs, args)
 			if err != nil {
 				return cli.WriteError(env, "web", false, err)
