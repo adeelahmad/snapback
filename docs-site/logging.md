@@ -6,6 +6,8 @@ the config file.
 
 ## Flags
 
+`snapback run` takes all three flags:
+
 | Flag | What it sets | Accepted values |
 |---|---|---|
 | `--log-level` | how much is logged | `debug`, `info`, `warn`, `error` |
@@ -14,7 +16,11 @@ the config file.
 
 A flag that is given on the command line wins over the matching `logging:` key, and a setting
 that neither gives falls back to the default. An unknown level or format is refused by name,
-with the accepted words listed.
+with the accepted words listed: `snapback run --log-level=verbose` exits 2 with a usage error
+before the daemon takes its instance lock, so a typo never leaves a half-started daemon behind.
+
+`snapback web` does not take these flags yet; it is configured through the `logging:` section
+only.
 
 ## Config keys
 
@@ -49,6 +55,9 @@ Every credential environment value is redacted the same way. Debug also records:
 
 ## Bundles
 
-`snapback doctor --bundle` copies the daemon's log file out of the state directory into the
-bundle, after the same redaction it applies to the configuration and the doctor output. See
-[Privacy](privacy.md) for what a bundle holds.
+`snapback doctor --bundle` copies the daemon's log file into the bundle, after the same
+redaction it applies to the configuration and the doctor output. It reads `logging.file` when
+the configuration names one, and otherwise `daemon.log` in the state directory. A configured
+file that is missing becomes a short placeholder naming the path, so the bundle says why the
+log is absent instead of dropping it silently. See [Privacy](privacy.md) for what a bundle
+holds.
