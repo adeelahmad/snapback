@@ -49,3 +49,8 @@ func (c *Client) Call(ctx context.Context, req Request) (Response, error) {
 	}
 	return resp, nil
 }
+
+// Close closes the connection to the daemon.
+func (c *Client) Close() error {
+	panic("SUB-AGENT-TODO: close c.conn")
+}
