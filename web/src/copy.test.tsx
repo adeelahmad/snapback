@@ -6,7 +6,7 @@ import { Footer } from './sections/Footer';
 import { Install } from './sections/Install';
 import { Limits } from './sections/Limits';
 
-const installCommand = 'curl -fsSL https://snapback.sh/install.sh | sh';
+const installCommand = 'curl -fsSL https://snapback.run/install.sh | sh';
 const repoURL = 'https://github.com/adeelahmad/snapback';
 
 const headingAllowlist = new Set([

@@ -12,8 +12,8 @@ import (
 
 const (
 	indexHTML    = "web/index.html"
-	siteOrigin   = "https://snapback.sh/"
-	ogImageURL   = "https://snapback.sh/og-card-light.png"
+	siteOrigin   = "https://snapback.run/"
+	ogImageURL   = "https://snapback.run/og-card-light.png"
 	minDescLen   = 50
 	maxDescLen   = 160
 	lightSchemeQ = "(prefers-color-scheme: light)"

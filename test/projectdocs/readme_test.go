@@ -46,7 +46,7 @@ func TestReadmeStatesPreRelease(t *testing.T) {
 	}
 }
 
-const installLine = "curl -fsSL https://snapback.sh/install.sh | sh"
+const installLine = "curl -fsSL https://snapback.run/install.sh | sh"
 
 func TestReadmeOneLineInstallUsesSnapbackRun(t *testing.T) {
 	install := section(readDoc(t, "README.md"), "## Install")
@@ -59,7 +59,7 @@ func TestReadmeHasNoPlaceholderDomains(t *testing.T) {
 	readme := readDoc(t, "README.md")
 	for _, placeholder := range []string{"example.com", "example.invalid"} {
 		if strings.Contains(readme, placeholder) {
-			t.Errorf("README contains placeholder domain %q, want the real domain snapback.sh", placeholder)
+			t.Errorf("README contains placeholder domain %q, want the real domain snapback.run", placeholder)
 		}
 	}
 }

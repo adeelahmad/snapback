@@ -6,7 +6,7 @@ import { Header } from './sections/Header';
 import { Hero } from './sections/Hero';
 import { HowItWorks } from './sections/HowItWorks';
 
-const installCommand = 'curl -fsSL https://snapback.sh/install.sh | sh';
+const installCommand = 'curl -fsSL https://snapback.run/install.sh | sh';
 const repoURL = 'https://github.com/adeelahmad/snapback';
 
 function decodeEntities(s: string): string {

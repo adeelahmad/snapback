@@ -18,7 +18,7 @@ const (
 	stage1Link   = "docs/reports/stage1/"
 	v01Report    = "docs/reports/v0.1-acceptance.md"
 	usageGuide   = "docs-site/usage.md"
-	installPath  = "snapback.sh/install"
+	installPath  = "snapback.run/install"
 )
 
 // launchSections are the README ## sections, in the order they must appear.

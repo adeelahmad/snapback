@@ -7,7 +7,7 @@
   <a href="https://github.com/adeelahmad/snapback/releases"><img alt="release" src="https://img.shields.io/github/v/release/adeelahmad/snapback?color=1e7e43&label=release"></a>
   <a href="https://github.com/adeelahmad/snapback/actions/workflows/ci.yml"><img alt="ci" src="https://img.shields.io/github/actions/workflow/status/adeelahmad/snapback/ci.yml?branch=master&label=ci"></a>
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/adeelahmad/snapback?color=5f6368"></a>
-  <a href="https://snapback.sh/"><img alt="docs" src="https://img.shields.io/badge/docs-snapback.sh-1a73e8"></a>
+  <a href="https://snapback.run/"><img alt="docs" src="https://img.shields.io/badge/docs-snapback.run-1a73e8"></a>
 </p>
 
 # snapback
@@ -38,7 +38,7 @@ Backing up was never the problem; restoring is. Most tools make you leave the di
 ## Install
 
 ```sh
-curl -fsSL https://snapback.sh/install.sh | sh
+curl -fsSL https://snapback.run/install.sh | sh
 ```
 
 The installer downloads the latest tagged build from the [releases page](https://github.com/adeelahmad/snapback/releases). That tag predates v0.1 and only prints build information. Until v0.1 is tagged, build from source with Go:
@@ -96,7 +96,7 @@ snapback stands on the shoulders of [httm](https://github.com/kimono-koans/httm)
 
 ## Documentation
 
-- Docs site: https://snapback.sh/docs/
+- Docs site: https://snapback.run/docs/
 - [SPEC.md](SPEC.md): the product specification.
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the code is organised.
 - [CONTRIBUTING.md](CONTRIBUTING.md): how to build, test and send changes.
