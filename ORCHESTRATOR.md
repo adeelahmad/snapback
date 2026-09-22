@@ -4,7 +4,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 27
+- **Tick:** 28
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 EXECUTION — wave 1 merged (S2-01, S2-02, S2-03 on stage-1 @ e893fea); S2-05 T1-T2 merged; wave 2: S2-04 (T1 scaffold), S2-08 (T1-T3 RED) in flight
 - **Last gate:** GREEN on stage-1 @ bc2a030 (full standards matrix, cov 88.2%); master @ f0f0d5b green on GitHub
@@ -400,6 +400,9 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 27 | S2-03/fix-hang GREEN | green-worker | passed — WaitReady returns wrapped exit error when process dies before ids (ids checked first); 6/6 mount tests PASS -race; full matrix green; chain2/s2-03 → 1ff6f0a | — |
 | 27 | MERGE S2-03/fix-hang → stage-1 | orchestrator | bc2a030; full gate GREEN (cov 88.2%) | — |
 | 27 | S2-08/T5 RED, S2-08/T4 GREEN | red/green | spawned 02:59Z | — |
+| 28 | S2-01/structural | structural-reviewer | passed — no findings in S2-01 files; cross-story note: projection.RootIno duplicates mount.RootIno (forced by projection deps_test forbidding internal/mount import) → tech debt; plugin gate HIGHs judged false positives (BASE_REF predates sprint) | — |
+| 28 | S2-02/structural | structural-reviewer | passed — no findings; INFO: projection has no production importer until S2-04 wires it | — |
+| 28 | S2-08/T4 GREEN | green-worker | passed — 19/19 latency tests PASS -race; lint 0; chain2/s2-08 → 0f13fbd | — |
 
 ## Plugin issues found
 
@@ -419,6 +422,8 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 - gate-scaffold-verify counts symbols by bare name across the repo → a method `Op.String` collides with unrelated `version.String()`.
 
 ## Technical debt (for next planning session)
+
+- projection.RootIno (internal/projection/spec.go:12) duplicates mount.RootIno by design (projection must stay stdlib-only). Guard: add a gofuse-package test asserting `projection.RootIno == mount.RootIno` (gofuse imports both) — candidate for S2-04 follow-up.
 
 - CHANGELOG.md and GitHub release notes for v1.0.0/v1.0.1 link pre-rewrite commit SHAs (dangling after the authorship rewrite).
 
