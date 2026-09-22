@@ -1,5 +1,7 @@
 package webui
 
+import "html/template"
+
 // SetupView is the Setup page model.
 type SetupView struct {
 	Chrome
@@ -17,6 +19,9 @@ type SetupView struct {
 
 	// MountPoint is the directory the repository history is mounted under.
 	MountPoint Control
+
+	// Tour is the pre-rendered first-run tour, empty once a config exists.
+	Tour template.HTML
 }
 
 // Control is one form control on a page, shaped like the controls.html

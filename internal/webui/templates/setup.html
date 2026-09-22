@@ -9,6 +9,7 @@
 {{end}}
 <form method="post" action="/setup">
 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+{{with .Tour}}{{.}}{{end}}
 <label for="restic-path">Restic binary</label>
 <select id="restic-path" name="restic_path">
 {{range .ResticPaths}}<option value="{{.}}">{{.}}</option>

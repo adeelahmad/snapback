@@ -104,11 +104,18 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	v := webui.SetupView{Chrome: s.chrome(r, "setup", "Setup")}
 	var cfg *config.Config
 	if s.opts.Backend != nil {
-		c, _, err := s.opts.Backend.Config()
+		c, rev, err := s.opts.Backend.Config()
 		if err != nil {
 			v.Errors = append(v.Errors, err.Error())
 		}
 		cfg = c
+		if rev == "" {
+			tour, err := webui.RenderTour(webui.SetupTour())
+			if err != nil {
+				v.Errors = append(v.Errors, err.Error())
+			}
+			v.Tour = tour
+		}
 	}
 	var restic, rclone []string
 	if cfg != nil {
