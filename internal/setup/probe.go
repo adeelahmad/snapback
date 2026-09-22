@@ -2,6 +2,9 @@ package setup
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"sort"
 	"time"
 )
 
@@ -11,13 +14,28 @@ type Runner func(ctx context.Context, name string, args ...string) ([]byte, erro
 
 // Snapshot is the sliver of a Restic snapshot that setup shows the operator.
 type Snapshot struct {
-	ID       string
-	Hostname string
-	Paths    []string
-	Time     time.Time
+	ID       string    `json:"id"`
+	Hostname string    `json:"hostname"`
+	Paths    []string  `json:"paths"`
+	Time     time.Time `json:"time"`
 }
 
-// Probe lists the repository's snapshots, newest first, without writing to it.
-func Probe(_ context.Context, _ Runner, _, _, _ string) ([]Snapshot, error) {
-	return nil, nil
+// Probe lists the repository's snapshots, newest first. It runs exactly one
+// read-only `restic snapshots --json`, passing --no-lock so that not even a
+// lock file is written; an empty repository yields no snapshots and no error.
+func Probe(ctx context.Context, run Runner, resticPath, repoURI, passwordFile string) ([]Snapshot, error) {
+	out, err := run(ctx, resticPath,
+		"-r", repoURI, "--password-file", passwordFile, "--no-lock", "snapshots", "--json")
+	if err != nil {
+		return nil, fmt.Errorf("setup: probe: %w", err)
+	}
+	var snaps []Snapshot
+	if err := json.Unmarshal(out, &snaps); err != nil {
+		return nil, fmt.Errorf("setup: probe: parse snapshots: %w", err)
+	}
+	if len(snaps) == 0 {
+		return nil, nil
+	}
+	sort.SliceStable(snaps, func(i, j int) bool { return snaps[i].Time.After(snaps[j].Time) })
+	return snaps, nil
 }
