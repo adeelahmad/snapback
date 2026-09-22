@@ -174,3 +174,54 @@ func TestQEMUActionsPinnedToReleasedVersions(t *testing.T) {
 		}
 	}
 }
+
+// qemuUnitPackages are the pure-Go packages the QEMU leg cross-tests: no FUSE,
+// no restic and no network, so they run unchanged under binfmt emulation.
+var qemuUnitPackages = []string{
+	"./internal/config/",
+	"./internal/setup/",
+	"./internal/cli/",
+	"./internal/resolver/",
+	"./internal/aliases/",
+	"./internal/errcode/",
+	"./internal/version/",
+}
+
+func TestQEMURunsUnitTestsForEveryMatrixArch(t *testing.T) {
+	block := qemuJobBlock(t)
+	step := stepContaining(block, "go test")
+	if step == "" {
+		t.Fatalf("job %q has no step running `go test`:\n%s", qemuJobName, block)
+	}
+	for _, pkg := range qemuUnitPackages {
+		if !strings.Contains(step, pkg) {
+			t.Errorf("unit-test step does not test %s:\n%s", pkg, step)
+		}
+	}
+	if !strings.Contains(step, "-count=1") {
+		t.Errorf("unit-test step does not pass -count=1:\n%s", step)
+	}
+	if !qemuGoarchRe.MatchString(block) {
+		t.Errorf("job %q does not run the unit tests under GOARCH=${{ matrix.goarch }}", qemuJobName)
+	}
+}
+
+func TestQEMUUnitTestsRunWithoutRace(t *testing.T) {
+	block := qemuJobBlock(t)
+	if regexp.MustCompile(`(^|\s)-race(\s|$)`).MatchString(block) {
+		t.Errorf("job %q uses -race, unsupported on the emulated arm/mips targets:\n%s", qemuJobName, block)
+	}
+}
+
+func TestQEMUJobDeclaresATimeout(t *testing.T) {
+	block := qemuJobBlock(t)
+	if !regexp.MustCompile(`(?m)^\s*timeout-minutes:\s*15\b`).MatchString(block) {
+		t.Errorf("job %q declares no `timeout-minutes: 15`:\n%s", qemuJobName, block)
+	}
+}
+
+func TestQEMUKeepsTheVersionSmokeStep(t *testing.T) {
+	if stepContaining(qemuJobBlock(t), "./bin/snapback version") == "" {
+		t.Errorf("job %q lost the version smoke step", qemuJobName)
+	}
+}
