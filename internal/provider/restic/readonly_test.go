@@ -48,7 +48,7 @@ func TestReadOnlyProviderSubcommands(t *testing.T) {
 
 	tests := []struct {
 		name string
-		call func(context.Context, *Provider)
+		call func(*testing.T, context.Context, *Provider)
 		// want is the restic subcommand the operation must use.
 		want string
 		// wantNoLock is whether the argv must carry --no-lock; false means
@@ -57,33 +57,50 @@ func TestReadOnlyProviderSubcommands(t *testing.T) {
 	}{
 		{
 			name: "Validate",
-			call: func(ctx context.Context, p *Provider) { p.Validate(ctx) },
+			call: func(_ *testing.T, ctx context.Context, p *Provider) {
+				// Discarded: the bare fake replies with empty stdout, which is
+				// not a JSON config, so Validate fails after building its argv.
+				_, _ = p.Validate(ctx)
+			},
 			// "cat config" only reads the repository config object.
 			want:       "cat",
 			wantNoLock: true,
 		},
 		{
-			name:       "List",
-			call:       func(ctx context.Context, p *Provider) { p.List(ctx) },
+			name: "List",
+			call: func(_ *testing.T, ctx context.Context, p *Provider) {
+				// Discarded: empty stdout is not a JSON snapshot array, so List
+				// fails after building its argv.
+				_, _ = p.List(ctx)
+			},
 			want:       "snapshots",
 			wantNoLock: true,
 		},
 		{
-			name:       "Prewarm",
-			call:       func(ctx context.Context, p *Provider) { p.Prewarm(ctx, []provider.SnapshotID{id}, 1) },
+			name: "Prewarm",
+			call: func(_ *testing.T, ctx context.Context, p *Provider) {
+				p.Prewarm(ctx, []provider.SnapshotID{id}, 1)
+			},
 			want:       "ls",
 			wantNoLock: true,
 		},
 		{
-			name:       "StartMount",
-			call:       func(ctx context.Context, p *Provider) { p.StartMount(ctx, t.TempDir()) },
+			name: "StartMount",
+			call: func(t *testing.T, ctx context.Context, p *Provider) {
+				// The fake hands out a process, so Start itself must succeed.
+				if _, err := p.StartMount(ctx, t.TempDir()); err != nil {
+					t.Fatalf("StartMount: %v", err)
+				}
+			},
 			want:       "mount",
 			wantNoLock: true,
 		},
 		{
 			name: "Snap",
-			call: func(ctx context.Context, p *Provider) {
-				p.Snap(ctx, provider.SnapRequest{Path: "/home/a", Host: "h"})
+			call: func(_ *testing.T, ctx context.Context, p *Provider) {
+				// Discarded: the fake emits no backup summary line, so Snap
+				// fails after building its argv.
+				_, _ = p.Snap(ctx, provider.SnapRequest{Path: "/home/a", Host: "h"})
 			},
 			// Snap is the one write: an ad-hoc `restic backup` the user asks
 			// for with `snapback snap`. It must never carry --no-lock,
@@ -96,7 +113,7 @@ func TestReadOnlyProviderSubcommands(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			r := &fakeRunner{}
-			tc.call(t.Context(), readOnlyProvider(t, r))
+			tc.call(t, t.Context(), readOnlyProvider(t, r))
 
 			calls := r.recorded()
 			if len(calls) == 0 {
