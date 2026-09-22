@@ -1,1 +1,12 @@
-{{define "daemonctl"}}{{end}}
+{{define "daemonctl"}}<div class="daemon-control">
+<span class="badge {{if .Running}}badge-ok{{else}}badge-muted{{end}}" data-js="daemon-status">{{if .Running}}running{{else}}stopped{{end}}</span>
+<form method="post" action="/api/daemon/start">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+<button type="submit" class="button" data-js="daemon-start"{{if .Running}} disabled{{end}}>Start</button>
+</form>
+<form method="post" action="/api/daemon/stop">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+<button type="submit" class="button" data-js="daemon-stop"{{if not .Running}} disabled{{end}}>Stop</button>
+</form>
+</div>
+{{end}}
