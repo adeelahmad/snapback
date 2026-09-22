@@ -17,9 +17,11 @@ import (
 // mount point itself is <tmp>/mnt/<id>, which is what a user sees.
 const mountPointRepoID = "acc"
 
-// mountPointDirs are the three restic directories the whole-repository mount
-// publishes, and which `ls <mount_point>/.snapshot` must therefore show.
-var mountPointDirs = []string{"hosts", "ids", "snapshots"}
+// mountPointDirs is the whole directory listing the backend mount publishes.
+// The restic backend is mounted with --path-template ids/%I (pinned in
+// internal/provider/restic/args_test.go), so `ls <mount_point>/.snapshot` shows
+// ids/ and nothing else — no hosts/, snapshots/ or tags/.
+var mountPointDirs = []string{"ids"}
 
 // mountPointRepo is a disposable repo with snapshots from three hosts: two
 // that a configured root claims and one that no root or prefix_map mentions,
@@ -148,8 +150,8 @@ func readMountLink(t *testing.T, dir string) string {
 
 // pollMountLink waits for the daemon to publish the mount point link and for
 // the whole-repository mount behind it to list, which is the point at which
-// the repository is ready. It keeps polling until every directory of
-// mountPointDirs is present so a mount that is still filling cannot look like
+// the repository is ready. It returns as soon as every directory of
+// mountPointDirs is listed, so a mount that is still filling cannot look like
 // a missing one, and returns the last listing when the cap passes so the
 // caller reports what is actually there.
 func pollMountLink(t *testing.T, mountPoint string) []string {
@@ -189,10 +191,10 @@ func pollMountLink(t *testing.T, mountPoint string) []string {
 
 // TestMountPointPublishesWholeRepository pins the mount point end to end: the
 // daemon publishes <mount_point>/.snapshot as a managed symlink onto the
-// repository's whole-repository backend mount, that mount lists restic's own
-// ids/ hosts/ snapshots/ tree with every snapshot of every host — including a
-// host and a source path no root claims — a refresh leaves the link alone, and
-// stopping the daemon leaves the mount point directory behind.
+// repository's whole-repository backend mount, that mount lists ids/ and
+// nothing else, ids/ holds every snapshot of every host — including a host and
+// a source path no root claims — a refresh leaves the link alone, and stopping
+// the daemon removes the link but leaves the mount point directory behind.
 func TestMountPointPublishesWholeRepository(t *testing.T) {
 	recordEvidence(t, "platform-mountpoint")
 	requireFUSE(t)
@@ -206,10 +208,10 @@ func TestMountPointPublishesWholeRepository(t *testing.T) {
 	if got := readMountLink(t, mountPoint); got != want {
 		t.Errorf("readlink %s/.snapshot = %q, want %q", mountPoint, got, want)
 	}
-	for _, dir := range mountPointDirs {
-		if !slices.Contains(names, dir) {
-			t.Errorf("ls %s/.snapshot = %q, want it to contain %q", mountPoint, names, dir)
-		}
+	slices.Sort(names)
+	if !slices.Equal(names, mountPointDirs) {
+		t.Errorf("ls %s/.snapshot = %q, want exactly %q (the backend mount uses --path-template ids/%%I)",
+			mountPoint, names, mountPointDirs)
 	}
 
 	ids, err := listNames(filepath.Join(mountPoint, ".snapshot", "ids"))
