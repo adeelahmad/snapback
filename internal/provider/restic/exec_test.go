@@ -60,7 +60,9 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestExecRunnerSeparatesStdoutStderr(t *testing.T) {
-	stdout, stderr, err := ExecRunner{}.Run(context.Background(), os.Args[0], helperArgs, helperEnv("stdout-stderr"))
+	// A coverage-built child warns on stderr when GOCOVERDIR is unset.
+	env := helperEnv("stdout-stderr", "GOCOVERDIR="+t.TempDir())
+	stdout, stderr, err := ExecRunner{}.Run(context.Background(), os.Args[0], helperArgs, env)
 
 	if err != nil {
 		t.Fatalf("Run(stdout-stderr) error = %v, want nil", err)
