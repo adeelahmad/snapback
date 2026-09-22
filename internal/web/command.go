@@ -55,7 +55,13 @@ var configUsage = cli.Usage{
 
 // newDaemon builds the daemon that `snapback web --with-daemon` owns for the
 // lifetime of the web process. Tests swap it for a recorder.
-var newDaemon func(stateDir string) DaemonControl
+var newDaemon = func(stateDir string) DaemonControl {
+	return NewChildDaemon(stateDir, ChildOptions{})
+}
+
+// daemonStopTimeout bounds the stop of an owned daemon once the web server
+// has returned, on a context detached from the cancelled one.
+const daemonStopTimeout = 10 * time.Second
 
 // Command returns the `web [--open] [--assets DIR]` subcommand.
 func Command() cli.Command {
@@ -66,7 +72,7 @@ func Command() cli.Command {
 			fs := cli.NewFlagSet(env, webUsage)
 			open := fs.Bool("open", false, "open the web UI in a browser")
 			assets := fs.String("assets", "", "load templates and assets from DIR")
-			_ = fs.Bool("with-daemon", false, "")
+			withDaemon := fs.Bool("with-daemon", false, "run a snapback daemon for the lifetime of this command")
 			help, err := cli.ParseWithUsage(fs, args)
 			if err != nil {
 				return cli.WriteError(env, "web", false, err)
@@ -74,7 +80,7 @@ func Command() cli.Command {
 			if help {
 				return 0
 			}
-			return serve(ctx, env, "web", *assets, *open, "")
+			return serve(ctx, env, "web", *assets, *open, "", *withDaemon)
 		},
 	}
 }
@@ -97,7 +103,7 @@ func ConfigCommand() cli.Command {
 			if *file != "" {
 				return saveFile(env, *file)
 			}
-			return serve(ctx, env, "config", "", true, "/setup")
+			return serve(ctx, env, "config", "", true, "/setup", false)
 		},
 	}
 }
@@ -145,8 +151,9 @@ func loadOrDefault(path string) (*config.Config, config.Revision, error) {
 }
 
 // serve starts the server for cmd, opens it at next when open allows and
-// serves until ctx is done.
-func serve(ctx context.Context, env cli.Env, cmd, assets string, open bool, next string) int {
+// serves until ctx is done. With withDaemon it also owns a daemon for that
+// whole time: started before the listener binds, stopped once serving ends.
+func serve(ctx context.Context, env cli.Env, cmd, assets string, open bool, next string, withDaemon bool) int {
 	cfg, _, err := loadOrDefault(env.ConfigPath)
 	if err != nil {
 		return cli.WriteError(env, cmd, false, err)
@@ -163,6 +170,20 @@ func serve(ctx context.Context, env cli.Env, cmd, assets string, open bool, next
 	opts.Pages = pages
 	opts.Token = token
 	opts.Stdout = env.Stdout
+	if withDaemon {
+		d := newDaemon(cfg.StateDir)
+		if err := d.Start(ctx); err != nil {
+			return cli.WriteError(env, cmd, false, err)
+		}
+		defer func() {
+			stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), daemonStopTimeout)
+			defer cancel()
+			if err := d.Stop(stopCtx); err != nil {
+				_, _ = fmt.Fprintf(env.Stderr, "snapback %s: stop daemon: %v\n", cmd, err)
+			}
+		}()
+		opts.Daemon = d
+	}
 	s, err := New(opts)
 	if err != nil {
 		return cli.WriteError(env, cmd, false, err)
