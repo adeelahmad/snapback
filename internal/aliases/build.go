@@ -26,5 +26,8 @@ func Build(snaps []provider.Snapshot, opts Options) Set {
 		set.Aliases[i] = a
 		set.ByDate[a.Date] = append(set.ByDate[a.Date], a)
 	}
+	if opts.Rsnapshot {
+		set.Rsnapshot = rsnapshotView(snaps, zone, opts.Keep)
+	}
 	return set
 }
