@@ -1,17 +1,14 @@
-// agentic:shim
-
 // Package mount defines the FUSE-library-agnostic seam between catalogs,
-// adapters and observers. This file is a RED compile shim: constants and
-// String are deliberately wrong so the T2 tests fail by assertion.
+// adapters and observers.
 package mount
 
 // Kind is the type of a catalog entry.
 type Kind uint8
 
-// Entry kinds (shim: deliberately wrong values).
+// Entry kinds.
 const (
-	KindDir     Kind = 0
-	KindSymlink Kind = 0
+	KindDir     Kind = 0 // SUB-AGENT-TODO: distinct non-zero value per tasks.md T2
+	KindSymlink Kind = 0 // SUB-AGENT-TODO: distinct non-zero value per tasks.md T2
 )
 
 // Entry is one node in a catalog.
@@ -27,15 +24,17 @@ const RootIno uint64 = 1
 // Op is an observed filesystem operation.
 type Op uint8
 
-// Observed operations (shim: deliberately wrong values).
+// Observed operations.
 const (
-	OpLookup   Op = 0
-	OpReadDir  Op = 0
-	OpReadlink Op = 0
+	OpLookup   Op = 0 // SUB-AGENT-TODO: distinct value per tasks.md T2
+	OpReadDir  Op = 0 // SUB-AGENT-TODO: distinct value per tasks.md T2
+	OpReadlink Op = 0 // SUB-AGENT-TODO: distinct value per tasks.md T2
 )
 
-// String returns the operation name (shim: deliberately wrong).
-func (o Op) String() string { return "" }
+// String returns the operation name.
+func (o Op) String() string {
+	panic("SUB-AGENT-TODO: return the operation name per TestOpString table (tasks.md T2)")
+}
 
 // Event is one observed operation on a path.
 type Event struct {
