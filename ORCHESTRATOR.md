@@ -4,7 +4,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 25
+- **Tick:** 26
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 EXECUTION — wave 1 merged (S2-01, S2-02, S2-03 on stage-1 @ e893fea); S2-05 T1-T2 merged; wave 2: S2-04 (T1 scaffold), S2-08 (T1-T3 RED) in flight
 - **Last gate:** GREEN on stage-1 @ e893fea (full standards matrix, cov 88.6%); master @ f0f0d5b green on GitHub
@@ -390,6 +390,11 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 25 | S2-04/T1 GREEN | green-worker | passed — 18/18 PASS -race; lint 0; chain2/s2-04 → 4c448ed | — |
 | 25 | S2-01+S2-02 structural | structural-reviewer | KILLED at ~6.5 min (no findings written) | split → S2-01/structural + S2-02/structural, git-grep scope only, no whole-repo plugin gate |
 | 25 | S2-08/T1-T3 scaffold, S2-08/T4 RED, S2-03/fix-hang RED, S2-04/T2 RED, S2-04/T3 RED, S2-01/structural, S2-02/structural | various | spawned 02:54Z (7 running; non-overlapping files) | — |
+| 26 | S2-03/fix-hang RED | red-worker | passed — hang helper now `signal.Ignore(os.Interrupt); time.Sleep` (Stop grace+kill path now exercised, existing 3 PASS); new TestMountWaitReadyReturnsWhenProcessExits FAIL by assertion; chain2/s2-03 → 642f50d | — |
+| 26 | S2-08/T4 RED | red-worker | passed — 4 FAIL by assertion; Runner mirrors resticfx Run(ctx,name,args) | — |
+| 26 | S2-08/T1-T3 scaffold | scaffolder | passed — 11 symbols stubbed once, shims removed, NoThreshold guard PASS; combined with T4 RED → chain2/s2-08 891548e | — |
+| 26 | S2-04/T2 RED + T3 RED | red-worker ×2 | passed — combined: 10 FAIL by assertion; TestProjectionGenerationSatisfiesMountCatalog PASS-ON-RED (cross-story contract already satisfied by merged S2-02 — override on record, accepted); constructor chosen NewAdapter(obs mount.Observer); chain2/s2-04 → a693b36 | — |
+| 26 | S2-03/fix-hang GREEN, S2-08/T1,T2,T3 GREEN, S2-04/T2+T3 scaffold, S2-08/T4 scaffold | various | spawned 02:57Z (8 running incl. 2 structural) | — |
 
 ## Plugin issues found
 
