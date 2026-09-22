@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,6 +16,17 @@ import (
 // write a configuration.
 const setupFix = "pass --repo and --password-file, or set RESTIC_REPOSITORY and RESTIC_PASSWORD_FILE"
 
+// setupStdin and setupInteractive are the seams the telemetry opt-in prompt
+// reads the answer through; tests replace them with a fake terminal.
+var (
+	setupStdin io.Reader = os.Stdin
+
+	setupInteractive = func() bool {
+		info, err := os.Stdin.Stat()
+		return err == nil && info.Mode()&os.ModeCharDevice != 0
+	}
+)
+
 // setupOpts holds the parsed setup command line.
 type setupOpts struct {
 	repo         string
@@ -22,6 +34,7 @@ type setupOpts struct {
 	noService    bool
 	dryRun       bool
 	force        bool
+	noPrompt     bool
 	roots        []string
 }
 
@@ -58,6 +71,7 @@ func parseSetup(env Env, args []string) (setupOpts, bool, error) {
 	fs.BoolVar(&o.noService, "no-service", false, "do not install a background service")
 	fs.BoolVar(&o.dryRun, "dry-run", false, "report the configuration without writing it")
 	fs.BoolVar(&o.force, "force", false, "overwrite an existing configuration")
+	fs.BoolVar(&o.noPrompt, "no-prompt", false, "do not ask any question, keep every default")
 	help, err := ParseWithUsage(fs, args)
 	if help || err != nil {
 		return o, help, err

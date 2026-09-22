@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/setup"
 )
 
 // setupFixture is one machine `snapback setup` can be run against: fake
@@ -360,5 +361,28 @@ func TestSetupDryRunSkipsLinkingAndService(t *testing.T) {
 	}
 	if inst.calls != 0 {
 		t.Errorf("installer calls with --dry-run = %d, want 0", inst.calls)
+	}
+}
+
+func TestSetupAsksOnceAboutTelemetryAndRecordsAYes(t *testing.T) {
+	f := newSetupFixture(t)
+	stdin, interactive := setupStdin, setupInteractive
+	t.Cleanup(func() { setupStdin, setupInteractive = stdin, interactive })
+	setupStdin = strings.NewReader("y\n")
+	setupInteractive = func() bool { return true }
+
+	if got := f.dispatch(t); got != 0 {
+		t.Fatalf("setup = %d, want 0 (stderr %q)", got, f.err.String())
+	}
+
+	b, err := os.ReadFile(f.env.ConfigPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) = %v, want nil", f.env.ConfigPath, err)
+	}
+	if got := string(b); !strings.Contains(got, "telemetry:\n  enabled: true") {
+		t.Errorf("setup wrote config %q, want telemetry enabled", got)
+	}
+	if got := strings.Count(f.out.String(), setup.OptInQuestion); got != 1 {
+		t.Errorf("setup asked the opt-in question %d times, want 1", got)
 	}
 }
