@@ -1,0 +1,14 @@
+{
+  "goos": "darwin",
+  "goarch": "arm64",
+  "restic_version": "0.19.0",
+  "rclone_version": "rclone v1.75.0",
+  "path_template": "ids/%I",
+  "snapshot_id": "dbd065721f05c11d20f80e67270fe6f4507b20a958cc07279fe862614aa88ede",
+  "observed_dir": "dbd065721f05c11d20f80e67270fe6f4507b20a958cc07279fe862614aa88ede",
+  "ids_entries": [
+    "dbd065721f05c11d20f80e67270fe6f4507b20a958cc07279fe862614aa88ede"
+  ],
+  "result": "pass",
+  "generated_at": "2026-09-22T02:46:48Z"
+}
