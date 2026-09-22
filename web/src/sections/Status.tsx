@@ -1,4 +1,16 @@
-// SUB-AGENT-TODO: render a <section id="status"> listing stages 0-7 from content.ts `stages` (names from SPEC section 22) with each stage's state.
+import { stages, statusHeading } from '../content';
+
 export function Status() {
-  return null;
+  return (
+    <section id="status" className="status">
+      <h2>{statusHeading}</h2>
+      <ol start={0}>
+        {stages.map((stage) => (
+          <li key={stage.name}>
+            {stage.name}: <span className="status__state">{stage.state}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
 }

@@ -2,7 +2,7 @@ import { howItWorks } from '../content';
 
 export function HowItWorks() {
   return (
-    <section className="how">
+    <section id="how-it-works" className="how">
       <h2>{howItWorks.heading}</h2>
       <p className="how__label">{howItWorks.label}</p>
       <div className="glass terminal">

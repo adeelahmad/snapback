@@ -1,4 +1,17 @@
-// SUB-AGENT-TODO: render a <footer> with links from content.ts: docs /docs/, the GitHub repo, and the licence.
+import { footerLinks } from '../content';
+
 export function Footer() {
-  return null;
+  return (
+    <footer className="site-footer">
+      {footerLinks.map((link) => (
+        <a
+          key={link.href}
+          href={link.href}
+          rel={link.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+        >
+          {link.label}
+        </a>
+      ))}
+    </footer>
+  );
 }

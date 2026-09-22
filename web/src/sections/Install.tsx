@@ -1,4 +1,17 @@
-// SUB-AGENT-TODO: render a <section id="install"> with the install command once (content.ts), then what it installs today: a binary whose only command is snapback version; checksums verified by the script.
+import { hero, install } from '../content';
+
 export function Install() {
-  return null;
+  return (
+    <section id="install" className="install">
+      <h2>{install.heading}</h2>
+      <div className="glass snippet">
+        <pre>
+          <code>{hero.installCommand}</code>
+        </pre>
+      </div>
+      {install.items.map((line) => (
+        <p key={line}>{line}</p>
+      ))}
+    </section>
+  );
 }

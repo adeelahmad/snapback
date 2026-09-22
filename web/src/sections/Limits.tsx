@@ -1,4 +1,14 @@
-// SUB-AGENT-TODO: render a <section id="limits"> listing SPEC non-goals from content.ts: no backup scheduling, no retention, no file-content cache, never writes to the Restic repository, no Windows, no live overlay; Restic only.
+import { limits } from '../content';
+
 export function Limits() {
-  return null;
+  return (
+    <section id="limits" className="limits">
+      <h2>{limits.heading}</h2>
+      <ul>
+        {limits.items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </section>
+  );
 }

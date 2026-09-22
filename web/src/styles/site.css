@@ -99,3 +99,24 @@ a:focus-visible {
 .terminal__out {
   color: var(--ink-muted);
 }
+
+.limits,
+.install,
+.status {
+  padding: var(--space-8) 0;
+}
+
+.install p {
+  margin: var(--space-4) 0 0;
+}
+
+.status__state {
+  color: var(--ink-muted);
+}
+
+.site-footer {
+  display: flex;
+  gap: var(--space-6);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--line);
+}

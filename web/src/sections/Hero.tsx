@@ -2,7 +2,7 @@ import { hero } from '../content';
 
 export function Hero() {
   return (
-    <section className="hero">
+    <section id="hero" className="hero">
       <h1>{hero.pitch}</h1>
       <div className="glass snippet">
         <pre>

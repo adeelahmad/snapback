@@ -58,5 +58,47 @@ export interface Stage {
   state: StageState;
 }
 
-// SUB-AGENT-TODO: stages 0-7 named as in SPEC section 22; stage 0 'done', stage 1 'in progress', 2-7 'planned'.
-export const stages: Stage[] = [];
+export const stages: Stage[] = [
+  { name: 'Scaffolding', state: 'done' },
+  { name: 'Compatibility milestone', state: 'in progress' },
+  { name: 'Core vertical slice', state: 'planned' },
+  { name: 'Reliable background operation', state: 'planned' },
+  { name: 'Web UI and services', state: 'planned' },
+  { name: 'macOS proof', state: 'planned' },
+  { name: 'On-access mode', state: 'planned' },
+  { name: 'Release', state: 'planned' },
+];
+
+export interface ListContent {
+  heading: string;
+  items: string[];
+}
+
+export const limits: ListContent = {
+  heading: 'What snapback does not do',
+  items: [
+    'No backup scheduling. Run Restic on your own schedule.',
+    'No retention policy. Pruning stays with Restic.',
+    'No file-content cache.',
+    'snapback never writes to the Restic repository.',
+    'No Windows support.',
+    'No live overlay or union of snapshot and working files.',
+    'Restic is the only backend.',
+  ],
+};
+
+export const install: ListContent = {
+  heading: 'Install',
+  items: [
+    'Today this installs a binary whose only command is snapback version.',
+    'The script verifies the release checksums before it installs anything.',
+  ],
+};
+
+export const statusHeading = 'Status';
+
+export const footerLinks: NavLink[] = [
+  { label: 'docs', href: '/docs/' },
+  { label: 'GitHub', href: 'https://github.com/adeelahmad/snapback' },
+  { label: 'licence', href: 'https://github.com/adeelahmad/snapback/blob/master/LICENSE' },
+];
