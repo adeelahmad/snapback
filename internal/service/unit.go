@@ -35,7 +35,7 @@ func SystemdUnit(o UnitOptions) (string, error) {
 
 	var b strings.Builder
 	b.WriteString(unitHeader)
-	b.WriteString("[Service]\nType=simple\n")
+	b.WriteString("[Service]\nType=simple\nKillMode=mixed\n")
 	wantedBy := "default.target"
 	if o.Scope == "system" {
 		wantedBy = "multi-user.target"

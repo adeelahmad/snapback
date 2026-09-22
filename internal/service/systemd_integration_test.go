@@ -161,6 +161,27 @@ func mountinfoHas(t *testing.T, mnt string) bool {
 	return false
 }
 
+// forceUnmountStale lazily unmounts mnt when it is still a mountpoint. A
+// restic mount whose process died leaves a dead FUSE endpoint behind, and
+// TempDir cleanup then fails with "transport endpoint is not connected".
+func forceUnmountStale(t *testing.T, mnt string) {
+	t.Helper()
+	if !mountinfoHas(t, mnt) {
+		return
+	}
+	for _, bin := range []string{"fusermount3", "fusermount"} {
+		if _, err := exec.LookPath(bin); err != nil {
+			continue
+		}
+		out, err := exec.Command(bin, "-uz", mnt).CombinedOutput()
+		t.Logf("stale mount %s: %s -uz = %v\n%s", mnt, bin, err, out)
+		if err == nil {
+			return
+		}
+	}
+	t.Logf("stale mount %s: no fusermount binary could unmount it", mnt)
+}
+
 func TestIntegrationUserServiceInstallReadyUninstall(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -237,6 +258,7 @@ func TestIntegrationUserServiceInstallReadyUninstall(t *testing.T) {
 		logUserService(t)
 		bg := context.Background()
 		_ = s.Uninstall(bg)
+		forceUnmountStale(t, filepath.Join(stateDir, "mounts", "repositories", "fx"))
 		_ = os.Remove(unitFile)
 		if createdDir {
 			_ = os.Remove(unitDir)
