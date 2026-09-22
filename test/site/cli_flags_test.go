@@ -13,8 +13,8 @@ import (
 // command name, then two spaces before its summary.
 var rootCommandLine = regexp.MustCompile(`^ {2}(\S+) {2}`)
 
-// flagLine matches a flag entry inside a `Flags:` block, e.g. "  -json".
-var flagLine = regexp.MustCompile(`^ {2}-([A-Za-z][A-Za-z0-9-]*)`)
+// flagLine matches a flag entry inside a `Flags:` block, e.g. "  --json".
+var flagLine = regexp.MustCompile(`^ {2}--?([A-Za-z][A-Za-z0-9-]*)`)
 
 // docFlagToken matches a `-flag` or `--flag` token in the reference page.
 var docFlagToken = regexp.MustCompile(`(?:^|[^\w-])--?([A-Za-z][A-Za-z0-9-]*)`)
