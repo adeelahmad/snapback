@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"time"
 
 	"github.com/adeelahmad/snapback/internal/links"
 	"github.com/adeelahmad/snapback/internal/provider"
@@ -28,4 +29,8 @@ type Deps struct {
 	Daemon func(ctx context.Context) (Daemon, error)
 	Getwd  func() (string, error)
 	Exec   func(ctx context.Context, name string, args []string) error
+	// LookPath resolves an executable name to its path.
+	LookPath func(file string) (string, error)
+	// OpenTimeout bounds how long open waits for the opener.
+	OpenTimeout time.Duration
 }
