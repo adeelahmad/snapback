@@ -18,6 +18,7 @@ const (
 	AttrTimeout  time.Duration = time.Second
 	DirPerm      uint32        = 0o555
 	SymlinkPerm  uint32        = 0o555
+	FilePerm     uint32        = 0o444
 )
 
 func typeBits(k mount.Kind) uint32 {
@@ -26,6 +27,8 @@ func typeBits(k mount.Kind) uint32 {
 		return syscall.S_IFDIR
 	case mount.KindSymlink:
 		return syscall.S_IFLNK
+	case mount.KindFile:
+		return syscall.S_IFREG
 	}
 	return 0
 }
@@ -43,8 +46,10 @@ func Attr(e mount.Entry, owner fuse.Owner) fuse.Attr {
 		mode = syscall.S_IFDIR | DirPerm
 	case mount.KindSymlink:
 		mode = syscall.S_IFLNK | SymlinkPerm
+	case mount.KindFile:
+		mode = syscall.S_IFREG | FilePerm
 	}
-	return fuse.Attr{Ino: e.Ino, Mode: mode, Owner: owner, Nlink: 1}
+	return fuse.Attr{Ino: e.Ino, Mode: mode, Size: e.Size, Owner: owner, Nlink: 1}
 }
 
 // EntryOut returns the lookup reply for e.

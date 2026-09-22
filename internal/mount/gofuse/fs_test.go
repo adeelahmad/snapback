@@ -75,17 +75,17 @@ func newFixture(t *testing.T) fixture {
 }
 
 // catalogPath walks a slash-joined path in the catalog.
-func catalogPath(t *testing.T, cat mount.Catalog, path string) (uint64, bool) {
+func catalogPath(t *testing.T, cat mount.Catalog, path string) (uint64, mount.Kind) {
 	t.Helper()
-	ino, isDir := mount.RootIno, true
+	ino, kind := mount.RootIno, mount.KindDir
 	for _, name := range strings.Split(path, "/") {
 		var found bool
-		ino, isDir, found = cat.Lookup(ino, name)
+		ino, kind, found = cat.Lookup(ino, name)
 		if !found {
 			t.Fatalf("catalog has no %q", path)
 		}
 	}
-	return ino, isDir
+	return ino, kind
 }
 
 // lookupNode walks a slash-joined path through node Lookup calls.
@@ -133,11 +133,15 @@ func TestLookupReturnsCatalogChild(t *testing.T) {
 	cases := []struct {
 		name     string
 		wantType uint32
+		wantKind mount.Kind
 	}{
-		{"docs", syscall.S_IFDIR},
-		{"rel", syscall.S_IFLNK},
+		{"docs", syscall.S_IFDIR, mount.KindDir},
+		{"rel", syscall.S_IFLNK, mount.KindSymlink},
 	}
 	for _, tc := range cases {
+		if _, kind := catalogPath(t, f.gen, tc.name); kind != tc.wantKind {
+			t.Errorf("catalog kind of %q = %d, want %d", tc.name, kind, tc.wantKind)
+		}
 		var out fuse.EntryOut
 		ino, errno := f.root.Lookup(t.Context(), tc.name, &out)
 		if errno != 0 {
@@ -204,9 +208,9 @@ func TestReaddirListsCatalogEntriesInOrder(t *testing.T) {
 		t.Fatalf("Readdir names = %q, want %q", names, want)
 	}
 	for _, e := range entries {
-		_, isDir := catalogPath(t, f.gen, e.Name)
+		_, kind := catalogPath(t, f.gen, e.Name)
 		wantType := uint32(syscall.S_IFLNK)
-		if isDir {
+		if kind == mount.KindDir {
 			wantType = syscall.S_IFDIR
 		}
 		if got := e.Mode & syscall.S_IFMT; got != wantType {
