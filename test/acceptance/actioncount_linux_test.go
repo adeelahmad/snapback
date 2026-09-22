@@ -59,6 +59,7 @@ func TestActionCountLinux(t *testing.T) {
 func runActionScript(t *testing.T, script string) string {
 	t.Helper()
 	h := newHistRepo(t)
+	h.proj = countedProjectDir(t)
 	writeFiles(t, h.proj, map[string]string{"a.txt": "actions fixture\n"})
 	// The script cds into the project, so it sees the physical path; back up
 	// that same path or the snapshot would not cover the root setup writes.
@@ -109,6 +110,41 @@ func runActionScript(t *testing.T, script string) string {
 		t.Fatalf("sh %s = %v, want exit 0; output:\n%s", script, waitErr, out)
 	}
 	return out
+}
+
+// countedProjectDir returns the directory the counted run backs up, created
+// outside os.TempDir(). `snapback setup` refuses a backup root inside the
+// temporary directory (internal/setup/roots.go) so that no .snapshot link is
+// ever planted in /tmp, and on Linux t.TempDir() sits under /tmp. The
+// directory lives under $SNAPBACK_ACC_HOME, or the user's home when that is
+// unset, and is removed when the test ends. Without a writable home there is
+// nowhere legal to put it, so the test skips with that reason.
+func countedProjectDir(t *testing.T) string {
+	t.Helper()
+	home := os.Getenv("SNAPBACK_ACC_HOME")
+	if home == "" {
+		h, err := os.UserHomeDir()
+		if err != nil {
+			skip(t, "missing prerequisite: no home directory for a project outside the temporary directory: "+err.Error())
+		}
+		home = h
+	}
+	base := filepath.Join(home, ".snapback-acceptance")
+	if err := os.MkdirAll(base, 0o755); err != nil {
+		skip(t, "missing prerequisite: unwritable home for a project outside the temporary directory: "+err.Error())
+	}
+	dir, err := os.MkdirTemp(base, strings.ReplaceAll(t.Name(), string(filepath.Separator), "_")+"-")
+	if err != nil {
+		skip(t, "missing prerequisite: unwritable home for a project outside the temporary directory: "+err.Error())
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	// The leaf name becomes the generated root id, which must match
+	// ^[a-z][a-z0-9_-]{0,31}$ — so the random part stays in the parent.
+	proj := filepath.Join(dir, "proj")
+	if err := os.MkdirAll(proj, 0o755); err != nil {
+		t.Fatalf("mkdir counted project: %v", err)
+	}
+	return proj
 }
 
 // stopActionGroup kills the script's process group — any daemon it
