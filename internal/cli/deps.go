@@ -8,6 +8,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/discovery/seed"
 	"github.com/adeelahmad/snapback/internal/links"
 	"github.com/adeelahmad/snapback/internal/provider"
+	"github.com/adeelahmad/snapback/internal/setup"
 )
 
 // Linker is the link engine surface the CLI uses.
@@ -49,6 +50,9 @@ type Deps struct {
 	PlanPath func(root, seedPath string, maxDepth int, excludes []string) (seed.Plan, error)
 	// Preflight checks the inode budget for p; force overrides the budget.
 	Preflight func(p seed.Plan, force bool) error
+	// Run runs name with args and returns its combined output. Setup probes
+	// the repository through it.
+	Run setup.Runner
 	// RunSeed creates the links planned in p.
 	RunSeed func(ctx context.Context, l seed.Linker, p seed.Plan) (seed.Report, error)
 }

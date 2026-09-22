@@ -198,3 +198,25 @@ func TestSetupHelpExitsZero(t *testing.T) {
 		t.Errorf("setup -h stderr = %q, want it to contain %q", got, want)
 	}
 }
+
+func TestSetupOnEmptyRepositoryWritesConfigAndAdvisesSnap(t *testing.T) {
+	f := newSetupFixture(t)
+	f.deps.Run = func(context.Context, string, ...string) ([]byte, error) {
+		return []byte("[]"), nil
+	}
+
+	if got := f.dispatch(t); got != 0 {
+		t.Fatalf("setup = %d, want 0 (stderr %q)", got, f.err.String())
+	}
+	if _, err := f.deps.LoadConfig(f.env.ConfigPath); err != nil {
+		t.Fatalf("LoadConfig(%q) = %v, want nil", f.env.ConfigPath, err)
+	}
+
+	out := f.out.String()
+	if got, want := lastLine(out), "next: snapback snap "+f.root; got != want {
+		t.Errorf("setup last stdout line = %q, want %q", got, want)
+	}
+	if want := "repository has no snapshots yet"; !strings.Contains(out, want) {
+		t.Errorf("setup stdout = %q, want a line containing %q", out, want)
+	}
+}

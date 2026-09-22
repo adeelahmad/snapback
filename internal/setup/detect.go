@@ -3,7 +3,11 @@
 // seams and never touches the filesystem or the Restic repository.
 package setup
 
-import "io/fs"
+import (
+	"io/fs"
+
+	"github.com/adeelahmad/snapback/internal/config"
+)
 
 // Result holds everything detection could infer. Every zero value is
 // meaningful: an empty string or a nil slice means "not detected".
@@ -15,6 +19,10 @@ type Result struct {
 	Roots          []string
 	Hostname       string
 	Reasons        []string
+
+	// PrefixMappings holds the prefix map the repository probe derived for
+	// the first root. It is empty when the local path needs no mapping.
+	PrefixMappings []config.PrefixMapping
 }
 
 // Deps carries the seams detection reads the machine through. A nil seam is
