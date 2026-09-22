@@ -1,7 +1,6 @@
-// agentic:shim
 package webui
 
-// SetupView is a compile shim for the S3-14 T4 Setup page view model.
+// SetupView is the Setup page model.
 type SetupView struct {
 	Chrome
 	ResticPaths    []string
@@ -12,7 +11,7 @@ type SetupView struct {
 	Errors         []string
 }
 
-// ConfigView is a compile shim for the S3-14 T4 Configuration page view model.
+// ConfigView is the Configuration page model.
 type ConfigView struct {
 	Chrome
 	Revision        string

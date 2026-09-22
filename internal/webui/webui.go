@@ -43,15 +43,6 @@ var contentTypes = map[string]string{
 	".woff2": "font/woff2",
 }
 
-// Load parses the templates from override, or from the embedded files when
-// override is empty.
-func Load(override string) (*Pages, error) {
-	if override != "" {
-		return nil, fmt.Errorf("webui: override %q: not supported", override)
-	}
-	return load(embedded)
-}
-
 // load parses templates/layout.html and pairs a clone of it with every other
 // templates/*.html file, one template set per page.
 func load(fsys fs.FS) (*Pages, error) {

@@ -1,5 +1,3 @@
-// agentic:shim
-
 package webui
 
 // StatusView is the Status page model; nil pointers mean not measured.

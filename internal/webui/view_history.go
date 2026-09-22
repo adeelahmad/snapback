@@ -1,7 +1,6 @@
-// agentic:shim
 package webui
 
-// HistoryView is the History page view model (shim for S3-14 T5 RED).
+// HistoryView is the History page model.
 type HistoryView struct {
 	Chrome
 	Roots           []RootItem
