@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -203,7 +204,7 @@ func TestRunCommandBadConfig(t *testing.T) {
 
 // unusedBuilder returns a Builder that fails the test if it is called.
 func unusedBuilder(t *testing.T) Builder {
-	return func(context.Context, *config.Config, net.Listener) (Deps, error) {
+	return func(context.Context, *config.Config, net.Listener, *slog.Logger) (Deps, error) {
 		t.Error("Builder called, want not called")
 		return Deps{}, errors.New("unused builder")
 	}
@@ -299,7 +300,7 @@ func TestRunCommandUsesBuilder(t *testing.T) {
 		calls  int
 	)
 	built := make(chan struct{})
-	build := func(_ context.Context, cfg *config.Config, ln net.Listener) (Deps, error) {
+	build := func(_ context.Context, cfg *config.Config, ln net.Listener, _ *slog.Logger) (Deps, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		calls++
@@ -351,7 +352,7 @@ func TestRunCommandUsesBuilder(t *testing.T) {
 func TestRunCommandBuilderError(t *testing.T) {
 	cfgPath, stateDir := writeValidConfig(t)
 	var calls int
-	build := func(context.Context, *config.Config, net.Listener) (Deps, error) {
+	build := func(context.Context, *config.Config, net.Listener, *slog.Logger) (Deps, error) {
 		calls++
 		return Deps{}, errcode.New(errcode.RepoUnavailable, "build deps", errors.New("restic not found"))
 	}

@@ -66,9 +66,11 @@ func (stubCatalog) Readlink(uint64) (string, bool)                   { return ""
 func (stubCatalog) ReadFile(uint64) ([]byte, bool)                   { return nil, false }
 
 // driveLogWiring builds the production wiring at level, drives one restic
-// call, one catalog lookup, one denied reader decision and one refresh
-// through it, and returns the records the logger emitted.
-func driveLogWiring(t *testing.T, level slog.Level) []logRecord {
+// call, one catalog lookup, one reader decision and one refresh through it,
+// and returns the records the logger emitted plus whether the reader was
+// denied. The policy can only deny a reader it can name, which needs /proc,
+// so the deny records are pinned only where the decision came back deny.
+func driveLogWiring(t *testing.T, level slog.Level) ([]logRecord, bool) {
 	t.Helper()
 	tmp := shortTempDir(t)
 	bin := filepath.Join(tmp, "bin")
@@ -81,6 +83,7 @@ func driveLogWiring(t *testing.T, level slog.Level) []logRecord {
 	}
 	t.Setenv("PATH", bin)
 	cfg := daemonDepsConfig(t, tmp, resticBin)
+	cfg.Catalog.ReaderPolicy.DenyProcesses = []string{filepath.Base(os.Args[0])}
 	ln := listenUnix(t, tmp)
 
 	var buf bytes.Buffer
@@ -107,21 +110,19 @@ func driveLogWiring(t *testing.T, level slog.Level) []logRecord {
 	if w.Gate == nil {
 		t.Fatal("daemonBuilderWithLog(...).Gate = nil, want the reader-policy gate")
 	}
-	if allowed := w.Gate.Allow(mount.Event{Op: mount.OpLookup, Path: "x", PID: uint32(os.Getpid())}); allowed {
-		t.Fatalf("Gate.Allow(denied reader) = true, want false")
-	}
+	allowed := w.Gate.Allow(mount.Event{Op: mount.OpLookup, Path: "x", PID: uint32(os.Getpid())})
 
 	if _, err := w.Deps.Refresher.Refresh(t.Context()); err != nil {
 		t.Logf("Refresher.Refresh(ctx) = %v (tolerated; the records are what is pinned)", err)
 	}
-	return decodeLog(t, &buf)
+	return decodeLog(t, &buf), !allowed
 }
 
 // TestLogWireDecoratorsDebug pins that the production daemon wiring routes the
 // S5-36 debug decorators at the daemon's own logger: a restic invocation, a
 // catalog read, a reader-policy deny and a refresh each leave a record.
 func TestLogWireDecoratorsDebug(t *testing.T) {
-	recs := driveLogWiring(t, slog.LevelDebug)
+	recs, denied := driveLogWiring(t, slog.LevelDebug)
 
 	if !hasMsg(recs, "DEBUG", "restic exec") {
 		t.Errorf("debug log = %+v, want a DEBUG %q record from restic.LogRunner", recs, "restic exec")
@@ -129,7 +130,10 @@ func TestLogWireDecoratorsDebug(t *testing.T) {
 	if !hasMsg(recs, "DEBUG", "catalog") {
 		t.Errorf("debug log = %+v, want a DEBUG %q record from mount.LogCatalog", recs, "catalog")
 	}
-	if !hasDeny(recs) {
+	if !hasMsg(recs, "DEBUG", "reader policy decision") {
+		t.Errorf("debug log = %+v, want a DEBUG %q record from readerpolicy.LogDecider", recs, "reader policy decision")
+	}
+	if denied && !hasDeny(recs) {
 		t.Errorf("debug log = %+v, want an INFO decision=deny record from readerpolicy.LogDecider", recs)
 	}
 	if !hasMsg(recs, "DEBUG", "refresh start") {
@@ -141,12 +145,12 @@ func TestLogWireDecoratorsDebug(t *testing.T) {
 // deny record and none of the debug ones, so the decorators cost nothing when
 // debug is off.
 func TestLogWireDecoratorsInfo(t *testing.T) {
-	recs := driveLogWiring(t, slog.LevelInfo)
+	recs, denied := driveLogWiring(t, slog.LevelInfo)
 
-	if !hasDeny(recs) {
+	if denied && !hasDeny(recs) {
 		t.Errorf("info log = %+v, want an INFO decision=deny record from readerpolicy.LogDecider", recs)
 	}
-	for _, msg := range []string{"restic exec", "restic done", "catalog", "refresh start"} {
+	for _, msg := range []string{"restic exec", "restic done", "catalog", "refresh start", "reader policy decision"} {
 		if hasMsg(recs, "DEBUG", msg) {
 			t.Errorf("info log = %+v, want no DEBUG %q record", recs, msg)
 		}

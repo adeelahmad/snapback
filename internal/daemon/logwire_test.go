@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -60,7 +61,7 @@ func logWireEnv(configPath string) (cli.Env, *syncBuf, *syncBuf) {
 func runLogWire(t *testing.T, cfgPath string, args []string, ready func(stderr string) bool) (code int, stdout, stderr string) {
 	t.Helper()
 	h := newHarness(t)
-	build := func(_ context.Context, _ *config.Config, ln net.Listener) (Deps, error) {
+	build := func(_ context.Context, _ *config.Config, ln net.Listener, _ *slog.Logger) (Deps, error) {
 		deps := h.deps
 		deps.Listener = ln
 		deps.Trace = nil
@@ -165,7 +166,7 @@ func TestLogWireDefaultsToTextOnStderr(t *testing.T) {
 func TestLogWireBadLevelIsAUsageError(t *testing.T) {
 	cfgPath, stateDir := writeValidConfig(t)
 	var calls int
-	build := func(context.Context, *config.Config, net.Listener) (Deps, error) {
+	build := func(context.Context, *config.Config, net.Listener, *slog.Logger) (Deps, error) {
 		calls++
 		return Deps{}, errors.New("builder must not run on a bad --log-level")
 	}

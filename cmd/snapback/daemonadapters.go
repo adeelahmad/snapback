@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"slices"
 	"sync"
@@ -32,6 +33,7 @@ const mountinfoPath = "/proc/self/mountinfo"
 type historyView struct {
 	dir     string
 	modes   fsmode.Modes
+	log     *slog.Logger
 	adapter *gofuse.Adapter
 
 	mu      sync.Mutex
@@ -39,8 +41,14 @@ type historyView struct {
 	err     error
 }
 
+// wrapCatalog returns cat behind the debug catalog decorator.
+func (h *historyView) wrapCatalog(cat mount.Catalog) mount.Catalog {
+	return mount.LogCatalog{Log: h.log, Catalog: cat}
+}
+
 // Publish serves cat, mounting the view on the first call.
 func (h *historyView) Publish(cat mount.Catalog) {
+	cat = h.wrapCatalog(cat)
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.mounted {
@@ -182,8 +190,8 @@ func (m multiPrewarmer) Prewarm(ctx context.Context, ids []provider.SnapshotID, 
 	return out
 }
 
-// policyGate adapts readerpolicy.Policy to mount.Gate.
-type policyGate struct{ p *readerpolicy.Policy }
+// policyGate adapts a readerpolicy.Decider to mount.Gate.
+type policyGate struct{ p readerpolicy.Decider }
 
 func (g policyGate) Allow(ev mount.Event) bool {
 	return g.p.Allow(readerpolicy.Event(ev))

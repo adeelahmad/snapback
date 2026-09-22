@@ -27,7 +27,7 @@ func TestDaemonBuilderMountLinkerPublishesMountPoint(t *testing.T) {
 	cfg := daemonDepsConfig(t, tmp, restic)
 	ln := listenUnix(t, tmp)
 
-	deps, err := daemonBuilder(t.Context(), cfg, ln)
+	deps, err := daemonBuilder(t.Context(), cfg, ln, nil)
 	if err != nil {
 		t.Fatalf("daemonBuilder(ctx, cfg, ln) = %v, want nil error", err)
 	}

@@ -95,7 +95,7 @@ func TestDaemonDepsComplete(t *testing.T) {
 	cfg := daemonDepsConfig(t, tmp, restic)
 	ln := listenUnix(t, tmp)
 
-	deps, err := daemonBuilder(t.Context(), cfg, ln)
+	deps, err := daemonBuilder(t.Context(), cfg, ln, nil)
 	if err != nil {
 		t.Fatalf("daemonBuilder(ctx, cfg, ln) = %v, want nil error", err)
 	}
@@ -123,7 +123,7 @@ func TestDaemonDepsNoRestic(t *testing.T) {
 	cfg := daemonDepsConfig(t, tmp, filepath.Join(tmp, "missing", "restic"))
 	ln := listenUnix(t, tmp)
 
-	_, err := daemonBuilder(t.Context(), cfg, ln)
+	_, err := daemonBuilder(t.Context(), cfg, ln, nil)
 	if got, want := errcode.Of(err), errcode.PrereqMissing; got != want {
 		t.Fatalf("errcode.Of(daemonBuilder(ctx, cfg, ln)) = %q (err %v), want %q", got, err, want)
 	}

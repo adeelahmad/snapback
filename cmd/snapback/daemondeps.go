@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"maps"
 	"net"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/fsmode"
 	"github.com/adeelahmad/snapback/internal/history"
 	"github.com/adeelahmad/snapback/internal/links"
+	"github.com/adeelahmad/snapback/internal/mount"
 	"github.com/adeelahmad/snapback/internal/mount/gofuse"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/provider/restic"
@@ -35,21 +37,43 @@ const (
 	cacheDirName = "cache"
 )
 
-// daemonBuilder builds the production daemon.Deps from cfg. It opens the
-// links registry but mounts and starts nothing; the daemon's Run does that.
-func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daemon.Deps, error) {
+// daemonWiring carries the production Deps plus the collaborators the daemon
+// installs but does not expose: the per-repository listers, the reader-policy
+// gate handed to the FUSE adapter and the wrapper the history view applies to
+// a catalog before publishing it. Naming them lets the debug decorators be
+// driven without mounting anything.
+type daemonWiring struct {
+	Deps    daemon.Deps
+	Listers map[string]provider.Lister
+	Gate    mount.Gate
+	Catalog func(mount.Catalog) mount.Catalog
+}
+
+// daemonBuilder builds the production daemon.Deps from cfg, logging to log.
+func daemonBuilder(ctx context.Context, cfg *config.Config, ln net.Listener, log *slog.Logger) (daemon.Deps, error) {
+	w, err := daemonBuilderWithLog(ctx, cfg, ln, log)
+	if err != nil {
+		return daemon.Deps{}, err
+	}
+	return w.Deps, nil
+}
+
+// daemonBuilderWithLog builds the production daemon wiring for cfg, serving
+// IPC on ln, with log as the logger its debug decorators write to. It opens
+// the links registry but mounts and starts nothing; the daemon's Run does that.
+func daemonBuilderWithLog(_ context.Context, cfg *config.Config, ln net.Listener, log *slog.Logger) (daemonWiring, error) {
 	m, err := cfg.Files.Modes()
 	if err != nil {
-		return daemon.Deps{}, errcode.New(errcode.InvalidConfig, daemonOp, err)
+		return daemonWiring{}, errcode.New(errcode.InvalidConfig, daemonOp, err)
 	}
 
 	provs := make(map[string]*restic.Provider, len(cfg.Repositories))
 	mounters := make(map[string]provider.Mounter, len(cfg.Repositories))
 	listers := make(map[string]provider.Lister, len(cfg.Repositories))
 	for _, r := range cfg.Repositories {
-		p, err := daemonProvider(r)
+		p, err := daemonProvider(r, log)
 		if err != nil {
-			return daemon.Deps{}, err
+			return daemonWiring{}, err
 		}
 		provs[r.ID] = p
 		mounters[r.ID] = p
@@ -57,28 +81,31 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 	}
 
 	if err := fsmode.MkdirAll(cfg.StateDir, m); err != nil {
-		return daemon.Deps{}, errcode.New(errcode.PermissionDenied, daemonOp, fmt.Errorf("create state dir: %w", err))
+		return daemonWiring{}, errcode.New(errcode.PermissionDenied, daemonOp, fmt.Errorf("create state dir: %w", err))
 	}
 	reg, err := links.OpenRegistryWithOptions(filepath.Join(cfg.StateDir, registryFile), links.RegistryOptions{Modes: m})
 	if err != nil {
-		return daemon.Deps{}, errcode.New(errcode.PermissionDenied, daemonOp, err)
+		return daemonWiring{}, errcode.New(errcode.PermissionDenied, daemonOp, err)
 	}
 	engine := links.NewEngine(reg, linkPolicy(*cfg))
 
 	watcher, err := seed.NewWatcher(engine, watchRoots(cfg))
 	if err != nil {
 		_ = reg.Close()
-		return daemon.Deps{}, err
+		return daemonWiring{}, err
 	}
 
 	policy := readerpolicy.New(readerpolicy.Config{
 		Deny:       cfg.Catalog.ReaderPolicy.DenyProcesses,
 		BurstLimit: cfg.Catalog.ReaderPolicy.BurstLimit,
 	}, readerpolicy.ProcName, time.Now)
+	decider := readerpolicy.NewLogDecider(policy, readerpolicy.ProcName, log)
+	gate := policyGate{decider}
 	view := &historyView{
 		dir:     cfg.HistoryMount,
 		modes:   m,
-		adapter: gofuse.NewAdapter(noObserver{}, gofuse.WithGate(policyGate{policy})),
+		log:     log,
+		adapter: gofuse.NewAdapter(noObserver{}, gofuse.WithGate(gate)),
 	}
 
 	ref := refresh.New(refresh.Config{
@@ -90,13 +117,13 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 		PrewarmConcurrency: cfg.Catalog.PrewarmConcurrency,
 		Modes:              m,
 		Now:                time.Now,
-	}, listers, daemon.NewReadyPublisher(view), multiPrewarmer(provs))
+	}, listers, daemon.NewReadyPublisher(view), multiPrewarmer(provs)).WithLog(log)
 	if err := ref.EnsureCacheDir(); err != nil {
 		_ = reg.Close()
-		return daemon.Deps{}, errcode.New(errcode.PermissionDenied, daemonOp, err)
+		return daemonWiring{}, errcode.New(errcode.PermissionDenied, daemonOp, err)
 	}
 
-	return daemon.Deps{
+	return daemonWiring{Deps: daemon.Deps{
 		Supervisor: history.NewSupervisor(mounters, cfg.BackendMountDir, history.Backoff{
 			Initial: mountBackoffInitial,
 			Max:     mountBackoffMax,
@@ -113,18 +140,19 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 		Discovery: &discovery{watcher: watcher},
 		Prewarmer: ref,
 		Listener:  ln,
-		Throttle:  policy.Events,
+		Throttle:  decider.Events,
 		Clock:     time.Now,
-	}, nil
+	}, Listers: listers, Gate: gate, Catalog: view.wrapCatalog}, nil
 }
 
 // daemonProvider returns the restic provider for repository r, or
 // errcode.PrereqMissing when its restic binary cannot be found.
-func daemonProvider(r config.Repository) (*restic.Provider, error) {
+func daemonProvider(r config.Repository, log *slog.Logger) (*restic.Provider, error) {
 	opts, err := restic.FromConfig(&config.Config{Repositories: []config.Repository{r}}, r.ID)
 	if err != nil {
 		return nil, err
 	}
+	opts.Runner = restic.LogRunner{Log: log, Runner: restic.ExecRunner{}}
 	p, err := restic.New(opts)
 	if err != nil {
 		return nil, errcode.New(errcode.InvalidConfig, daemonOp, err)

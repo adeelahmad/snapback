@@ -80,7 +80,7 @@ func daemonModesDeps(t *testing.T, tmp string) (*config.Config, daemon.Deps) {
 	cfg := daemonDepsConfig(t, tmp, restic)
 	cfg.Files = config.Files{DirMode: wantDirText, FileMode: wantFileText}
 
-	deps, err := daemonBuilder(t.Context(), cfg, listenUnix(t, tmp))
+	deps, err := daemonBuilder(t.Context(), cfg, listenUnix(t, tmp), nil)
 	if err != nil {
 		t.Fatalf("daemonBuilder(ctx, cfg, ln) = %v, want nil error", err)
 	}

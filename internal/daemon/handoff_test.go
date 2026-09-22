@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"sync"
 	"testing"
@@ -59,7 +60,7 @@ func TestRunKeepsLockThroughHandoff(t *testing.T) {
 	probe := &probingRecoverer{stateDir: stateDir}
 	var buildErr error
 	built := make(chan struct{})
-	build := func(_ context.Context, _ *config.Config, ln net.Listener) (Deps, error) {
+	build := func(_ context.Context, _ *config.Config, ln net.Listener, _ *slog.Logger) (Deps, error) {
 		buildErr = tryLock(stateDir)
 		close(built)
 		deps := h.deps

@@ -73,7 +73,7 @@ func TestDaemonLinkPolicyExcludesOwnDirs(t *testing.T) {
 	cfg, dirs := ownDirsConfig(t, tmp, restic)
 	ln := listenUnix(t, tmp)
 
-	deps, err := daemonBuilder(t.Context(), cfg, ln)
+	deps, err := daemonBuilder(t.Context(), cfg, ln, nil)
 	if err != nil {
 		t.Fatalf("daemonBuilder(ctx, cfg, ln) = %v, want nil error", err)
 	}
@@ -128,7 +128,7 @@ func TestSingleLinkPolicyConstructor(t *testing.T) {
 		t.Fatalf("functions in cmd/snapback returning links.Policy = %v, want exactly one", ctors)
 	}
 	ctor := ctors[0]
-	for _, site := range []string{"daemonBuilder", "lazyLinker.engine"} {
+	for _, site := range []string{"daemonBuilderWithLog", "lazyLinker.engine"} {
 		fd, ok := funcs[site]
 		if !ok {
 			t.Errorf("call site %s not found in cmd/snapback", site)

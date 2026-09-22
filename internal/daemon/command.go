@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
 
@@ -40,7 +41,7 @@ var refreshUsage = cli.Usage{
 
 // Builder builds the daemon's Deps for cfg, serving IPC on ln. The composition
 // root in cmd/snapback supplies the production Builder; tests pass fakes.
-type Builder func(ctx context.Context, cfg *config.Config, ln net.Listener) (Deps, error)
+type Builder func(ctx context.Context, cfg *config.Config, ln net.Listener, log *slog.Logger) (Deps, error)
 
 // Command returns the "snapback run" command, which runs the daemon in the
 // foreground until its context is canceled or a shutdown request arrives.
@@ -101,7 +102,7 @@ func Command(build Builder) cli.Command {
 				unlock()
 				return cli.WriteError(env, "run", false, err)
 			}
-			deps, err := build(ctx, cfg, l)
+			deps, err := build(ctx, cfg, l, log)
 			if err != nil {
 				_ = l.Close()
 				unlock()

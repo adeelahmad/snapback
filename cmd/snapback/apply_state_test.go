@@ -134,7 +134,7 @@ func applyStateBuild(t *testing.T, cfg *config.Config) daemon.Deps {
 	t.Helper()
 
 	ln := listenUnix(t, shortTempDir(t))
-	deps, err := daemonBuilder(t.Context(), cfg, ln)
+	deps, err := daemonBuilder(t.Context(), cfg, ln, nil)
 	if err != nil {
 		t.Fatalf("daemonBuilder(ctx, cfg, ln) = %v, want nil error", err)
 	}

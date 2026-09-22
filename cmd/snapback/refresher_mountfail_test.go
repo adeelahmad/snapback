@@ -24,7 +24,7 @@ func TestRefresherHistoryMountFailureMarksReposFailed(t *testing.T) {
 	}
 	t.Setenv("PATH", bin)
 	cfg := daemonDepsConfig(t, tmp, restic)
-	deps, err := daemonBuilder(t.Context(), cfg, listenUnix(t, tmp))
+	deps, err := daemonBuilder(t.Context(), cfg, listenUnix(t, tmp), nil)
 	if err != nil {
 		t.Fatalf("daemonBuilder(ctx, cfg, ln) = %v, want nil error", err)
 	}
