@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
@@ -20,6 +21,7 @@ import (
 type commandDeps struct {
 	probes Probes
 	load   func(path string) (*config.Config, error)
+	goos   string
 }
 
 // Command returns the doctor command.
@@ -30,6 +32,7 @@ func Command() cli.Command {
 			cfg, _, err := config.Load(path)
 			return cfg, err
 		},
+		goos: runtime.GOOS,
 	})
 }
 
