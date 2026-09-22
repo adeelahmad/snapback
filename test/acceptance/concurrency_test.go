@@ -31,6 +31,7 @@ func countDirRecords(v any, dir string) int {
 }
 
 func TestAcc09ConcurrentIdempotentMetachars(t *testing.T) {
+	recordEvidence(t, "acc-09")
 	requireLinkPrereqs(t)
 	e := newEnv(t)
 	root := filepath.Join(e.Root, "work")

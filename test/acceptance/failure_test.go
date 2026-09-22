@@ -181,7 +181,7 @@ func neverEmptyWhileReady(t *testing.T, e env, name, link string) {
 }
 
 func TestAcc14FailuresDistinctFromEmpty(t *testing.T) {
-	recordEvidence(t, "acc14")
+	recordEvidence(t, "acc-14")
 	requireFUSE(t)
 
 	cases := []struct {

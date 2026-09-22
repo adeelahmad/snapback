@@ -13,7 +13,7 @@ import (
 )
 
 func TestAcc08ForeignEntriesSurvive(t *testing.T) {
-	recordEvidence(t, "acc08")
+	recordEvidence(t, "acc-08")
 	requireLinkPrereqs(t)
 	e := newEnv(t)
 	root := filepath.Join(e.Root, "work")

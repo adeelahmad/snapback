@@ -85,7 +85,7 @@ func do(t *testing.T, c *http.Client, method, u string, hdr map[string]string, b
 }
 
 func TestAcc16WebCLIParityAndSecurity(t *testing.T) {
-	recordEvidence(t, "acc16")
+	recordEvidence(t, "acc-16")
 	requireLinkPrereqs(t)
 	e := newEnv(t)
 	root := filepath.Join(e.Root, "work", hostileName)

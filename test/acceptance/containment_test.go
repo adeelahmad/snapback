@@ -51,7 +51,7 @@ func treeState(t *testing.T, dir string) map[string]entryState {
 }
 
 func TestAcc11NoWritesOutsideRoots(t *testing.T) {
-	recordEvidence(t, "acc11")
+	recordEvidence(t, "acc-11")
 	requireLinkPrereqs(t)
 	e := newEnv(t)
 	root := filepath.Join(e.Root, "work")

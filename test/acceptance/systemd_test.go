@@ -44,7 +44,7 @@ func systemctlUser(t *testing.T, e env, args ...string) error {
 }
 
 func TestAcc17SystemdUserUnitVisibleAndClean(t *testing.T) {
-	recordEvidence(t, "acc17")
+	recordEvidence(t, "acc-17")
 	if reason := missingUserSystemd(t); reason != "" {
 		skip(t, "missing prerequisite: "+reason)
 	}

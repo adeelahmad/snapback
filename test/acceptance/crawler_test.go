@@ -48,6 +48,7 @@ func (c *openCounter) settle() int64 {
 }
 
 func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
+	recordEvidence(t, "acc-12")
 	requireFUSE(t)
 	if runtime.GOOS != "linux" {
 		skip(t, "missing prerequisite: inotify IN_OPEN counter needs linux, have "+runtime.GOOS)

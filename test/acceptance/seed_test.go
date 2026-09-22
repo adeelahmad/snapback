@@ -133,7 +133,7 @@ func mkdirs(t *testing.T, root string, dirs ...string) {
 }
 
 func TestAcc01SeedDepthExclusionsBudget(t *testing.T) {
-	recordEvidence(t, "acc01")
+	recordEvidence(t, "acc-01")
 	requireLinkPrereqs(t)
 	e := newEnv(t)
 	root := filepath.Join(e.Root, "work")

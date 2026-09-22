@@ -32,7 +32,7 @@ func isLink(p string) bool {
 }
 
 func TestAcc02WatcherNewDirAndBurst(t *testing.T) {
-	recordEvidence(t, "acc02")
+	recordEvidence(t, "acc-02")
 	if runtime.GOOS != "linux" {
 		skip(t, "missing prerequisite: the inotify watcher is linux only, GOOS is "+runtime.GOOS)
 	}

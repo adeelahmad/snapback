@@ -108,7 +108,7 @@ func waitReady(t *testing.T, e env) statusEnvelope {
 }
 
 func TestAcc15StopCrashRestartUninstall(t *testing.T) {
-	recordEvidence(t, "acc15")
+	recordEvidence(t, "acc-15")
 	requireFUSE(t)
 
 	h := newHistRepo(t)

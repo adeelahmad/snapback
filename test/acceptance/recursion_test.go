@@ -66,7 +66,7 @@ roots:
 }
 
 func TestAcc10NoLinksUnderHistoryOrState(t *testing.T) {
-	recordEvidence(t, "acc10")
+	recordEvidence(t, "acc-10")
 	requireLinkPrereqs(t)
 	e := newEnv(t)
 	root := filepath.Join(e.Root, "work")
