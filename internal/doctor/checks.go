@@ -213,7 +213,7 @@ func checkDaemon(ctx context.Context, cfg *config.Config, p Probes) Check {
 			code = errcode.PrereqMissing
 		}
 		return Check{Name: "daemon_socket", Status: statusWarn, Code: code,
-			Detail: "daemon is not running", Fix: "start it with snapback install service"}
+			Detail: "daemon is not running", Fix: daemonFixText(runtime.GOOS, checkServiceManager(p).Status == statusOK)}
 	}
 	return Check{Name: "daemon_socket", Status: statusOK, Detail: state}
 }

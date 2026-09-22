@@ -3,7 +3,6 @@ package doctor
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -63,19 +62,30 @@ func realProbes() Probes {
 	}
 }
 
+// doctorUsage is the help text printed for doctor -h and for a bad flag.
+var doctorUsage = cli.Usage{
+	Synopsis: "doctor [flags]",
+	Args:     "doctor takes no positional arguments.",
+	Example:  "snapback doctor --json --strict",
+}
+
 // command builds the doctor command's cli.Command against deps.
 func command(deps commandDeps) cli.Command {
 	return cli.Command{
 		Name:    "doctor",
 		Summary: "check prerequisites and repository health",
 		Run: func(ctx context.Context, env cli.Env, args []string) int {
-			fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
-			fs.SetOutput(io.Discard)
+			fs := cli.NewFlagSet(env, doctorUsage)
 			jsonOut := fs.Bool("json", false, "print checks as a JSON array")
 			mountTest := fs.Bool("mount-test", false, "add a mount_test check that performs a real mount")
-			if err := fs.Parse(args); err != nil {
+			strict := fs.Bool("strict", false, "keep platform-inapplicable checks as failures")
+			help, err := cli.ParseWithUsage(fs, args)
+			if err != nil {
 				_, _ = fmt.Fprintln(env.Stderr, err)
 				return 2
+			}
+			if help {
+				return 0
 			}
 
 			cfg, cfgErr := deps.load(env.ConfigPath)
@@ -84,12 +94,7 @@ func command(deps commandDeps) cli.Command {
 				checks = append(checks, checkMountTest(ctx, deps.probes))
 			}
 
-			failed := false
-			for _, c := range checks {
-				if c.Status == statusFail {
-					failed = true
-				}
-			}
+			checks = applyPlatform(checks, deps.goos, *strict)
 
 			if *jsonOut {
 				if err := json.NewEncoder(env.Stdout).Encode(checks); err != nil {
@@ -98,11 +103,7 @@ func command(deps commandDeps) cli.Command {
 			} else {
 				printChecks(env.Stdout, checks)
 			}
-
-			if failed {
-				return 1
-			}
-			return 0
+			return exitCode(checks)
 		},
 	}
 }

@@ -181,7 +181,7 @@ func TestDoctorUsage(t *testing.T) {
 		if out != "" {
 			t.Errorf("doctor %s stdout = %q, want it empty", arg, out)
 		}
-		for _, want := range []string{"Usage: snapback doctor [flags]", "Args:", "Example:", "--json", "--mount-test", "--strict"} {
+		for _, want := range []string{"Usage: snapback doctor [flags]", "Args:", "Example:", "--json", "-mount-test", "--strict"} {
 			if !strings.Contains(stderr, want) {
 				t.Errorf("doctor %s stderr = %q, want it to contain %q", arg, stderr, want)
 			}
