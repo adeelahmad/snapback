@@ -18,9 +18,10 @@ var (
 	wrapInDirTrueRe   = regexp.MustCompile(`(?m)^\s*wrap_in_directory:\s*['"]?true['"]?\s*$`)
 	checksumNameRe    = regexp.MustCompile(`(?m)^\s*name_template:\s*['"]?checksums\.txt['"]?\s*$`)
 	sha256AlgorithmRe = regexp.MustCompile(`(?m)^\s*algorithm:\s*sha256\s*$`)
-	publisherKeyRe    = regexp.MustCompile(`^(brews|homebrew_casks|nfpms|publishers|snapcrafts|dockers|aurs|scoops|blobs|uploads):`)
-	appendModeRe      = regexp.MustCompile(`(?m)^\s*mode:\s*['"]?append['"]?\s*$`)
-	disableTrueRe     = regexp.MustCompile(`(?m)^\s*disable:\s*true\s*$`)
+	// dockers/docker_manifests are in scope from S5-35: the release publishes a ghcr image.
+	publisherKeyRe = regexp.MustCompile(`^(brews|homebrew_casks|nfpms|publishers|snapcrafts|aurs|scoops|blobs|uploads):`)
+	appendModeRe   = regexp.MustCompile(`(?m)^\s*mode:\s*['"]?append['"]?\s*$`)
+	disableTrueRe  = regexp.MustCompile(`(?m)^\s*disable:\s*true\s*$`)
 )
 
 // topLevelBlock returns the block under a column-0 key, so nested keys of the same name are not matched.
