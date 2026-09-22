@@ -134,4 +134,4 @@ jobs:
         with:
           name: stage1-evidence-linux
           path: ${{ env.SNAPBACK_EVIDENCE_DIR }}
-          if-no-files-found: warn
+          if-no-files-found: error
