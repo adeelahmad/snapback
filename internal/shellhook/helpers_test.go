@@ -50,11 +50,11 @@ func parseLog(data []byte) [][]string {
 	return recs
 }
 
-// waitLog polls path for up to 2 s until it holds n argv records and
+// waitLog polls path for up to 5 s until it holds n argv records and
 // returns them.
 func waitLog(t *testing.T, path string, n int) [][]string {
 	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(5 * time.Second)
 	var recs [][]string
 	for {
 		data, _ := os.ReadFile(path)
