@@ -1,7 +1,11 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -125,5 +129,143 @@ func TestConfigDelegatesToFallback(t *testing.T) {
 				t.Errorf("config %q with nil fallback stderr = %q, want it to name %q", args, errb.String(), "validate|show")
 			}
 		})
+	}
+}
+
+// configPathJSON is the shape of `config path --json`: a bare {"path":…}, not
+// the ok/data envelope the other config subcommands write.
+type configPathJSON struct {
+	Path string `json:"path"`
+}
+
+func decodeConfigPathJSON(t *testing.T, b []byte) configPathJSON {
+	t.Helper()
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	var v configPathJSON
+	if err := dec.Decode(&v); err != nil {
+		t.Fatalf("decode config path json %q: %v", b, err)
+	}
+	return v
+}
+
+func failIfLoadConfigCalled(t *testing.T) func(string) (config.Config, error) {
+	t.Helper()
+	return func(path string) (config.Config, error) {
+		t.Fatalf("LoadConfig(%q) called, want config path to never read the config file", path)
+		return config.Config{}, nil
+	}
+}
+
+func TestConfigPathPlainAndJSON(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "plain", args: []string{"path"}},
+		{name: "json", args: []string{"path", "--json"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := Deps{LoadConfig: failIfLoadConfigCalled(t)}
+			env, out, errb := newEnv(nil)
+
+			code := ConfigCommand(d, nil).Run(context.Background(), env, tt.args)
+
+			if code != 0 {
+				t.Fatalf("config %q = %d, want 0 (stderr %q)", tt.args, code, errb.String())
+			}
+			if errb.Len() != 0 {
+				t.Errorf("config %q stderr = %q, want empty", tt.args, errb.String())
+			}
+			if tt.name == "json" {
+				got := decodeConfigPathJSON(t, out.Bytes())
+				if got.Path != env.ConfigPath {
+					t.Errorf("config %q path = %q, want %q", tt.args, got.Path, env.ConfigPath)
+				}
+				return
+			}
+			if want := env.ConfigPath + "\n"; out.String() != want {
+				t.Errorf("config %q stdout = %q, want %q", tt.args, out.String(), want)
+			}
+		})
+	}
+}
+
+func TestConfigPathUsesConfigOverride(t *testing.T) {
+	env, out, errb := newEnv(nil)
+	env.ConfigPath = "/srv/override/config.yaml"
+	d := Deps{LoadConfig: failIfLoadConfigCalled(t)}
+
+	code := ConfigCommand(d, nil).Run(context.Background(), env, []string{"path"})
+
+	if code != 0 {
+		t.Fatalf("config path (--config override) = %d, want 0 (stderr %q)", code, errb.String())
+	}
+	if want := env.ConfigPath + "\n"; out.String() != want {
+		t.Errorf("config path (--config override) stdout = %q, want %q", out.String(), want)
+	}
+}
+
+func TestConfigPathDefaultFromXDGAndHome(t *testing.T) {
+	tests := []struct {
+		name string
+		want func(xdg, home string) string
+	}{
+		{
+			name: "XDG_CONFIG_HOME set",
+			want: func(xdg, home string) string { return filepath.Join(xdg, "snapback", "config.yaml") },
+		},
+		{
+			name: "HOME fallback",
+			want: func(xdg, home string) string { return filepath.Join(home, ".config", "snapback", "config.yaml") },
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			xdg := t.TempDir()
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			if tt.name == "XDG_CONFIG_HOME set" {
+				t.Setenv("XDG_CONFIG_HOME", xdg)
+			} else {
+				t.Setenv("XDG_CONFIG_HOME", "")
+			}
+			env, out, errb := newEnv(nil)
+			env.ConfigPath = ""
+			d := Deps{LoadConfig: failIfLoadConfigCalled(t)}
+
+			code := ConfigCommand(d, nil).Run(context.Background(), env, []string{"path"})
+
+			if code != 0 {
+				t.Fatalf("config path (%s) = %d, want 0 (stderr %q)", tt.name, code, errb.String())
+			}
+			if want := tt.want(xdg, home) + "\n"; out.String() != want {
+				t.Errorf("config path (%s) stdout = %q, want %q", tt.name, out.String(), want)
+			}
+		})
+	}
+}
+
+func TestConfigPathNeverReadsOrCreatesFile(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "nested", "config.yaml")
+	if _, err := os.Stat(cfgPath); !os.IsNotExist(err) {
+		t.Fatalf("stat(%q) = %v before run, want it to not exist", cfgPath, err)
+	}
+	env, out, errb := newEnv(nil)
+	env.ConfigPath = cfgPath
+	d := Deps{LoadConfig: failIfLoadConfigCalled(t)}
+
+	code := ConfigCommand(d, nil).Run(context.Background(), env, []string{"path"})
+
+	if code != 0 {
+		t.Fatalf("config path (missing file) = %d, want 0 (stderr %q)", code, errb.String())
+	}
+	if want := cfgPath + "\n"; out.String() != want {
+		t.Errorf("config path (missing file) stdout = %q, want %q", out.String(), want)
+	}
+	if _, err := os.Stat(cfgPath); !os.IsNotExist(err) {
+		t.Errorf("stat(%q) = %v after run, want it to still not exist (never created)", cfgPath, err)
 	}
 }
