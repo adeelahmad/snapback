@@ -3,6 +3,7 @@ package ipc
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -30,7 +31,7 @@ func TestQueryStatus(t *testing.T) {
 				return Response{Code: errcode.InvalidConfig, Error: err.Error()}
 			}
 			return Response{OK: true, Data: data}
-		}, ServeOptions{})
+		}, ServeOptions{UID: uint32(os.Getuid())})
 
 		got, err := QueryStatus(ctx, path)
 		if err != nil {
