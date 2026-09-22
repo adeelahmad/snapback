@@ -107,6 +107,7 @@ type Daemon struct {
 	phase       string
 	refresh     RefreshResult
 	lastRefresh time.Time
+	recovery    *status.RecoverySummary
 	cancel      context.CancelFunc // stops Run; nil until Run starts
 }
 
@@ -169,9 +170,13 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}()
 	d.trace("ipc")
 
-	if _, err := d.deps.Recoverer.Recover(ctx); err != nil {
+	rep, err := d.deps.Recoverer.Recover(ctx)
+	if err != nil {
 		return err
 	}
+	d.mu.Lock()
+	d.recovery = &status.RecoverySummary{Unmounted: rep.Unmounted, Foreign: rep.Foreign}
+	d.mu.Unlock()
 	if err := d.deps.Supervisor.Start(ctx); err != nil {
 		return err
 	}
@@ -248,7 +253,7 @@ func mountErr(ctx context.Context, mount string, err error) error {
 // Status returns the daemon status.
 func (d *Daemon) Status() status.Snapshot {
 	d.mu.Lock()
-	phase, res, last := d.phase, d.refresh, d.lastRefresh
+	phase, res, last, rec := d.phase, d.refresh, d.lastRefresh, d.recovery
 	d.mu.Unlock()
 
 	repos := d.deps.Supervisor.States()
@@ -264,6 +269,7 @@ func (d *Daemon) Status() status.Snapshot {
 		EligibleCount: res.EligibleCount,
 		Warm:          res.Warm,
 		Pending:       res.Pending,
+		Recovery:      rec,
 	}
 }
 

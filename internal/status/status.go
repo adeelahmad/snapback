@@ -36,7 +36,13 @@ type Snapshot struct {
 	Discovery     string
 	Throttle      []readerpolicy.ThrottleEvent
 	WebURL        string
-	Recovery      *RecoverySummary
+	Recovery      *RecoverySummary `json:"recovery,omitempty"`
+}
+
+// RecoverySummary lists the paths the startup crash recovery cleaned up.
+type RecoverySummary struct {
+	Unmounted []string
+	Foreign   []string
 }
 
 // Derive computes the overall daemon state and the sorted per-repository
