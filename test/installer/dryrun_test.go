@@ -3,6 +3,7 @@ package installer
 import (
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -72,9 +73,47 @@ func assertNextSteps(t *testing.T, osName, arch, fuseHint string) {
 		t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr)
 	}
 	combined := stdout + stderr
-	for _, want := range []string{"snapback config", fuseHint} {
+	for _, want := range []string{"snapback version", fuseHint} {
 		if !strings.Contains(combined, want) {
 			t.Errorf("output does not contain %q; output=%q", want, combined)
 		}
+	}
+}
+
+// snapbackSubcommand matches a "snapback <subcommand>" invocation in prose.
+var snapbackSubcommand = regexp.MustCompile(`\bsnapback ([a-z][a-z0-9-]*)`)
+
+// TestNextStepsNameOnlyExistingCommands guards against the installer telling
+// users to run a snapback subcommand that does not exist. Today the binary
+// only supports `snapback version`.
+func TestNextStepsNameOnlyExistingCommands(t *testing.T) {
+	for _, tc := range []struct {
+		osName, arch string
+	}{
+		{"Darwin", "arm64"},
+		{"Linux", "amd64"},
+	} {
+		t.Run(tc.osName, func(t *testing.T) {
+			stdout, stderr, code := runInstaller(t, dryRunEnv(tc.osName, tc.arch))
+			if code != 0 {
+				t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr)
+			}
+
+			combined := stdout + stderr
+			_, steps, ok := strings.Cut(combined, "Next steps:")
+			if !ok {
+				t.Fatalf("output has no %q section; output=%q", "Next steps:", combined)
+			}
+
+			matches := snapbackSubcommand.FindAllStringSubmatch(steps, -1)
+			if len(matches) == 0 {
+				t.Fatalf("next steps name no snapback command, want %q; steps=%q", "snapback version", steps)
+			}
+			for _, m := range matches {
+				if got, want := m[1], "version"; got != want {
+					t.Errorf("next steps suggest `snapback %s`, want only `snapback %s`; steps=%q", got, want, steps)
+				}
+			}
+		})
 	}
 }
