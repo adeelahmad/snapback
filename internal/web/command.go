@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -228,6 +229,34 @@ func (b fileBackend) Status() any {
 		return err
 	}
 	return snap
+}
+
+// ManagedLinks counts the registry-owned links the daemon reports through
+// links_list. It fails when the config does not load or the daemon is down.
+func (b fileBackend) ManagedLinks() (int, error) {
+	cfg, _, err := config.Load(b.path)
+	if err != nil {
+		return 0, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), statusTimeout)
+	defer cancel()
+	c, err := ipc.Dial(ctx, ipc.SocketPath(os.Getenv, cfg.StateDir))
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = c.Close() }()
+	resp, err := c.Call(ctx, ipc.Request{V: 1, Op: ipc.OpLinksList})
+	if err != nil {
+		return 0, err
+	}
+	if !resp.OK {
+		return 0, errors.New(resp.Error)
+	}
+	var recs []json.RawMessage
+	if err := json.Unmarshal(resp.Data, &recs); err != nil {
+		return 0, fmt.Errorf("decode links_list: %w", err)
+	}
+	return len(recs), nil
 }
 
 func (b fileBackend) Config() (*config.Config, config.Revision, error) {

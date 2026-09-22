@@ -17,9 +17,9 @@
 <dt>Throttle events</dt>
 <dd>{{with .ThrottleEvents}}{{.}}{{else}}<span class="unmeasured">not measured yet</span>{{end}}</dd>
 <dt>Prewarm</dt>
-<dd>{{.Prewarm}}</dd>
+<dd>{{with .Prewarm}}{{.}}{{else}}<span class="unmeasured">not reported</span>{{end}}</dd>
 <dt>Discovery mode</dt>
-<dd>{{.DiscoveryMode}}</dd>
+<dd>{{with .DiscoveryMode}}{{.}}{{else}}<span class="unmeasured">not reported</span>{{end}}</dd>
 </dl>
 </section>
 {{if .Errors}}<section aria-labelledby="errors-h">

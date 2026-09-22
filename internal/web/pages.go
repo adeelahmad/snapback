@@ -38,8 +38,21 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		case error:
 			v.Errors = append(v.Errors, st.Error())
 		}
+		if cfg, _, err := s.opts.Backend.Config(); err == nil && cfg != nil {
+			v.DiscoveryMode = cfg.Discovery.Mode
+		}
+		if lc, ok := s.opts.Backend.(linkCounter); ok {
+			if n, err := lc.ManagedLinks(); err == nil {
+				v.ManagedLinks = &n
+			}
+		}
 	}
 	s.render(w, "status", v)
+}
+
+// linkCounter is a Backend that can count the registry-owned links.
+type linkCounter interface {
+	ManagedLinks() (int, error)
 }
 
 // statusView fills v from the daemon snapshot st. Metrics the snapshot does
