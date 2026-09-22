@@ -144,3 +144,29 @@ func TestRepairRetargetsOwnedLink(t *testing.T) {
 		t.Errorf("Get(R/x) after Repair = found %v, err %v, want not found, nil", ok, err)
 	}
 }
+
+func TestRepairRecreatesMissingOwnedLink(t *testing.T) {
+	f := newEnsureFixture(t)
+	dir := f.ensure(t, "docs")
+	key := resolver.DirectoryKey("home", "docs")
+	link := filepath.Join(dir, ".snapshot")
+	if err := os.Remove(link); err != nil {
+		t.Fatalf("Remove(%q) = %v", link, err)
+	}
+
+	rep, err := f.e.Repair(context.Background())
+	if err != nil {
+		t.Fatalf("Repair() error = %v, want nil", err)
+	}
+
+	if got, err := os.Readlink(link); err != nil || got != f.target("docs") {
+		t.Errorf("Readlink(%q) = %q, %v, want %q, nil", link, got, err, f.target("docs"))
+	}
+	rec, ok, err := f.reg.Get(key)
+	if err != nil || !ok || rec.State != StateOwned || rec.Target != f.target("docs") {
+		t.Errorf("Get(%q) after Repair = %+v, found %v, err %v, want owned Target %q", key, rec, ok, err, f.target("docs"))
+	}
+	if len(rep.Repaired) != 1 || rep.Repaired[0].Key != key {
+		t.Errorf("Repair().Repaired = %+v, want one entry Key %q", rep.Repaired, key)
+	}
+}
