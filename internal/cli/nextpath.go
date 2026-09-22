@@ -1,10 +1,25 @@
 package cli
 
-// NextPath returns the next-step line for running verb against path.
-//
-// RED SHIM (NEXT-1): this renders path verbatim, which is today's behaviour and
-// what next_edge_test.go proves wrong. GREEN replaces the body so that a path
-// holding a control character or a space is rendered with %q-style quoting.
+import (
+	"strconv"
+	"strings"
+	"unicode"
+)
+
+// NextPath returns the next-step line for running verb against path. The path
+// is quoted when it is empty or holds a space or a control character, so the
+// suggested command stays one runnable line; otherwise it is shown verbatim.
 func NextPath(verb, path string) string {
-	return "next: " + verb + " " + path + "\n"
+	return "next: " + verb + " " + renderNextPath(path) + "\n"
+}
+
+func renderNextPath(path string) string {
+	if path == "" || strings.ContainsFunc(path, needsNextQuote) {
+		return strconv.Quote(path)
+	}
+	return path
+}
+
+func needsNextQuote(r rune) bool {
+	return r == ' ' || unicode.IsControl(r)
 }

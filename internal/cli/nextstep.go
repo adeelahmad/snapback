@@ -2,18 +2,24 @@ package cli
 
 import (
 	"io"
+	"strconv"
 	"strings"
+	"unicode"
 )
 
-// Next returns the next-step line naming command, which must be a literal
-// runnable command. An empty, whitespace-only or multi-line command is a
-// programming error and panics rather than printing a bare next-step line.
+// nextNothing is the next-step line used when there is no command to suggest.
+const nextNothing = "(nothing to run)"
+
+// Next returns the next-step line naming command. The line is always a single
+// line: an empty or whitespace-only command yields a placeholder, and a command
+// holding a control character is quoted so nothing raw reaches the terminal.
+// Printing a hint never takes the command down, so Next does not panic.
 func Next(command string) string {
 	if strings.TrimSpace(command) == "" {
-		panic("cli: next-step command is empty")
+		return "next: " + nextNothing + "\n"
 	}
-	if strings.Contains(command, "\n") {
-		panic("cli: next-step command contains a newline")
+	if strings.ContainsFunc(command, unicode.IsControl) {
+		return "next: " + strconv.Quote(command) + "\n"
 	}
 	return "next: " + command + "\n"
 }

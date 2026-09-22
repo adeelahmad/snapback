@@ -14,27 +14,6 @@ func TestNext(t *testing.T) {
 	}
 }
 
-func TestNextPanicsOnUnrunnableCommand(t *testing.T) {
-	tests := []struct {
-		name    string
-		command string
-	}{
-		{name: "empty", command: ""},
-		{name: "whitespace", command: "  \t "},
-		{name: "newline", command: "a\nb"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			defer func() {
-				if recover() == nil {
-					t.Errorf("Next(%q) returned normally, want panic", test.command)
-				}
-			}()
-			_ = Next(test.command)
-		})
-	}
-}
-
 func TestWriteNext(t *testing.T) {
 	const command = "ls /p/.snapshot"
 	var buf bytes.Buffer
