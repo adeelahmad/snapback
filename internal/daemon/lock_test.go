@@ -11,13 +11,6 @@ import (
 	"github.com/adeelahmad/snapback/internal/errcode"
 )
 
-// lockWith is a RED shim: it ignores the retry window so the transient-probe
-// test fails by assertion until Lock learns to retry.
-func lockWith(stateDir string, window, interval time.Duration) (func(), error) {
-	_, _ = window, interval
-	return Lock(stateDir)
-}
-
 // holdExclusive takes LOCK_EX on stateDir's lock file from a separate file
 // description and releases it after d. It returns once the lock is held.
 func holdExclusive(t *testing.T, stateDir string, d time.Duration) {

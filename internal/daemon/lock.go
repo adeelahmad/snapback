@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"golang.org/x/sys/unix"
 
@@ -15,18 +16,29 @@ import (
 // lockFunc is the seam tests use to count lock acquisitions.
 var lockFunc = Lock
 
-// Lock takes the single-instance lock in stateDir.
+const (
+	// lockRetryWindow bounds how long Lock waits out a contended lock, so a
+	// CLI command's momentary probe does not read as a running daemon.
+	lockRetryWindow = 2 * time.Second
+	// lockRetryInterval is the poll interval within lockRetryWindow.
+	lockRetryInterval = 25 * time.Millisecond
+)
+
+// Lock takes the single-instance lock in stateDir, retrying a contended lock
+// for lockRetryWindow before reporting that another daemon is running.
 func Lock(stateDir string) (unlock func(), err error) {
+	return lockWith(stateDir, lockRetryWindow, lockRetryInterval)
+}
+
+// lockWith is Lock with an explicit retry window and poll interval.
+func lockWith(stateDir string, window, interval time.Duration) (unlock func(), err error) {
 	f, err := os.OpenFile(filepath.Join(stateDir, "daemon.lock"), os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("daemon: open lock: %w", err)
 	}
-	if err := unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+	if err := flockRetry(f, window, interval); err != nil {
 		_ = f.Close()
-		if errors.Is(err, unix.EWOULDBLOCK) {
-			return nil, errcode.New(errcode.StaleState, "daemon lock", errors.New("another daemon is running"))
-		}
-		return nil, fmt.Errorf("daemon: flock: %w", err)
+		return nil, err
 	}
 	pid := []byte(strconv.Itoa(os.Getpid()) + "\n")
 	if err := os.WriteFile(filepath.Join(stateDir, "daemon.pid"), pid, 0o600); err != nil {
@@ -39,16 +51,36 @@ func Lock(stateDir string) (unlock func(), err error) {
 	}, nil
 }
 
+// flockRetry takes LOCK_EX on f, polling every interval until window elapses.
+// It reports StaleState only once the window is spent, so that a momentary
+// shared probe by a CLI command does not look like a second daemon.
+func flockRetry(f *os.File, window, interval time.Duration) error {
+	deadline := time.Now().Add(window)
+	for {
+		err := unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB)
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, unix.EWOULDBLOCK) {
+			return fmt.Errorf("daemon: flock: %w", err)
+		}
+		if !time.Now().Before(deadline) {
+			return errcode.New(errcode.StaleState, "daemon lock", errors.New("another daemon is running"))
+		}
+		time.Sleep(interval)
+	}
+}
+
 // Running reports whether a daemon holds the single-instance lock in
-// stateDir. It probes without blocking and releases the lock at once if the
-// probe acquires it; it never creates the lock file or writes the pidfile.
+// stateDir. It probes with a shared, non-blocking lock and releases it at
+// once if the probe acquires it; it never creates the lock file or writes the pidfile.
 func Running(stateDir string) bool {
 	f, err := os.OpenFile(filepath.Join(stateDir, "daemon.lock"), os.O_RDWR, 0)
 	if err != nil {
 		return false
 	}
 	defer func() { _ = f.Close() }()
-	if err := unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+	if err := unix.Flock(int(f.Fd()), unix.LOCK_SH|unix.LOCK_NB); err != nil {
 		return errors.Is(err, unix.EWOULDBLOCK)
 	}
 	_ = unix.Flock(int(f.Fd()), unix.LOCK_UN)
