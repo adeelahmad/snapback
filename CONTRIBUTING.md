@@ -33,3 +33,13 @@ go test -race ./...
 go vet ./...
 golangci-lint run
 ```
+
+## Make targets
+
+The repo-root `Makefile` wraps the common tasks. Run `make` to list them.
+
+```sh
+make build                      # bin/snapback with version info
+make install PREFIX=/usr/local  # install bin/snapback (honours DESTDIR)
+make ci                         # every gate CI runs, in order
+```
