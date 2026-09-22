@@ -5,6 +5,7 @@ package fidelity
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,6 +26,8 @@ const (
 	minFilesGenerated = 6
 	resticReadyWait   = 60 * time.Second
 	resticStopGrace   = 5 * time.Second
+	// lsUnreportedNote records symlink fields restic 0.19 ls --json omits.
+	lsUnreportedNote = "not reported by restic ls --json 0.19"
 )
 
 // nopObserver discards catalog operation events.
@@ -234,6 +237,8 @@ func attrs(m Meta) Attrs {
 }
 
 // fileEvidence builds the per-file record from the three views of one path.
+// A symlink is compared on mode and mtime only: restic 0.19 ls --json omits
+// its size and link target, so size_ok stays false (not compared, not a pass).
 func fileEvidence(expected, lsMeta Meta, o Observed) FileEvidence {
 	vsLs := Compare(lsMeta, o.Meta, MTimeTolerance)
 	fe := FileEvidence{
@@ -245,7 +250,7 @@ func fileEvidence(expected, lsMeta Meta, o Observed) FileEvidence {
 		BirthTime: Unclaimed{Value: o.BirthTime},
 	}
 	if expected.Mode.Type() == os.ModeSymlink {
-		fe.SizeOK, fe.ModeOK, fe.MTimeOK, fe.MTimeDeltaNs = vsLs.SizeOK, vsLs.ModeOK, vsLs.MTimeOK, int64(vsLs.MTimeDelta)
+		fe.ModeOK, fe.MTimeOK, fe.MTimeDeltaNs = vsLs.ModeOK, vsLs.MTimeOK, int64(vsLs.MTimeDelta)
 		return fe
 	}
 	vsGen := Compare(expected, o.Meta, MTimeTolerance)
@@ -282,8 +287,13 @@ func TestFidelityThroughSnapshotAlias(t *testing.T) {
 	// even when the test fails.
 	if dir := os.Getenv("SNAPBACK_EVIDENCE_DIR"); dir != "" {
 		t.Cleanup(func() {
-			if _, err := WriteEvidence(dir, ev); err != nil {
+			path, err := WriteEvidence(dir, ev)
+			if err != nil {
 				t.Errorf("WriteEvidence(%s) error = %v", dir, err)
+				return
+			}
+			if err := annotateUnreported(path, symlinkPaths()); err != nil {
+				t.Errorf("annotateUnreported(%s) error = %v", path, err)
 			}
 		})
 	}
@@ -320,9 +330,10 @@ func TestFidelityThroughSnapshotAlias(t *testing.T) {
 		}
 		ev.Files = append(ev.Files, fileEvidence(f, lsMeta, o))
 		if f.Mode.Type() == os.ModeSymlink {
-			if o.LinkTarget != f.LinkTarget || lsMeta.LinkTarget != f.LinkTarget {
-				t.Errorf("symlink %s target: observed %q, restic ls %q, want %q", f.Path, o.LinkTarget, lsMeta.LinkTarget, f.LinkTarget)
+			if o.LinkTarget != f.LinkTarget {
+				t.Errorf("symlink %s target through alias = %q, want %q", f.Path, o.LinkTarget, f.LinkTarget)
 			}
+			checkSymlinkVsLs(t, lsMeta, o.Meta)
 			continue
 		}
 		generated = append(generated, f)
@@ -331,8 +342,8 @@ func TestFidelityThroughSnapshotAlias(t *testing.T) {
 	ev.MTimePrecisionNs = int64(Precision(mtimes))
 
 	checkResults(t, "generator", generated, observed)
-	lsExpected := make([]Meta, 0, len(fixtures))
-	for _, f := range fixtures {
+	lsExpected := make([]Meta, 0, len(generated))
+	for _, f := range generated {
 		if m, ok := lsByPath[f.Path]; ok {
 			lsExpected = append(lsExpected, m)
 		}
@@ -366,4 +377,60 @@ func checkResults(t *testing.T, against string, expected []Meta, observed map[st
 			r.Path, against, o.Size, w.Size, r.SizeOK, o.Mode, w.Mode, r.ModeOK,
 			o.MTime.Format(time.RFC3339Nano), w.MTime.Format(time.RFC3339Nano), r.MTimeDelta, r.MTimeOK)
 	}
+}
+
+// checkSymlinkVsLs reports mode or mtime deltas of a symlink against restic
+// ls --json. Size is not compared: restic 0.19 does not report it.
+func checkSymlinkVsLs(t *testing.T, lsMeta, observed Meta) {
+	t.Helper()
+	r := Compare(lsMeta, observed, MTimeTolerance)
+	if !r.ModeOK {
+		t.Errorf("%s vs restic ls --json: mode %v, want %v", lsMeta.Path, observed.Mode, lsMeta.Mode)
+	}
+	if !r.MTimeOK {
+		t.Errorf("%s vs restic ls --json: mtime %s, want %s (delta %v)", lsMeta.Path,
+			observed.MTime.Format(time.RFC3339Nano), lsMeta.MTime.Format(time.RFC3339Nano), r.MTimeDelta)
+	}
+}
+
+// symlinkPaths returns the fixture paths that are symlinks.
+func symlinkPaths() map[string]bool {
+	links := make(map[string]bool)
+	for _, f := range Fixtures() {
+		if f.Mode.Type() == os.ModeSymlink {
+			links[f.Path] = true
+		}
+	}
+	return links
+}
+
+// annotateUnreported rewrites the evidence at path so each symlink entry
+// records that its size and link target are not reported by restic ls --json.
+func annotateUnreported(path string, links map[string]bool) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return err
+	}
+	files, _ := doc["files"].([]any)
+	for _, f := range files {
+		entry, ok := f.(map[string]any)
+		if !ok {
+			continue
+		}
+		if p, _ := entry["path"].(string); links[p] {
+			entry["restic_ls_unreported"] = map[string]any{
+				"fields": []string{"size", "linktarget"},
+				"note":   lsUnreportedNote,
+			}
+		}
+	}
+	out, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, out, 0o644)
 }
