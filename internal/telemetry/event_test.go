@@ -57,9 +57,7 @@ func TestNamesIsAClosedSet(t *testing.T) {
 // from, so other schema tests can range over it directly.
 func TestEventNamesVarIsRangeable(t *testing.T) {
 	var ranged []string
-	for _, name := range eventNames {
-		ranged = append(ranged, name)
-	}
+	ranged = append(ranged, eventNames...)
 	if !reflect.DeepEqual(ranged, wantNames) {
 		t.Errorf("ranging eventNames gave %q, want %q", ranged, wantNames)
 	}
