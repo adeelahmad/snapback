@@ -1,0 +1,43 @@
+{{define "form-basic" -}}
+<div class="form-basic" data-js="form-basic">
+{{range .}}<section class="config-section">
+<h2>{{.Title}}</h2>
+{{range .Controls}}
+{{if eq .Kind "row"}}{{template "control-row" .}}
+{{else if eq .Kind "select"}}{{template "control-select" .}}
+{{else if eq .Kind "number"}}{{template "control-number" .}}
+{{else if eq .Kind "duration"}}{{template "control-duration" .}}
+{{else if eq .Kind "toggle"}}{{template "control-toggle" .}}
+{{else if eq .Kind "chips"}}{{template "control-chips" .}}
+{{else if eq .Kind "password"}}{{template "control-password" .}}
+{{else}}{{template "control-input" .}}
+{{end}}
+{{end}}
+</section>
+{{end}}</div>
+{{- end}}
+
+{{define "form-advanced" -}}
+<details data-js="form-advanced" class="form-advanced">
+<summary>Advanced <span class="badge">{{.AdvancedCount}}</span></summary>
+{{range .Advanced}}<section class="config-section">
+<h2>{{.Title}}</h2>
+{{range .Controls}}
+{{if eq .Kind "row"}}{{template "control-row" .}}
+{{else if eq .Kind "select"}}{{template "control-select" .}}
+{{else if eq .Kind "number"}}{{template "control-number" .}}
+{{else if eq .Kind "duration"}}{{template "control-duration" .}}
+{{else if eq .Kind "toggle"}}{{template "control-toggle" .}}
+{{else if eq .Kind "chips"}}{{template "control-chips" .}}
+{{else if eq .Kind "password"}}{{template "control-password" .}}
+{{else}}{{template "control-input" .}}
+{{end}}
+{{end}}
+</section>
+{{end}}</details>
+{{- end}}
+
+{{define "form-sections" -}}
+{{template "form-basic" .Basic}}
+{{if and (gt .AdvancedCount 0) .Advanced}}{{template "form-advanced" .}}{{end}}
+{{- end}}
