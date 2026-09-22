@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.1](https://github.com/adeelahmad/snapback/compare/v1.4.0...v1.4.1) (2026-09-22)
+
+### Bug Fixes
+
+* make first-run setup and the installer next steps work ([0805f15](https://github.com/adeelahmad/snapback/commit/0805f1589a642913e8718f29147f46ece39a6dc3))
+
 ## [1.4.0](https://github.com/adeelahmad/snapback/compare/v1.3.0...v1.4.0) (2026-09-22)
 
 ### Features
