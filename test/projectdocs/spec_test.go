@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	specSHA256    = "d345ca5535ef4d5c3675df6f764551a4e75e10e77c1bdb1e51e48fac2d2b03b5"
-	specSize      = 68524
+	specSHA256    = "ce6ea9a2cc1f0d4fd8d02fbffc66a72b5e8d6b2ba4e8cc763750ed960f440451"
+	specSize      = 68772
 	specFirstLine = "# Snapback — Implementation Specification"
 )
 
