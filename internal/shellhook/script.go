@@ -10,10 +10,12 @@ var snippets embed.FS
 
 // Script returns the hook snippet for shell, one of bash, zsh or fish.
 func Script(shell string) (string, error) {
-	if shell != "bash" {
+	switch shell {
+	case "bash", "zsh", "fish":
+	default:
 		return "", fmt.Errorf("unsupported shell %q: want bash|zsh|fish", shell)
 	}
-	b, err := snippets.ReadFile("snippets/snapback.bash")
+	b, err := snippets.ReadFile("snippets/snapback." + shell)
 	if err != nil {
 		return "", err
 	}
