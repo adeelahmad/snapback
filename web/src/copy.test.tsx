@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import App from './App';
 import * as content from './content';
-import { Footer, Install, Limits } from './zz_agentic_shim_t5';
+import { Footer } from './sections/Footer';
+import { Install } from './sections/Install';
+import { Limits } from './sections/Limits';
 
 const installCommand = 'curl -fsSL https://snapback.run/install.sh | sh';
 const repoURL = 'https://github.com/adeelahmad/snapback';

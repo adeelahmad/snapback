@@ -50,3 +50,13 @@ export const howItWorks: HowItWorksContent = {
     'cp .snapshot/2026-09-21T09:00:00Z/report.docx ./report.docx',
   ],
 };
+
+export type StageState = 'done' | 'in progress' | 'planned';
+
+export interface Stage {
+  name: string;
+  state: StageState;
+}
+
+// SUB-AGENT-TODO: stages 0-7 named as in SPEC section 22; stage 0 'done', stage 1 'in progress', 2-7 'planned'.
+export const stages: Stage[] = [];

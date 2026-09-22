@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { stages } from './zz_agentic_shim_t5';
+import { stages } from './content';
 
 // specStageNames returns the stage names from the SPEC.md §22 table, in order.
 function specStageNames(): string[] {
