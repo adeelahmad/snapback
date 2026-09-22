@@ -100,6 +100,12 @@ func (s *Server) routes() http.Handler {
 	if s.opts.Pages != nil {
 		mux.Handle("GET /assets/", s.opts.Pages.Static())
 		mux.Handle("GET /fonts/", s.opts.Pages.Static())
+		mux.Handle("GET /{$}", s.requireSession(http.HandlerFunc(s.handleStatus)))
+		mux.Handle("GET /status", s.requireSession(http.HandlerFunc(s.handleStatus)))
+		mux.Handle("GET /setup", s.requireSession(http.HandlerFunc(s.handleSetup)))
+		mux.Handle("GET /config", s.requireSession(http.HandlerFunc(s.handleConfig)))
+		mux.Handle("GET /history", s.requireSession(http.HandlerFunc(s.handleHistory)))
+		mux.Handle("GET /integrations", s.requireSession(http.HandlerFunc(s.handleIntegrations)))
 	}
 	mux.Handle("/", s.requireSession(http.NotFoundHandler()))
 	return mux
