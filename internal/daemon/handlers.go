@@ -109,6 +109,7 @@ func (d *Daemon) handle(ctx context.Context, req ipc.Request) ipc.Response {
 		if _, err := d.deps.Linker.Ensure(ctx, string(req.Path)); err != nil {
 			return errResp(err)
 		}
+		d.countLinks()
 		return ipc.Response{OK: true}
 	case ipc.OpLinksList:
 		recs, err := d.deps.Linker.List()
@@ -121,12 +122,14 @@ func (d *Daemon) handle(ctx context.Context, req ipc.Request) ipc.Response {
 		if err != nil {
 			return errResp(err)
 		}
+		d.countLinks()
 		return dataResp(rep)
 	case ipc.OpLinksRemoveManaged:
 		rep, err := d.deps.Linker.RemoveManaged(ctx)
 		if err != nil {
 			return errResp(err)
 		}
+		d.countLinks()
 		return dataResp(rep)
 	case ipc.OpSnapSubmitted:
 		ctx, cancel := d.opContext(context.WithoutCancel(ctx))
@@ -159,6 +162,7 @@ func (d *Daemon) runRefresh(ctx context.Context) error {
 	d.lastRefresh = d.deps.Clock()
 	d.mountFailed = nil
 	d.mu.Unlock()
+	d.countLinks()
 	return nil
 }
 

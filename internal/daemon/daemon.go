@@ -117,6 +117,7 @@ type Daemon struct {
 	lastRefresh time.Time
 	recovery    *status.RecoverySummary
 	prewarmSum  status.PrewarmSummary
+	links       int // owned link records, recounted on refresh and link ops
 	// mountFailed holds the repos whose mount failed; each carries
 	// errcode.MountFailure until it is ready again or a refresh succeeds.
 	mountFailed map[string]bool
@@ -231,6 +232,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return err
 	}
 	d.prewarm(ctx)
+	d.countLinks()
 
 	d.mu.Lock()
 	d.phase = "ready"
@@ -345,11 +347,31 @@ func (d *Daemon) Status() status.Snapshot {
 		LastRefresh:   last,
 		Generation:    res.Generation,
 		EligibleCount: res.EligibleCount,
+		Links:         d.links,
 		Warm:          res.Warm,
 		Prewarm:       pre,
 		Pending:       res.Pending,
+		Discovery:     d.cfg.Discovery.Mode,
 		Recovery:      rec,
 	}
+}
+
+// countLinks caches the number of owned link records for Status. A List
+// error keeps the previous count.
+func (d *Daemon) countLinks() {
+	recs, err := d.deps.Linker.List()
+	if err != nil {
+		return
+	}
+	n := 0
+	for _, r := range recs {
+		if r.State == links.StateOwned {
+			n++
+		}
+	}
+	d.mu.Lock()
+	d.links = n
+	d.mu.Unlock()
 }
 
 // Run builds a Daemon and runs it.
