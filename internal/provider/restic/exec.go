@@ -2,6 +2,9 @@ package restic
 
 import "context"
 
+// maxStderr caps the stderr bytes kept from a restic run.
+const maxStderr = 4 << 10
+
 // ExecRunner runs real child processes.
 type ExecRunner struct{}
 
