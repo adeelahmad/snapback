@@ -4,9 +4,9 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 14
-- **Stage:** 0 — Scaffolding (Sprint 1)
-- **Phase:** STAGE 0 COMPLETE (01:45Z) — exit evidence verified on GitHub. Sprint 1 closed. Next: Stage 1 (compatibility milestone) requires a new planning session
+- **Tick:** 17
+- **Stage:** 1 — Compatibility milestone (Sprint 2)
+- **Phase:** SPRINT 2 EXECUTION — plan APPROVED via auto-approve (02:13Z); 45 tasks / 210 tests; integration branch `stage-1` from master
 - **Last gate:** GREEN on master @ 41722b6 locally (all checks incl. goreleaser check) and on GitHub (CI 35676870835, docs 35676870852, release 35676870860 — all success)
 - **Human gate pending:** none (human chose push+merge to master at 01:37Z)
 
@@ -15,7 +15,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | Stage | Scope | Exit evidence | Status | Evidence recorded |
 | --- | --- | --- | --- | --- |
 | 0. Scaffolding | Repository furniture, CI, lint, race tests, semantic release, docs site pipeline, installer script skeleton | Green CI on an empty binary; docs site deploys | **DONE** | CI success on master (runs 35676441800, 35676870835); docs deployed, https://adeelahmad.github.io/snapback/ → HTTP/2 200; release v1.0.1 published with 7 archives + cosign-signed checksums.txt (run 35676870860). v1.0.0 exists without assets (first GoReleaser run failed; fixed by S1-06/fix2+fix3) |
-| 1. Compatibility milestone | Pin deps; disposable Restic repo; verify `--path-template ids/%I`; tiny FUSE catalog Linux+macOS; metadata fidelity; rclone/GDrive latency; crawler test | Numbers recorded in the report; go/no-go on latency | not started | — |
+| 1. Compatibility milestone | Pin deps; disposable Restic repo; verify `--path-template ids/%I`; tiny FUSE catalog Linux+macOS; metadata fidelity; rclone/GDrive latency; crawler test | Numbers recorded in the report; go/no-go on latency | executing (Sprint 2) | — |
 | 2. Core vertical slice | Config, SnapshotProvider + Restic, resolver, private Restic mount, virtual catalog, `link`/`open`/`snap`, ownership registry | Acceptance 3–8, 10 on Linux | not started | — |
 | 3. Reliable background operation | Daemon, refresh, pre-warm, IPC, shell hooks, seeding + watcher + inode budget, reader policy, crash recovery, shutdown | Acceptance 1, 2, 9, 11–15 | not started | — |
 | 4. Web UI and services | Setup, Configuration, History, Status, Integrations; launchd/systemd/OpenRC; `install service`; packages + installer | Acceptance 16, 17; all channels publish from a tag | not started | — |
@@ -256,6 +256,35 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 14 | S1-06/fix3 | green-worker | passed — changelogTitle added + header restored; 34/34 release tests PASS; full matrix green | — |
 | 14 | fix2+fix3 push | orchestrator | master ff 4d44590→41722b6; local full gate GREEN incl. goreleaser check; pushed. CI/docs/release all SUCCESS; v1.0.1 published with all 7 contract-named archives + checksums.txt(.sig/.pem) | — |
 | 14 | STAGE 0 | orchestrator | EXIT EVIDENCE RECORDED — Stage 0 DONE (01:45Z) | — |
+| 15 | sprint2/retrospective | archivist | spawned 01:46Z | — |
+| 15 | sprint2/intake | intake | spawned 01:46Z | — |
+| 15 | sprint2/standards | standards | spawned 01:46Z | — |
+| 15 | sprint2/intake | intake | passed (gate-intake PASS); 4 blocking questions → human answered 01:57Z: remote gdrive:snapback-stage1; disposable restic repo on Drive allowed, DELETE afterwards; Linux proof = CI fuse3 mount test on ubuntu-latest + local macFUSE; latency go/no-go decided by human after seeing numbers | — |
+| 15 | sprint2/standards | standards | passed (gate-standards-cited PASS re-run); Stage 1 rules cited to SPEC §5/§7/§20/§22; integration-test gating (build tag + SNAPBACK_FUSE_TESTS / SNAPBACK_RCLONE_REMOTE, skip must name prerequisite) | — |
+| 15 | sprint2/retrospective | archivist | passed with plugin override — memory.md (13 role-tagged entries) md-db valid; gate-memory false BLOCK (validates whole docs/agents dir vs memory schema) | — |
+| 15 | sprint2/planner-stage1 | planner | spawned 01:57Z | — |
+| 15 | sprint2/planner-stage1 | planner | passed — md-db 0 errors (re-run); 9 stories, no owned-file overlap, gate matrix = standards.md. Planner questions: go-fuse v2.11.0, SNAPBACK_EVIDENCE_DIR, strict remote name, restic checksum → accepted under auto-approve; fd missing → orchestrator installed fd (brew); cgofuse fallback → ask human only if go-fuse fails on macFUSE | — |
+| 15 | sprint2/stage2/S2-01 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-02 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-03 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-04 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-05 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-06 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-07 | planner | spawned 02:03Z | — |
+| 15 | sprint2/stage2/S2-08 | planner | spawned 02:03Z | — |
+| 16 | sprint2/stage2/S2-05 | planner | passed — gate-plan-shape exit 0 (re-run), 16 tests, 2 serial tasks; restic 0.19.0 amd64 SHA256 pinned from official SHA256SUMS. Q1 (if-no-files-found warn→error once evidence stories merge) → accepted, follow-up task queued after S2-03/04/06/07 merge; Q2 amd64-only → accepted | follow-up: S2-05 fix (evidence upload → error) |
+| 16 | sprint2/stage2/S2-08 | planner | passed — gate-plan-shape exit 0 (re-run), 34 tests, 6 tasks (T1-T4 parallel); no network in tests; real run = orchestrator command, human-gated. Q1: no gated integration test for S2-08 (decision: keep network out of tests; finalize planner amends stories.md). Q3: assumes S2-03 runner supports long-running mount + --cache-dir → finalize planner reconciles with S2-03 plan | — |
+| 16 | sprint2/stage2/S2-01 | planner | passed — gate-plan-shape exit 0 (re-run), 15 tests, 3 serial tasks. Binding Catalog signatures (builtin types; RootIno=1) relayed to S2-02 planner. Q2 names-only ReadDir accepted; Q3 dir-name mismatch (plan.md says s2-01-mount-seam) → finalize planner; Q4 placeholder imports accepted | — |
+| 16 | sprint2/stage2/S2-07 | planner | passed — gate-plan-shape exit 0 (re-run), 26 tests (24 unit + 2 gated), 5 tasks; measurement only (no reader policy). Q1 --hidden --no-ignore / -H -I worst-case flags accepted (recorded in JSON); Q4 fd now installed (brew) | — |
+| 16 | sprint2/stage2/S2-03 | planner | passed — gate-plan-shape exit 0 (re-run), 32 tests (31 unit + 1 gated), 7 tasks; Runner interface w/ long-running mount supervisor (satisfies S2-08 Q3). Q2 Linux evidence PENDING until CI artifact → accepted; Q3 leaked-mount check should match the test's temp path → finalize planner tightens; Q4 Destroy never touches rclone (S2-08 owns remote deletion) → confirmed; Q5 S2-05 installs fuse3 ✓ | — |
+| 16 | sprint2/stage2/S2-04 | planner | passed — gate-plan-shape exit 0 (re-run), 21 tests (20 unit + 1 real-mount), 4 tasks; explicit EROFS on every mutation interface; statfs reports read-only (accepted). Names follow S2-01's binding Catalog signatures | — |
+| 16 | sprint2/stage2/S2-06 | planner | gate-plan-shape exit 0, 26 tests; PLAN DEFECT: invented timestamp alias format `2006-01-02T15-04-05Z` vs SPEC §3 `YYYY-MM-DD_HHMMZ` → sent back (attempt 2). Q3 zero mtime tolerance accepted (widening = human) | targeted fix |
+| 16 | sprint2/stage2/S2-06 | planner | passed attempt 2 — alias format now SPEC §3 `2006-01-02_1504Z` (verified by grep), gate-plan-shape exit 0 | — |
+| 16 | sprint2/stage2/S2-02 | planner | passed — gate-plan-shape exit 0 (re-run), 18 tests, 6 serial tasks; binding Catalog signatures adopted; names fixed: projection.Build(Spec) (*Generation, error). Q1 empty/NUL symlink targets not rejected (beyond story) → logged tech debt | — |
+| 17 | sprint2/stage2/S2-09+finalize | planner | spawned 02:08Z | — |
+| 17 | user question | orchestrator | bootable USB/ZFS appliance image question — answered feasibility; asked whether it is Snapback scope (would need spec amendment + planning) or a separate project; NOT added to Sprint 2 | — |
+| 17 | sprint2/stage2/S2-09+finalize | planner | passed — gate-stage2-complete exit 0, gate-tooling exit 0, gate-plan-shape exit 0 on all 9 plan.md (all re-run by orchestrator); S2-09 21 tests; reconciliations applied (S2-08 no network test; S2-03 leaked-mount check scoped; S2-05 T3 warn→error; cross-story names; SPEC §3 alias format; human-decision section) | — |
+| 17 | sprint2/approval | human (auto-approve) | APPROVED — 9 stories, 45 tasks, 210 tests | — |
 
 ## Plugin issues found
 
@@ -268,10 +297,22 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 - gate-green-verify runs the WHOLE-repo matrix per task; with RED-first per story, sibling tasks' panic stubs make it red until the last GREEN. Intermediate GREENs run with GATE_RUN_MATRIX=0 + orchestrator package-scoped matrix; full matrix enforced at story merge.
 - gate-structural-integrity `norm_high` test-file carve-out matches only .ts/.tsx/.js/.mjs/.rs — Go `_test.go` function-local duplicates (e.g. `var stdout` in two tests) are misreported as HIGH foundation-poisoning. Needs a `_test.go` carve-out upstream.
 
+- `gate-memory` validates the whole parent dir of memory.md against memory.kdl → 56 false 'unknown document type' errors; should validate the file alone.
+
+- `gate-validate-artifact` run directly fails with `CLAUDE_PLUGIN_ROOT: unbound variable` unless exported.
+
 ## Technical debt (for next planning session)
+
+- projection.Build accepts empty/NUL symlink targets (would break FUSE layer) — decide in Stage 2 whether Build or the adapter rejects them.
 
 - v1.0.0 GitHub release exists with NO assets (GoReleaser failed); fix2 should publish v1.0.1 with assets. Deleting/annotating v1.0.0 is a human decision.
 - goreleaser warns `builds.goarm is ignored when builds.targets is set` — harmless (arm asset name still bare) but the goarm/gomips lines are dead config.
 
 - Consolidate duplicated Go test helpers (repoRoot, readRepoFile, indentOf, topLevelBlock, jobBlock, section helpers) across test/ci, test/commitlint, test/release, test/docs, test/community, test/projectdocs into one shared test-support package — needs a test/**-scoped task (no single story may touch others' tests). Source: S1-02+S1-04 and S1-06 structural reviews.
 - Human decisions surfaced by workers: installer falls back to ~/.local/bin when /usr/local/bin is unwritable OR not on PATH (S1-03 T5); SECURITY.md promises 7-day acknowledgement (S1-05 T3).
+
+## Human decisions (Sprint 2)
+
+- Latency backend: `gdrive:snapback-stage1`; disposable restic repo with generated data only; delete after measuring; keep numbers in the report.
+- Linux FUSE proof: CI job with fuse3 on ubuntu-latest counts; macOS proof = local macFUSE test on this host.
+- Latency go/no-go: record numbers first; human decides.
