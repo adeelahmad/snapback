@@ -4,7 +4,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 28
+- **Tick:** 29
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 EXECUTION — wave 1 merged (S2-01, S2-02, S2-03 on stage-1 @ e893fea); S2-05 T1-T2 merged; wave 2: S2-04 (T1 scaffold), S2-08 (T1-T3 RED) in flight
 - **Last gate:** GREEN on stage-1 @ bc2a030 (full standards matrix, cov 88.2%); master @ f0f0d5b green on GitHub
@@ -403,6 +403,10 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 28 | S2-01/structural | structural-reviewer | passed — no findings in S2-01 files; cross-story note: projection.RootIno duplicates mount.RootIno (forced by projection deps_test forbidding internal/mount import) → tech debt; plugin gate HIGHs judged false positives (BASE_REF predates sprint) | — |
 | 28 | S2-02/structural | structural-reviewer | passed — no findings; INFO: projection has no production importer until S2-04 wires it | — |
 | 28 | S2-08/T4 GREEN | green-worker | passed — 19/19 latency tests PASS -race; lint 0; chain2/s2-08 → 0f13fbd | — |
+| 29 | S2-04/T2 GREEN + T3 GREEN | green-worker ×2 | passed — combined d372b41: gofuse pkg all PASS -race, cov 84.4%, lint 0 (T2's reported SA4006 was a stub artifact, gone after T3); chain2/s2-04 → d372b41 | — |
+| 29 | S2-02/structural | structural-reviewer | passed (report relayed); plugin gate 16 HIGH all traced to bare-name matcher / no Go _test.go exemption | — |
+| 29 | S2-08/T5 RED | red-worker | passed — 10 FAIL by assertion, 44 other PASS lines, lint 0; chain2/s2-08 → fec3c57. DECISION (orchestrator, auto-approve): accept Config{Remote,Runner,Mounter,Clock} + Mounter/Mounted interfaces (tasks.md said Config{Remote,Runner,Clock}, but a blocking Runner.Run cannot hold the long-running mount) | — |
+| 29 | S2-04/T4 RED, S2-08/T5 scaffold, S2-08/T6 RED | various | spawned 03:03Z | — |
 
 ## Plugin issues found
 
