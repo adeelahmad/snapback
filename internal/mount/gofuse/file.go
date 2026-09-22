@@ -27,17 +27,29 @@ var (
 )
 
 func (f *fileNode) Open(ctx context.Context, flags uint32) (fs.FileHandle, uint32, syscall.Errno) {
-	panic("SUB-AGENT-TODO: return EROFS when flags include O_WRONLY, O_RDWR, O_TRUNC or O_APPEND; otherwise (nil, 0, 0)")
+	if flags&(syscall.O_WRONLY|syscall.O_RDWR|syscall.O_TRUNC|syscall.O_APPEND) != 0 {
+		return nil, 0, ReadOnlyErrno()
+	}
+	return nil, 0, 0
 }
 
 func (f *fileNode) Read(ctx context.Context, fh fs.FileHandle, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
-	panic("SUB-AGENT-TODO: fire one OpRead event for f.path, serve f.cat.ReadFile(f.ino) bytes from off (clamped) via fuse.ReadResultData")
+	f.obs.Observe(mount.Event{Op: mount.OpRead, Path: f.path})
+	data, found := f.cat.ReadFile(f.ino)
+	if !found {
+		return nil, syscall.ENOENT
+	}
+	start := min(max(off, 0), int64(len(data)))
+	end := min(start+int64(len(dest)), int64(len(data)))
+	return fuse.ReadResultData(data[start:end]), 0
 }
 
 func (f *fileNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
-	panic("SUB-AGENT-TODO: fill out with AttrOut of a KindFile entry carrying f.ino and the file size; return 0")
+	data, _ := f.cat.ReadFile(f.ino)
+	*out = AttrOut(mount.Entry{Ino: f.ino, Kind: mount.KindFile, Size: uint64(len(data))}, DaemonOwner())
+	return 0
 }
 
 func (f *fileNode) Setattr(ctx context.Context, fh fs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
-	panic("SUB-AGENT-TODO: return ReadOnlyErrno()")
+	return ReadOnlyErrno()
 }

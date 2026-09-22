@@ -62,15 +62,20 @@ func (d *dirNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 	if !found {
 		return nil, syscall.ENOENT
 	}
-	isDir := kind == mount.KindDir
-	e := entry(ino, isDir, name)
-	*out = EntryOut(e, DaemonOwner())
+	e := mount.Entry{Ino: ino, Kind: kind, Name: name}
 	var node fs.InodeEmbedder
-	if isDir {
+	switch kind {
+	case mount.KindDir:
 		node = &dirNode{cat: d.cat, obs: d.obs, ino: ino, path: path}
-	} else {
+	case mount.KindFile:
+		data, _ := d.cat.ReadFile(ino)
+		e.Size = uint64(len(data))
+		node = &fileNode{cat: d.cat, obs: d.obs, ino: ino, path: path}
+	default:
+		e = entry(ino, false, name)
 		node = &symlinkNode{cat: d.cat, obs: d.obs, ino: ino, path: path}
 	}
+	*out = EntryOut(e, DaemonOwner())
 	return d.NewInode(ctx, node, StableAttr(e)), 0
 }
 
