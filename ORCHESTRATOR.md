@@ -4,17 +4,17 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 3
+- **Tick:** 14
 - **Stage:** 0 — Scaffolding (Sprint 1)
-- **Phase:** PLANNING — intake + standards passed; Stage-1 passed (8 stories, 2 waves); PLANNING COMPLETE — gate-stage2-complete exit 0, gate-tooling exit 0. 8 stories / 43 tasks / 177 tests. LOOP STOPPED (cron 72a30c79 deleted) at HUMAN APPROVAL GATE
-- **Last gate:** n/a (no code yet)
-- **Human gate pending:** YES — approve docs/agents/sprint1/plan.md + 9 decisions (section 'Decisions requiring human approval') before any RED dispatch
+- **Phase:** SPRINT 1 FINAL-GATE PASS (stage-0 @ e83ecd8). Awaiting human confirmation to push to GitHub for Stage 0 exit evidence (CI green on master, Pages deploys)
+- **Last gate:** GREEN on stage-0 @ e83ecd8 (01:18Z) after S1-08 merge: gofmt, goimports, build, vet, golangci-lint, test -race, cov 87.5%, govulncheck, actionlint, shellcheck, mkdocs --strict — all PASS
+- **Human gate pending:** YES — GitHub push (outward-facing) required for Stage 0 exit evidence
 
 ## Stage table (README §22)
 
 | Stage | Scope | Exit evidence | Status | Evidence recorded |
 | --- | --- | --- | --- | --- |
-| 0. Scaffolding | Repository furniture, CI, lint, race tests, semantic release, docs site pipeline, installer script skeleton | Green CI on an empty binary; docs site deploys | planning | — |
+| 0. Scaffolding | Repository furniture, CI, lint, race tests, semantic release, docs site pipeline, installer script skeleton | Green CI on an empty binary; docs site deploys | implemented + locally gated (FINAL-GATE PASS @ e83ecd8); GitHub exit evidence NOT YET VERIFIED | local: full matrix green, 178/178 plan-ready ticked; GitHub CI/Pages: pending push |
 | 1. Compatibility milestone | Pin deps; disposable Restic repo; verify `--path-template ids/%I`; tiny FUSE catalog Linux+macOS; metadata fidelity; rclone/GDrive latency; crawler test | Numbers recorded in the report; go/no-go on latency | not started | — |
 | 2. Core vertical slice | Config, SnapshotProvider + Restic, resolver, private Restic mount, virtual catalog, `link`/`open`/`snap`, ownership registry | Acceptance 3–8, 10 on Linux | not started | — |
 | 3. Reliable background operation | Daemon, refresh, pre-warm, IPC, shell hooks, seeding + watcher + inode budget, reader policy, crash recovery, shutdown | Acceptance 1, 2, 9, 11–15 | not started | — |
@@ -26,7 +26,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 ## Environment notes (tick 0)
 
 - Tools present: go 1.22.2 (old), restic, rclone, macFUSE, md-db, ctx-symbols.
-- Tools missing: golangci-lint, staticcheck, govulncheck — gate step `golangci-lint run` cannot run locally until installed.
+- Tools installed 00:25Z: golangci-lint 2.13.2 (brew), govulncheck + goimports (go install; symlinked into /usr/local/bin).
 - Tick timer: session cron job `72a30c79` (`*/5 * * * *`) fires each tick; foreground `sleep` is blocked in this harness. Workers are background agents; kills use TaskStop.
 - Concurrency deviation: planning has only 2 independent tasks (intake, standards); planner depends on both. The 5-worker minimum cannot be met in planning without inventing roles, which the ground-truth rules forbid.
 
@@ -59,6 +59,197 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 2 | sprint1/stage2/S1-08 | planner | passed (gate-plan-shape exit 0 re-verified; 36 tests, 8 tasks; README sha256 6bc35dad… verified) | — |
 | 2 | sprint1/stage2/finalize | planner | spawned 00:16Z | — |
 | 3 | sprint1/stage2/finalize | planner | passed after orchestrator fix: gate-stage2-complete first blocked on stray transcript copy in docs/agents/sprint1/.agentic (hook wrote relative to shell cwd); moved to .agentic/transcripts-misplaced-sprint1-cwd; re-run exit 0 | — |
+| 4 | sprint1/approval | human | APPROVED — human enabled auto-approve; plan accepted as written (incl. rsnapshot ban) | — |
+| 4 | S1-01/T1 | green-worker | spawned 00:26Z (GREEN-only: T1 has 0 test bullets, RED/SCAFFOLD vacuous) | — |
+| 4 | S1-01/T1 | green-worker | implemented; gate DEFERRED — go.mod ok (all 4 validate.md T1 rows PASS, diff scope ok) but matrix `go vet ./...` fails on an empty module ("no packages"). Not merged to stage-0; kept as base of chain/s1-01 (08d0c5b); merges with T2 once a package exists | plan defect noted: T1 cannot pass the matrix alone |
+| 4 | S1-01/T2 | red-worker | spawned 00:28Z on chain/s1-01 | — |
+| 4 | S1-01/T2 | red-worker | passed — orchestrator re-ran `go test`: 3/3 FAIL by assertion (compiles; vet clean); diff = test + marked shim only; gate-red-verify PASS (cargo-dynamic WARN compensated). chain/s1-01 → ad622ca | — |
+| 4 | S1-01/T3 | red-worker | spawned 00:29Z on chain/s1-01 | — |
+| 4 | S1-01/T3 | red-worker | passed — orchestrator re-ran `go test`: 2/2 T3 FAIL by assertion, T2 still FAIL; vet ok; diff = 2 files; chain/s1-01 → 0a6b72a | — |
+| 4 | S1-01/T4 | red-worker | spawned 00:31Z on chain/s1-01 | — |
+| 5 | S1-01/T4 | red-worker | passed — orchestrator re-ran `go test`: 3/3 T4 FAIL by assertion; all 8 S1-01 tests FAIL; vet ok; diff = main_test.go only; chain/s1-01 → 718df3b; plan-ready.md written | — |
+| 5 | S1-01/scaffold | scaffolder | spawned 00:32Z on chain/s1-01 | — |
+| 5 | S1-01/scaffold | scaffolder | passed — orchestrator verified: 7 symbols unique, all func bodies panic+SUB-AGENT-TODO, vars uninitialized, shims deleted, build+vet ok, 0 passing tests; gate-scaffold-verify PASS; chain/s1-01 → 381f883 | — |
+| 5 | S1-01/T2 | green-worker | spawned 00:34Z (GATE_RUN_MATRIX=0: whole-repo matrix cannot be green while T3/T4 stubs panic; orchestrator runs package-scoped matrix + full matrix before stage-0 merge) | GREEN serialized T2→T3→T4 (test deps) |
+| 5 | S1-01/T2 | green-worker | passed — orchestrator re-ran: go test -race internal/version 3/3 PASS; diff = version.go only (0 test lines); fmt/goimports/vet/golangci-lint clean; gate PASS; plan-ready T2 ticked (3); chain/s1-01 → ca077dc | — |
+| 5 | S1-01/T3 | green-worker | spawned 00:35Z on chain/s1-01 | — |
+| 6 | S1-01/T3 | green-worker | passed — orchestrator re-ran: TestRun* 2/2 PASS -race, version still PASS; diff = run.go only; 0 nolint; fmt/vet/golangci-lint ./... clean; gate PASS; plan-ready T3 ticked (5 total); chain/s1-01 → accb50d | — |
+| 6 | S1-01/T4 | green-worker | spawned 00:37Z (full matrix enabled — last S1-01 task) | — |
+| 6 | S1-01/T4 | green-worker | passed — diff = main.go only; all 8 S1-01 tests PASS -race; full matrix green in worktree (cov 87.5%, govulncheck clean); plan-ready fully ticked (9/9) | — |
+| 6 | S1-01 merge | orchestrator | chain/s1-01 fast-forwarded into stage-0 (26b8ddd→b0f2304); full gate on stage-0 GREEN | — |
+| 6 | S1-01/review | structural-reviewer | spawned 00:39Z | — |
+| 7 | S1-01/review | structural-reviewer | passed with orchestrator override — verdict: clean; gate-structural-integrity exit 2 on a FALSE POSITIVE (`stdout` locals in two separate test funcs, run_test.go:14/:43; gate's test-file carve-out only covers .ts/.js/.rs). Verified by orchestrator; plugin not modified. Ran 6m24s (over 5-min budget; finished before kill) | — |
+| 7 | S1-02/T1 | red-worker | spawned 00:46Z on stage-0 | — |
+| 7 | S1-03/T1 | red-worker | spawned 00:46Z on stage-0 | — |
+| 7 | S1-04/T1 | red-worker | spawned 00:46Z on stage-0 | — |
+| 7 | S1-05/T1 | red-worker | spawned 00:46Z on stage-0 | — |
+| 7 | S1-06/T1 | red-worker | spawned 00:46Z on stage-0 | — |
+| 7 | S1-07/T1 | red-worker | spawned 00:46Z on stage-0 | — |
+| 7 | S1-08/T1 | red-worker | spawned 00:46Z on stage-0 | — |
+| 8 | S1-03/T1 | red-worker | passed — orchestrator re-ran go test: 2/2 FAIL by assertion (exit 127≠0, install.sh absent); diff = 2 test files; vet ok; gate PASS; chain/s1-03 → 04f0d2c | — |
+| 8 | S1-04/T1 | red-worker | passed — orchestrator re-ran: 4 FAIL by assertion (config absent) + CLI test SKIP (commitlint absent, plan-allowed); diff = 2 test files; vet ok; gate PASS; chain/s1-04 → c509959 | — |
+| 8 | S1-05/T1 | red-worker | passed — orchestrator re-ran: 2/2 FAIL by assertion via marked shim helpers; diff = helpers_test.go + zz_agentic_shim_test.go; vet ok; gate PASS; chain/s1-05 → 732a432 | — |
+| 8 | S1-07/T1 | red-worker | passed — 2/2 FAIL by assertion via marked shim; diff = 2 test files; vet ok; gate PASS; chain/s1-07 → 08bb75d | — |
+| 8 | S1-02/T1 | red-worker | passed — 14/14 FAIL by assertion (ci.yml absent); diff = 2 test files; vet ok; gate PASS; chain/s1-02 → 6d99fa5 | — |
+| 8 | S1-06/T1 | red-worker | passed with adjudication — 6/7 FAIL by assertion; TestGoreleaserVersionVarsCompile PASS-ON-RED (compile guard on S1-01 ldflags vars; already satisfied). Accepted as a static-invariant/regression guard (playbook allows static-invariant tests); not weakened. chain/s1-06 → 42314db | — |
+| 8 | S1-08/T1 | red-worker | passed — 5/5 FAIL by assertion (SPEC.md absent; shim helpers); diff = 3 test files; vet ok; gate PASS; chain/s1-08 → c737969 | — |
+| 8 | S1-02/T2 | red-worker | spawned 00:49Z on chain/s1-02 | — |
+| 8 | S1-03/T2 | red-worker | spawned 00:49Z on chain/s1-03 | — |
+| 8 | S1-04/T2 | red-worker | spawned 00:49Z on chain/s1-04 | — |
+| 8 | S1-05/T2 | red-worker | spawned 00:49Z on chain/s1-05 | — |
+| 8 | S1-06/T2 | red-worker | spawned 00:49Z on chain/s1-06 | — |
+| 8 | S1-07/T2 | red-worker | spawned 00:49Z on chain/s1-07 | — |
+| 8 | S1-08/T2 | red-worker | spawned 00:49Z on chain/s1-08 | — |
+| 8 | S1-07/T2 | red-worker | passed — 2/2 FAIL by assertion; diff = 1 test file; chain/s1-07 → 8eef848 | — |
+| 8 | S1-03/T2 | red-worker | passed — 2 tests (12 subtests) FAIL by assertion; diff = detect_test.go; chain/s1-03 → fccd681 | — |
+| 8 | S1-02/T2 | red-worker | passed — 5/5 FAIL by assertion; diff = matrix_test.go; chain/s1-02 → 952b673 | — |
+| 8 | S1-05/T2 | red-worker | passed — 3/3 FAIL by assertion; diff = contributing_test.go; chain/s1-05 → fd9099a | — |
+| 8 | S1-08/T2 | red-worker | passed with note — 6/6 FAIL (README absent at shim root); TestReadmeClaimsNoWorkingRestore is a negative/static guard that will pass once real repoRoot lands (accepted, like S1-06 compile guard); chain/s1-08 → 6bfa818 | — |
+| 8 | S1-04/T2 | red-worker | passed — 5/5 FAIL by assertion; diff = workflow_test.go; chain/s1-04 → add6bb4 | — |
+| 8 | S1-06/T2 | red-worker | passed — 8 FAIL by assertion + TestGoreleaserCheck SKIP (goreleaser absent, plan-allowed); 2 guards tightened beyond plan wording to prevent vacuous pass (accepted); chain/s1-06 → f233039 | — |
+| 8 | S1-02/T3 | red-worker | spawned 00:52Z | — |
+| 8 | S1-03/T3 | red-worker | spawned 00:52Z | — |
+| 8 | S1-04/T3 | red-worker | spawned 00:52Z | — |
+| 8 | S1-06/T3 | red-worker | spawned 00:52Z | — |
+| 8 | S1-06/T4 | red-worker | spawned 00:52Z | — |
+| 8 | S1-07/T3 | red-worker | spawned 00:52Z | — |
+| 8 | S1-08/T3 | red-worker | spawned 00:52Z | — |
+| 9 | S1-02/T3 | red-worker | passed — 3/3 FAIL by assertion (actionlint present, ran); chain/s1-02 → c8000dd; S1-02 RED complete; plan-ready written (22); SCAFFOLD vacuous | — |
+| 9 | S1-02/T1 | green-worker | spawned 00:53Z on chain/s1-02 (GATE_RUN_MATRIX=0) | — |
+| 9 | S1-03/T3 | red-worker | passed — 4/4 FAIL by assertion; chain/s1-03 → d722188 | — |
+| 9 | S1-07/T3 | red-worker | passed — 5/5 FAIL by assertion; chain/s1-07 → 8fced6e | — |
+| 9 | S1-04/T3 | red-worker | passed — 4/4 FAIL by assertion; chain/s1-04 → 4fb073b; S1-04 RED complete; plan-ready (14); SCAFFOLD vacuous | — |
+| 9 | S1-08/T3 | red-worker | passed — 3/3 FAIL by assertion; chain/s1-08 → bf775f6 | — |
+| 9 | S1-06/T3 | red-worker | passed — 7/7 FAIL by assertion; commit 212a1a1 held for merge with parallel T4 (same base f233039) | — |
+| 9 | S1-04/T1 | green-worker | spawned 00:54Z | — |
+| 9 | S1-03/T4 | red-worker | spawned 00:54Z | — |
+| 9 | S1-05/T3 | red-worker | spawned 00:54Z | — |
+| 9 | S1-07/T4 | red-worker | spawned 00:54Z | — |
+| 9 | S1-08/T4 | red-worker | spawned 00:54Z | — |
+| 9 | S1-06/T4 | red-worker | passed — 11/11 FAIL by assertion; T3+T4 cherry-picked in a scratch worktree → chain/s1-06 = 45866ed (32 FAIL, vet ok); S1-06 RED complete; plan-ready (34); SCAFFOLD vacuous | — |
+| 9 | S1-02/T1 | green-worker | passed — orchestrator re-ran: 14/14 T1 PASS -race (+TestCIActionlint), diff = ci.yml only, actionlint clean, gate PASS; T1 ticked (14); chain/s1-02 → b3a273a | — |
+| 9 | S1-04/T1 | green-worker | passed — 4/4 TestConfig* PASS -race, CLI test SKIP (commitlint absent — not tool-verified); diff = .commitlintrc.json; gate PASS; T1 ticked; chain/s1-04 → 127cbd0 | — |
+| 9 | S1-05/T3 | red-worker | passed — 4/4 FAIL by assertion; note: securitySection ≈ contributingSection (near-duplicate test helper; flag for structural review); chain/s1-05 → c1d8ddd | — |
+| 9 | S1-07/T4 | red-worker | passed — 6/6 FAIL by assertion; chain/s1-07 → 5642546 | — |
+| 9 | S1-03/T4 | red-worker | passed — 4/4 FAIL by assertion; 2 bullets tightened (server-request assertion) to avoid vacuous pass (accepted); chain/s1-03 → ba8a4fb | — |
+| 9 | S1-08/T4 | red-worker | passed with adjudication — 5 FAIL by assertion; 2 PASS-ON-RED static guards (regex self-test, SPEC-not-scanned) accepted; chain/s1-08 → 94a88bb | — |
+| 9 | S1-02/T2 | green-worker | spawned 00:56Z | — |
+| 9 | S1-04/T2 | green-worker | spawned 00:56Z | — |
+| 9 | S1-06/T1 | green-worker | spawned 00:56Z | — |
+| 9 | S1-05/T4 | red-worker | spawned 00:56Z | — |
+| 9 | S1-03/T5 | red-worker | spawned 00:56Z | — |
+| 9 | S1-07/T5 | red-worker | spawned 00:56Z | — |
+| 9 | S1-08/T5 | red-worker | spawned 00:56Z | — |
+| 10 | disk | orchestrator | 4.7 GiB free / 100% used (not project data: worktrees 20 MB, Go caches 3.1 GB). Removed 36 finished worktrees (branches kept); no other deletion. Human should free disk | — |
+| 10 | S1-04/T2 | green-worker | passed — 5/5 T2 PASS -race, T1 still PASS, actionlint clean, diff = commitlint.yml; T2 ticked; chain/s1-04 → cc88587 | — |
+| 10 | S1-06/T1 | green-worker | passed — 7/7 T1 PASS -race (incl. ldflags build-and-run), diff = .goreleaser.yaml; goreleaser binary absent (config not tool-validated); T1 ticked; chain/s1-06 → 8b81adb | — |
+| 10 | S1-05/T4 | red-worker | passed — 2/2 FAIL by assertion; no third section helper added; chain/s1-05 → 72b3ecc | — |
+| 10 | S1-02/T2 | green-worker | passed — 20 PASS -race (T1 14 + actionlint + T2 5); only 2 T3 tests fail; actionlint clean; T2 ticked; chain/s1-02 → e13ee42 | — |
+| 10 | S1-08/T5 | red-worker | passed — 4/4 FAIL by assertion; chain/s1-08 → 25c5dee | — |
+| 10 | S1-03/T5 | red-worker | passed — 1 test, 4 assertions FAIL; chain/s1-03 → a2b466a | — |
+| 10 | S1-07/T5 | red-worker | passed — 6/6 FAIL by assertion; chain/s1-07 → 6687969 | — |
+| 10 | S1-02/T3 | green-worker (final, full matrix) | spawned 00:59Z | — |
+| 10 | S1-04/T3 | green-worker (final, full matrix) | spawned 00:59Z | — |
+| 10 | S1-06/T2 | green-worker | spawned 00:59Z | — |
+| 10 | S1-05/T5 | red-worker | spawned 00:59Z | — |
+| 10 | S1-03/T6 | red-worker | spawned 00:59Z | — |
+| 10 | S1-07/T6 | red-worker | spawned 00:59Z | — |
+| 10 | S1-08/T6 | red-worker | spawned 00:59Z | — |
+| 10 | S1-06/T2 | green-worker | passed — 16 PASS/SKIP (T1 7 + T2 8 + goreleaser-check SKIP); no publishers/secrets; T2 ticked; chain/s1-06 → c1d1499 | — |
+| 10 | S1-03/T6 | red-worker | passed — 3/3 FAIL by assertion (install.sh absent; 2 negative scans will pass once any compliant script exists — noted); chain/s1-03 → 7dab706 | — |
+| 10 | S1-04/T3 | green-worker | passed (final) — S1-04 all tests PASS -race (CLI SKIP), 0 nolint, actionlint clean, full matrix green in worktree; T3 ticked; plan-ready 0 unticked | — |
+| 10 | S1-02/T3 | green-worker | passed (final) — 22/22 S1-02 tests PASS -race, 0 nolint, actionlint clean, full matrix green; T3 ticked; plan-ready 0 unticked | — |
+| 10 | S1-07/T6 | red-worker | passed — 3/3 FAIL by assertion (guarded against empty-input vacuous pass); chain/s1-07 → 308edd8 | — |
+| 10 | S1-05/T5 | red-worker | passed — 4/4 FAIL by assertion; chain/s1-05 → b9fe141 | — |
+| 10 | S1-08/T6 | red-worker | passed — 3/3 FAIL by assertion; chain/s1-08 → fd3870d | — |
+| 10 | S1-02+S1-04 merge | orchestrator | ff chain/s1-02 (07b6e72) + no-ff merge chain/s1-04 → stage-0 3bd0642; FULL GATE GREEN (cov 87.5%, govulncheck clean, actionlint clean) | — |
+| 10 | S1-06/T3 | green-worker | spawned 01:01Z | — |
+| 10 | S1-06/T4 | green-worker | spawned 01:01Z | — |
+| 10 | S1-02+S1-04/review | structural-reviewer | spawned 01:01Z | — |
+| 10 | S1-03/T7 | red-worker | spawned 01:01Z | — |
+| 10 | S1-05/T6 | red-worker | spawned 01:01Z | — |
+| 10 | S1-07/T7 | red-worker | spawned 01:01Z | — |
+| 10 | S1-08/T7 | red-worker | spawned 01:01Z | — |
+| 11 | S1-06/T3 | green-worker | passed — 23 PASS/SKIP; diff = .releaserc.json + CHANGELOG.md | — |
+| 11 | S1-06/T4 | green-worker | passed — 11/11 TestWorkflow PASS, actionlint clean, diff = release.yml; T3+T4 cherry-picked → chain/s1-06 69c6ab0; full matrix GREEN on chain; T3/T4 ticked (0 unticked) | — |
+| 11 | S1-06 merge | orchestrator | no-ff merge → stage-0 57f1518; FULL GATE GREEN | — |
+| 11 | S1-03/T7 | red-worker | passed — TestShellcheck FAIL by assertion (shellcheck present, ran); chain/s1-03 → d6da6b4; S1-03 RED complete; plan-ready (17); SCAFFOLD vacuous | — |
+| 11 | S1-05/T6 | red-worker | passed — 2/2 FAIL by assertion; chain/s1-05 → 3c63e7f | — |
+| 11 | S1-07/T7 | red-worker | passed — 2/2 FAIL by assertion (mkdocs present, ran); chain/s1-07 → 664b5ce; S1-07 RED complete; plan-ready (26); has shim → SCAFFOLD required | — |
+| 11 | S1-08/T7 | red-worker | passed — 4/4 FAIL by assertion; chain/s1-08 → 7690aaa | — |
+| 11 | S1-03/T1 | green-worker | spawned 01:04Z | — |
+| 11 | S1-07/scaffold | scaffolder | spawned 01:04Z | — |
+| 11 | S1-05/T7 | red-worker | spawned 01:04Z | — |
+| 11 | S1-08/T8 | red-worker | spawned 01:04Z | — |
+| 11 | S1-06/review | structural-reviewer | spawned 01:04Z | — |
+| 11 | S1-03/T1 | green-worker | passed — 2/2 T1 PASS -race, shellcheck clean, diff = install.sh; T1 ticked; chain/s1-03 → 03fc9b9 | — |
+| 11 | S1-07/scaffold | scaffolder | passed — repoRoot+yamlScalar stubbed once (panic+TODO), shim deleted, vet ok, 0 passes; gate PASS; chain/s1-07 → 5713cd6 | — |
+| 11 | S1-05/T7 | red-worker | passed — 3/3 FAIL by assertion (empty-set guard); chain/s1-05 → 237d60a; S1-05 RED complete; plan-ready (20) | — |
+| 11 | S1-08/T8 | red-worker | passed — 4/4 FAIL by assertion; chain/s1-08 → 3276a14; S1-08 RED complete; plan-ready (36) | — |
+| 11 | S1-03/T2 | green-worker | spawned 01:06Z | — |
+| 11 | S1-07/T1 | green-worker | spawned 01:06Z | — |
+| 11 | S1-05/scaffold | scaffolder | spawned 01:06Z | — |
+| 11 | S1-08/scaffold | scaffolder | spawned 01:06Z | — |
+| 11 | S1-03/T2 | green-worker | passed — 4 target tests PASS -race, shellcheck clean, diff = install.sh; T2 ticked; chain/s1-03 → ab3184b | — |
+| 11 | S1-07/T1 | green-worker | passed — 2/2 T1 PASS -race, 0 panic stubs left, diff = helpers_test.go; T1 ticked; chain/s1-07 → 92645e7 | — |
+| 11 | S1-02+S1-04/review | structural-reviewer | verdict ISOLATED (no poisoning): ci.yml:24,59 `go install …@latest` unpinned (real, → RETRY S1-02 fix1 on chain/s1-02-fix from stage-0 57f1518); cross-package _test helper dupes (indentOf, repoRoot) accepted — Go test packages can't share unexported code; gate FAIL = known _test.go false positive. Ran 5m27s | fix task opened: S1-02/fix1 |
+| 11 | S1-05/scaffold | scaffolder | passed — ownedFiles/repoRoot/readOwned stubbed once, shim deleted, vet ok; gate PASS; chain/s1-05 → 87dd350 | — |
+| 11 | S1-08/scaffold | scaffolder | passed — repoRoot/section stubbed once (section recipe covers ###), shim deleted, vet ok; gate PASS; chain/s1-08 → 3b6de11 | — |
+| 11 | S1-03/T3 | green-worker | spawned 01:08Z | — |
+| 11 | S1-02/fix1 | green-worker | spawned 01:08Z | — |
+| 11 | S1-07/T2 | green-worker | spawned 01:08Z | — |
+| 11 | S1-07/T3 | green-worker | spawned 01:08Z | — |
+| 11 | S1-07/T4 | green-worker | spawned 01:08Z | — |
+| 11 | S1-05/T1 | green-worker | spawned 01:08Z | — |
+| 11 | S1-08/T1 | green-worker | spawned 01:08Z | — |
+| 11 | S1-07/T2 | green-worker | passed — 2/2 TestRequirements PASS, diff = requirements-docs.txt (mkdocs 1.6.1, mkdocs-material 9.7.7 — plan said 9.6.14, updated to current verified release); commit f9214f0 held to combine with parallel T3/T4 | — |
+| 11 | S1-03/T3 | green-worker | passed — 8 target tests PASS -race, shellcheck clean, diff = install.sh; T3 ticked; chain/s1-03 → c603fa8 | — |
+| 11 | S1-03/T4 | green-worker | spawned 01:09Z | — |
+| 11 | S1-07/T3 | green-worker | passed — 4/5 alone (NavEntries needs T4's index.md); combined | — |
+| 11 | S1-07/T4 | green-worker | passed — 6/6 TestLanding PASS; T2+T3+T4 cherry-picked → chain/s1-07 c90c644: 20/26 PASS (all but the 6 T5 workflow tests; T6 honesty + T7 strict build now pass, mkdocs present); ticked T2,T3,T4,T6,T7 | — |
+| 11 | S1-05/T1 | green-worker | passed — TestRepoRootHasGoMod PASS; TestOwnedFilesExist fails only on missing T2-T6 files (list correct); 1 box ticked; chain/s1-05 → 1a4ff98 | — |
+| 11 | S1-08/T1 | green-worker | passed — README.md→SPEC.md pure rename (R100), sha256 6bc35dad… verified; 5 T1 tests PASS; T1 ticked; chain/s1-08 → 246c947 | — |
+| 11 | S1-02/fix1 | green-worker | passed — @latest removed (goimports v0.50.0, govulncheck v1.8.0), 22/22 PASS, full matrix green; ff-merged → stage-0 d3954c3; FULL GATE GREEN | — |
+| 11 | S1-03/T4 | green-worker | passed — 12 target tests PASS -race, shellcheck clean, diff = install.sh; T4 ticked; chain/s1-03 → 5622689 | — |
+| 11 | S1-03/T5 | green-worker | spawned 01:11Z | — |
+| 11 | S1-05/T2 | green-worker | spawned 01:11Z | — |
+| 11 | S1-05/T3 | green-worker | spawned 01:11Z | — |
+| 11 | S1-05/T4 | green-worker | spawned 01:11Z | — |
+| 11 | S1-07/T5 | green-worker (final, full matrix) | spawned 01:11Z | — |
+| 11 | S1-08/T2 | green-worker | spawned 01:11Z | — |
+| 11 | S1-05/T2 | green-worker | passed — 3/3 TestContributing PASS, diff = CONTRIBUTING.md; commit 66d8abe held to combine with T3/T4 | — |
+| 11 | S1-03/T5 | green-worker | passed — 13 PASS -race incl. fallback, shellcheck clean; decision: fallback when /usr/local/bin unwritable OR not on PATH (noted for human); T5 ticked; chain/s1-03 → 125f24c. Full suite: 16/17 pass, TestShellcheck (T7) already green → T7 ticked; only TestStaticNoPackageManagerInstall (T6) red ("apt install fuse3" hint) | — |
+| 11 | S1-05/T3 | green-worker | passed — 4/4 TestSecurity PASS, diff = SECURITY.md (7-day ack promise is worker's choice — flag for human); commit 18d5e80 held | — |
+| 11 | S1-03/T6 | green-worker (final, full matrix) | spawned 01:12Z | — |
+| 11 | S1-05/T4 | green-worker | passed — 2/2 TestConduct PASS, diff = CODE_OF_CONDUCT.md; T2+T3+T4 cherry-picked → chain/s1-05 79b8ded (all T1-T4 tests PASS except OwnedFilesExist pending T5/T6); ticked T2,T3,T4 | — |
+| 11 | S1-08/T2 | green-worker | passed — 8/8 target PASS, diff = README.md; T2 ticked; chain/s1-08 → 37477de | — |
+| 11 | S1-05/T5 | green-worker | spawned 01:13Z | — |
+| 11 | S1-05/T6 | green-worker | spawned 01:13Z | — |
+| 11 | S1-08/T3 | green-worker | spawned 01:13Z | — |
+| 11 | S1-08/T5 | green-worker | spawned 01:13Z | — |
+| 11 | S1-08/T6 | green-worker | spawned 01:13Z | — |
+| 12 | S1-07/T5 | green-worker | FAILED (escalate) — docs.yml done, 26/26 PASS, but full matrix red: golangci-lint staticcheck QF1001 in RED test test/docs/workflow_test.go:119 (not green-worker scope). Split → lint-only RED retry (1 line, De Morgan) S1-07/T5 attempt 2; chain/s1-07 → 09e0892 | shrink: single-expression lint fix |
+| 12 | S1-03/T6 | green-worker | passed (final) — FUSE hint reworded (instructions only), 17/17 PASS, full matrix green; T6/T7 ticked (0 unticked) | — |
+| 12 | S1-03 merge | orchestrator | no-ff → stage-0 d18533c; FULL GATE GREEN (+shellcheck) | — |
+| 12 | S1-06/review | structural-reviewer | verdict ISOLATED — cross-story contracts hold; only finding = gate _test.go false positive; recommends a test/**-scoped helper consolidation task → logged as TECH DEBT for next planning. Ran 8m59s: OVER the 5-min limit and NOT killed (orchestrator miss — recorded) | — |
+| 12 | S1-08/T3 | green-worker | passed — 3 T3 + all T2 README tests PASS; commit 8794524 held | — |
+| 12 | S1-08/T6 | green-worker | passed — 3/3 TestNotice PASS; commit 5cc8a9a held | — |
+| 12 | S1-08/T5 | green-worker | passed — 4 T5 + ARCHITECTURE honesty subtests PASS; commit 687b541 held | — |
+| 12 | S1-05/T5 | green-worker | passed — 4/4 TestIssue PASS | — |
+| 12 | S1-05/T6 | green-worker | passed — 2/2 TestPRTemplate PASS; T5+T6 cherry-picked → chain/s1-05 0b3e0a3: 0 community failures, full matrix green; T1/T5/T6/T7 ticked (0 unticked) | — |
+| 12 | S1-05 merge | orchestrator | no-ff → stage-0 b4353eb; FULL GATE GREEN | — |
+| 12 | S1-07/T5 attempt 2 | red-worker | spawned (lint-only) | — |
+| 12 | S1-08/T7, S1-08/T8 | green-worker | spawned | — |
+| 12 | S1-07/T5 attempt 2 | red-worker | passed — 1-line De Morgan rewrite (equivalence verified: !(A&&B) ≡ !A||!B, pure calls), golangci-lint 0 issues, 26/26 PASS; T5 ticked (0 unticked); chain/s1-07 → f3fde49 | — |
+| 12 | S1-07 merge | orchestrator | no-ff → stage-0 796e05a; FULL GATE GREEN | — |
+| 12 | S1-08 combine | orchestrator | T3+T5+T6 cherry-picked → chain/s1-08 36d20bc; only T7/T8 tests fail; ticked T3,T4,T5,T6 | — |
+| 12 | S1-08/T7 | green-worker | passed — 4/4 TestClaudeMd PASS, 54 lines; commit f76e2f3 held for T8 | — |
+| 12 | S1-03+S1-05+S1-07/review | structural-reviewer | spawned 01:16Z (hard 5-min budget) | — |
+| 12 | S1-08/T8 | green-worker | passed — 4/4 TestDevlog PASS; T7+T8 cherry-picked → chain/s1-08 f4aa945: 0 projectdocs failures, full matrix green, SPEC.md hash intact; T7/T8 ticked (0 unticked) | — |
+| 12 | S1-08 merge | orchestrator | no-ff → stage-0 e83ecd8; FULL GATE GREEN (+ mkdocs --strict) | — |
+| 12 | S1/final-gate | final-gate | spawned 01:18Z | — |
+| 13 | S1-03+S1-05+S1-07/review | structural-reviewer | passed — verdict CLEAN (ownership exact, S1-03↔S1-06 naming contract byte-identical, workflows least-privilege + pinned, no in-package dupes, no markers); gate FAIL = known _test.go false positive only. Ran 3m08s | — |
+| 14 | S1/final-gate | final-gate | PASS — full matrix green (cov 87.5%), 0 suppressions (6 t.Skip all plan-allowed tool-absent; only commitlint+goreleaser actually skip), 178/178 plan-ready [x], gate-final exit 0; GitHub-only DoD items NOT YET VERIFIED. Ran 4m57s | — |
 
 ## Plugin issues found
 
@@ -66,3 +257,12 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 - `md-db validate` prints `files: []` even when files are valid; S1-05 planner confirmed via a negative test that it does read them.
 - `transcripts` hook writes `.agentic/transcripts` relative to the shell cwd; a cwd inside a sprint dir planted a transcript containing 'TBW' that made gate-stage2-complete fail. Keep the shell at repo root.
 - `md-db validate` returns `files: []` even for a single file path; S1-05 planner's negative test showed it does detect errors, but its file selection should be checked upstream.
+- Gates are Rust-only for dynamic checks (`cargo test` in gate-red/green-verify; default matrix cargo). For Go they WARN and skip — orchestrator compensates by running `go test` itself per worktree. STANDARDS_FILE must be absolute in task.env (docs/agents is sparse-excluded in worktrees, else fallback = cargo matrix).
+- Harness locks worktree agents to their worktree: they cannot append to the main-tree STORY_DIR output.md. Workaround: worker copies init.md/output.md into its worktree story dir, sets STORY_DIR there; orchestrator copies output.md back after the gate.
+- gate-green-verify runs the WHOLE-repo matrix per task; with RED-first per story, sibling tasks' panic stubs make it red until the last GREEN. Intermediate GREENs run with GATE_RUN_MATRIX=0 + orchestrator package-scoped matrix; full matrix enforced at story merge.
+- gate-structural-integrity `norm_high` test-file carve-out matches only .ts/.tsx/.js/.mjs/.rs — Go `_test.go` function-local duplicates (e.g. `var stdout` in two tests) are misreported as HIGH foundation-poisoning. Needs a `_test.go` carve-out upstream.
+
+## Technical debt (for next planning session)
+
+- Consolidate duplicated Go test helpers (repoRoot, readRepoFile, indentOf, topLevelBlock, jobBlock, section helpers) across test/ci, test/commitlint, test/release, test/docs, test/community, test/projectdocs into one shared test-support package — needs a test/**-scoped task (no single story may touch others' tests). Source: S1-02+S1-04 and S1-06 structural reviews.
+- Human decisions surfaced by workers: installer falls back to ~/.local/bin when /usr/local/bin is unwritable OR not on PATH (S1-03 T5); SECURITY.md promises 7-day acknowledgement (S1-05 T3).
