@@ -2,6 +2,7 @@ package ipc
 
 import (
 	"encoding/json"
+	"path/filepath"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/provider"
@@ -41,5 +42,8 @@ type Response struct {
 // SocketPath returns $XDG_RUNTIME_DIR/snapback/daemon.sock, or
 // <stateDir>/run/daemon.sock when XDG_RUNTIME_DIR is empty.
 func SocketPath(getenv func(string) string, stateDir string) string {
-	panic("SUB-AGENT-TODO: XDG_RUNTIME_DIR set -> filepath.Join(xdg, \"snapback\", \"daemon.sock\"); else filepath.Join(stateDir, \"run\", \"daemon.sock\") (plan.md T1 TestSocketPath)")
+	if xdg := getenv("XDG_RUNTIME_DIR"); xdg != "" {
+		return filepath.Join(xdg, "snapback", "daemon.sock")
+	}
+	return filepath.Join(stateDir, "run", "daemon.sock")
 }
