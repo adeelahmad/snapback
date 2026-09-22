@@ -1,11 +1,43 @@
 package config
 
+import (
+	"bytes"
+	"errors"
+	"strings"
+
+	"go.yaml.in/yaml/v3"
+
+	"github.com/adeelahmad/snapback/internal/errcode"
+)
+
 // Parse strictly decodes YAML config data, applies defaults and validates it.
 func Parse(data []byte) (*Config, error) {
-	panic("SUB-AGENT-TODO: strict yaml decode (KnownFields) into a defaults-filled Config, apply post-decode defaults, then return Validate's error or the config")
+	c := defaults()
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	if err := dec.Decode(c); err != nil {
+		if strings.Contains(err.Error(), "field password not found") {
+			err = errors.New(err.Error() + " (use password_file)")
+		}
+		return nil, errcode.New(errcode.InvalidConfig, "config.parse", err)
+	}
+	applyDefaults(c)
+	if err := Validate(c); err != nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 // Marshal encodes c as YAML that Parse reads back to an equal Config.
 func Marshal(c *Config) ([]byte, error) {
-	panic("SUB-AGENT-TODO: yaml encode c deterministically so Parse(Marshal(c)) round-trips and re-marshal is byte-identical")
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(c); err != nil {
+		return nil, err
+	}
+	if err := enc.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
