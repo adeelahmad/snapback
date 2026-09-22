@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/links"
 	"github.com/adeelahmad/snapback/internal/resolver"
@@ -68,7 +69,7 @@ func openRegistry(path string) (*links.Registry, error) {
 
 // linkPolicy returns the link placement policy described by cfg.
 func linkPolicy(cfg config.Config) links.Policy {
-	pol := links.Policy{LinkName: cfg.LinkName, HistoryMount: cfg.HistoryMount}
+	pol := links.Policy{LinkName: cfg.LinkName, HistoryMount: cfg.HistoryMount, Excluded: cli.OwnExcludes(cfg)}
 	for _, r := range cfg.Roots {
 		pol.Roots = append(pol.Roots, resolver.RootSpec{ID: r.ID, LocalPath: r.LocalPath})
 		for _, e := range r.ExcludeRelativePaths {
