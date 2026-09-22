@@ -7,18 +7,20 @@
 # Everything is pinned: both bases by image digest, every apk package by version, and the
 # restic release by its published SHA256 from the release's SHA256SUMS.
 #
-# amd64 only for now. The restic asset is per-architecture with its own checksum, so an
-# arm64 image needs a second pinned digest; S5-35/T2 wires the multi-arch build.
+# The image is built for linux/amd64 and linux/arm64. The restic asset is per-architecture
+# with its own checksum, so buildx's TARGETARCH picks the asset and goreleaser passes the
+# matching RESTIC_SHA256 per platform; the amd64 checksum is the default below.
 
 FROM alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507 AS build
 
+ARG TARGETARCH
 ARG RESTIC_VERSION=0.18.0
 ARG RESTIC_SHA256=98f6dd8bf5b59058d04bfd8dab58e196cc2a680666ccee90275a3b722374438e
 
 RUN apk add --no-cache ca-certificates=20260909-r0 curl=8.14.1-r2 bzip2=1.0.8-r6
 
 RUN set -eu \
- && curl -fsSL -o /tmp/restic.bz2 "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2" \
+ && curl -fsSL -o /tmp/restic.bz2 "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_${TARGETARCH}.bz2" \
  && echo "${RESTIC_SHA256}  /tmp/restic.bz2" > /tmp/restic.sha256 \
  && sha256sum -c /tmp/restic.sha256 \
  && bunzip2 /tmp/restic.bz2 \
