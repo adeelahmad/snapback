@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/links"
 	"github.com/adeelahmad/snapback/internal/provider"
 )
@@ -33,4 +34,14 @@ type Deps struct {
 	LookPath func(file string) (string, error)
 	// OpenTimeout bounds how long open waits for the opener.
 	OpenTimeout time.Duration
+	// LoadConfig reads and validates the configuration at path.
+	LoadConfig func(path string) (config.Config, error)
+	// NewSnapper returns the Snapper for repository repoID.
+	NewSnapper func(cfg config.Config, repoID string) (provider.Snapper, error)
+	// Hostname reports the local host name.
+	Hostname func() (string, error)
+	// Sleep pauses for d or until ctx is done.
+	Sleep func(ctx context.Context, d time.Duration) error
+	// Now reports the current time.
+	Now func() time.Time
 }
