@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/adeelahmad/snapback/compare/v1.1.0...v1.1.1) (2026-09-22)
+
+### Bug Fixes
+
+* installer next steps suggest only existing commands ([1d6b0d6](https://github.com/adeelahmad/snapback/commit/1d6b0d6d08e81ccdc71fb4ae078bebd9480635a8))
+* installer next steps suggest only existing commands ([#2](https://github.com/adeelahmad/snapback/issues/2)) ([ae10948](https://github.com/adeelahmad/snapback/commit/ae10948f0550c5f2a61268a97b333e1501a4a008))
+
 ## [1.1.0](https://github.com/adeelahmad/snapback/compare/v1.0.1...v1.1.0) (2026-09-22)
 
 ### Features
