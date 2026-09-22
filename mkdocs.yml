@@ -10,3 +10,8 @@ theme:
 
 nav:
   - Home: index.md
+
+extra:
+  analytics:
+    provider: google
+    property: G-BFWW49ZP0E
