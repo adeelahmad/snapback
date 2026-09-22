@@ -69,7 +69,32 @@ Remote deleted: true
 
 ## Crawler hit counts
 
-Not filled yet.
+Each row is one `rows[]` entry of a `crawler-<goos>.json` file: the tool was run
+over a seeded tree, and Hits is the `hits` value recorded for it. `—` means the tool
+was not run here, so there is no count.
+
+| Platform | Tool | Status | Hits |
+| --- | --- | --- | --- |
+| macOS (Apple Silicon, macFUSE, local host) | rg | tested | 0 |
+| macOS (Apple Silicon, macFUSE, local host) | rg -L | tested | 761 |
+| macOS (Apple Silicon, macFUSE, local host) | fd | tested | 0 |
+| macOS (Apple Silicon, macFUSE, local host) | fd -L | tested | 481 |
+| macOS (Apple Silicon, macFUSE, local host) | find | tested | 0 |
+| macOS (Apple Silicon, macFUSE, local host) | find -L | tested | 400 |
+| macOS (Apple Silicon, macFUSE, local host) | rsync -a | tested | 0 |
+| macOS (Apple Silicon, macFUSE, local host) | vscode search | not-tested-here | — |
+| Linux (ubuntu-latest CI, fuse3) | rg | tested | 0 |
+| Linux (ubuntu-latest CI, fuse3) | rg -L | tested | 640 |
+| Linux (ubuntu-latest CI, fuse3) | fd | tested | 0 |
+| Linux (ubuntu-latest CI, fuse3) | fd -L | tested | 640 |
+| Linux (ubuntu-latest CI, fuse3) | find | tested | 0 |
+| Linux (ubuntu-latest CI, fuse3) | find -L | tested | 880 |
+| Linux (ubuntu-latest CI, fuse3) | rsync -a | tested | 0 |
+| Linux (ubuntu-latest CI, fuse3) | vscode search | not-tested-here | — |
+
+Not tested here, macOS (Apple Silicon, macFUSE, local host), `vscode search`: VS Code search needs a GUI session; it follows symlinks only when search.followSymlinks is true (the default)
+
+Not tested here, Linux (ubuntu-latest CI, fuse3), `vscode search`: VS Code search needs a GUI session; it follows symlinks only when search.followSymlinks is true (the default)
 
 ## Requirement matrix
 
