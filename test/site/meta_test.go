@@ -1,6 +1,7 @@
 package site_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -125,21 +126,32 @@ func TestHeadMeta(t *testing.T) {
 }
 
 // canvasValues returns the light and dark values of the canvas colour token.
+// A token value is either one string used by every theme or an object keyed
+// by theme id, so values are decoded only for the canvas token.
 func canvasValues(t *testing.T) (light, dark string) {
 	t.Helper()
 	var tokens struct {
 		Color struct {
 			Tokens []struct {
-				Name  string            `json:"name"`
-				Value map[string]string `json:"value"`
+				Name  string          `json:"name"`
+				Value json.RawMessage `json:"value"`
 			} `json:"tokens"`
 		} `json:"color"`
 	}
 	loadJSON(t, "web/tokens.json", &tokens)
 	for _, tok := range tokens.Color.Tokens {
-		if tok.Name == "canvas" {
-			return tok.Value["light"], tok.Value["dark"]
+		if tok.Name != "canvas" {
+			continue
 		}
+		var single string
+		if err := json.Unmarshal(tok.Value, &single); err == nil {
+			return single, single
+		}
+		var perTheme map[string]string
+		if err := json.Unmarshal(tok.Value, &perTheme); err != nil {
+			t.Fatalf("web/tokens.json canvas value %s: want string or {light,dark} object: %v", tok.Value, err)
+		}
+		return perTheme["light"], perTheme["dark"]
 	}
 	t.Fatalf("web/tokens.json has no canvas colour token")
 	return "", ""
