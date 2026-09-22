@@ -57,7 +57,7 @@ type linkCounter interface {
 }
 
 // statusView fills v from the daemon snapshot st. Metrics the snapshot does
-// not report stay nil, so the page shows them as not measured.
+// not report stay nil, so the page shows them as not reported.
 func statusView(v webui.StatusView, st status.Snapshot) webui.StatusView {
 	for _, repo := range st.Repos {
 		state := repo.State
