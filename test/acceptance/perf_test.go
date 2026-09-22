@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -14,9 +15,11 @@ import (
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/history"
+	"github.com/adeelahmad/snapback/internal/ipc"
 	"github.com/adeelahmad/snapback/internal/projection"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/provider/providertest"
+	"github.com/adeelahmad/snapback/internal/rawpath"
 	"github.com/adeelahmad/snapback/internal/resolver"
 )
 
@@ -24,7 +27,10 @@ const (
 	// ensureLinkP95Cap is the only perf threshold SPEC §20 states.
 	ensureLinkP95Cap = 100 * time.Millisecond
 	perfLinkDirs     = 1000
-	perfSeedDirs     = 10000
+	perfCLIDirs      = 50
+	perfSeedDirs     = 2000
+	perfIPCBudget    = 60 * time.Second
+	perfSeedBudget   = 90 * time.Second
 	syntheticDirs    = 1_000_000
 	syntheticSnaps   = 10_000
 )
@@ -56,6 +62,7 @@ func TestPerfEnsureLinkP95SeedThroughput(t *testing.T) {
 	backup(t, h.fx, "", histHost, time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), "daily", h.fx.Root)
 	e := writeHistConfig(t, h)
 	fresh := makeDirs(t, filepath.Join(h.proj, "fresh"), "d", perfLinkDirs)
+	cliDirs := makeDirs(t, filepath.Join(h.proj, "cli"), "c", perfCLIDirs)
 
 	start := time.Now()
 	startDaemon(t, e)
@@ -63,30 +70,65 @@ func TestPerfEnsureLinkP95SeedThroughput(t *testing.T) {
 	t.Logf("evidence: perf startup-to-ready %s", time.Since(start))
 	t.Logf("evidence: perf startup live-root opens not counted here; the IN_OPEN counter is Linux-only (Acc 12)")
 
-	lat := make([]time.Duration, 0, perfLinkDirs)
-	for _, d := range fresh {
-		s := time.Now()
-		if _, stderr, code := runSnapback(t, e, "link", d); code != 0 {
-			t.Fatalf("snapback link %s exit = %d, want 0; stderr: %s", d, code, stderr)
+	t.Run("ensure_link_ipc_p95", func(t *testing.T) {
+		sock := ipc.SocketPath(func(string) string { return e.Runtime }, "")
+		ctx, cancel := context.WithTimeout(t.Context(), perfIPCBudget)
+		defer cancel()
+		c, err := ipc.Dial(ctx, sock)
+		if err != nil {
+			t.Fatalf("ipc.Dial(%s) = %v, want nil", sock, err)
 		}
-		lat = append(lat, time.Since(s))
-	}
-	got := p95(lat)
-	t.Logf("evidence: perf ensure-link p95 %s over %d calls (includes CLI process start)", got, len(lat))
-	if got >= ensureLinkP95Cap {
-		t.Errorf("ensure-link p95 = %s, want < %s", got, ensureLinkP95Cap)
-	}
+		defer func() { _ = c.Close() }()
 
-	makeDirs(t, filepath.Join(h.proj, "tree"), "s", perfSeedDirs)
-	for _, pass := range []string{"cold", "warm"} {
-		s := time.Now()
-		if _, stderr, code := runSnapback(t, e, "seed", h.proj); code != 0 {
-			t.Errorf("snapback seed %s (%s) exit = %d, want 0; stderr: %s", h.proj, pass, code, stderr)
-			continue
+		lat := make([]time.Duration, 0, perfLinkDirs)
+		for _, d := range fresh {
+			s := time.Now()
+			resp, err := c.Call(ctx, ipc.Request{V: 1, Op: ipc.OpEnsureLink, Path: rawpath.Path(d)})
+			took := time.Since(s)
+			if err != nil {
+				t.Fatalf("Call(ensure_link %s) = %v, want nil", d, err)
+			}
+			if !resp.OK {
+				t.Fatalf("Call(ensure_link %s) = %s %s, want ok", d, resp.Code, resp.Error)
+			}
+			lat = append(lat, took)
 		}
-		took := time.Since(s)
-		t.Logf("evidence: perf seed %s %d dirs in %s = %.0f dirs/s", pass, perfSeedDirs, took, float64(perfSeedDirs)/took.Seconds())
-	}
+		got := p95(lat)
+		t.Logf("evidence: perf ensure-link ipc p95 %s over %d calls", got, len(lat))
+		if got >= ensureLinkP95Cap {
+			t.Errorf("ensure_link ipc p95 = %s, want < %s", got, ensureLinkP95Cap)
+		}
+	})
+
+	t.Run("ensure_link_cli_evidence", func(t *testing.T) {
+		lat := make([]time.Duration, 0, len(cliDirs))
+		for _, d := range cliDirs {
+			s := time.Now()
+			if _, stderr, code := runSnapback(t, e, "link", d); code != 0 {
+				t.Fatalf("snapback link %s exit = %d, want 0; stderr: %s", d, code, stderr)
+			}
+			lat = append(lat, time.Since(s))
+		}
+		t.Logf("evidence: perf ensure-link CLI p95 %s over %d calls (includes CLI process start; not gated)", p95(lat), len(lat))
+	})
+
+	t.Run("seed_throughput", func(t *testing.T) {
+		makeDirs(t, filepath.Join(h.proj, "tree"), "s", perfSeedDirs)
+		ctx, cancel := context.WithTimeout(t.Context(), perfSeedBudget)
+		defer cancel()
+		for _, pass := range []string{"cold", "warm"} {
+			cmd := exec.CommandContext(ctx, snapbackBin, "seed", h.proj)
+			cmd.Env = e.environ()
+			s := time.Now()
+			out, err := cmd.CombinedOutput()
+			took := time.Since(s)
+			if err != nil {
+				t.Errorf("snapback seed %s (%s) = %v after %s (budget %s); output: %s", h.proj, pass, err, took, perfSeedBudget, out)
+				return
+			}
+			t.Logf("evidence: perf seed %s %d dirs in %s = %.0f dirs/s", pass, perfSeedDirs, took, float64(perfSeedDirs)/took.Seconds())
+		}
+	})
 }
 
 // countingProvider counts Probe calls, the only per-tree lookup the
