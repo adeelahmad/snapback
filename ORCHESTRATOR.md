@@ -4,10 +4,10 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 33
+- **Tick:** 34
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 EXECUTION — S2-01..S2-04 + S2-08 merged (stage-1 e687157); wave 3 S2-06/S2-07 in GREEN/scaffold; chores C1 (snapback.run) + C2 (Makefile) in flight; awaiting human for gdrive latency run
-- **Last gate:** GREEN on stage-1 @ e687157 (full standards matrix, cov 82.1%); master @ f0f0d5b green on GitHub
+- **Last gate:** GREEN on stage-1 @ dbfa7c8 (full standards matrix, cov 82.1%); master @ f0f0d5b green on GitHub
 - **Human gate pending:** confirm real latency run `SNAPBACK_RCLONE_REMOTE=gdrive:snapback-stage1 go run ./tools/stage1latency -out docs/reports/stage1/latency.json` (S2-08 merged)
 
 ## Stage table (README §22)
@@ -431,6 +431,14 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 33 | C1/T1 RED (domain) | red-worker | passed — 5 FAIL by assertion (README install line, no placeholders, installer base URL, mkdocs site_url, docs workflow publishes install.sh); chain2/c1-domain → 48d9718 | scope ext → C1/T1b (readme_links_test pins github.io docs URL) |
 | 33 | C2/T1 RED (Makefile) | red-worker | passed — 8 FAIL by assertion (Makefile missing; CONTRIBUTING lacks make ci/install); chain2/c2-make → 918f32f | — |
 | 33 | C2 GREEN, C1/T1b RED, S2-07 T1/T2/T4 GREEN, S2-06 T1+T2 GREEN, S2-06 T3+T4 scaffold, S2-07 T3 scaffold | various | spawned 03:21Z (8 running) | — |
+| 34 | S2-07 T1/T2/T4 GREEN + T3 scaffold | green/scaffolder | passed — combined 43cf0aa: T1/T2/T4 PASS -race, lint 0 (earlier SA4006 were stub artifacts) | — |
+| 34 | S2-07/T3 GREEN | green-worker | passed — 24/24 crawler PASS -race, lint 0; chain2/s2-07 → 9bf61b7 | — |
+| 34 | S2-06 T1+T2 GREEN + T3+T4 scaffold | green/scaffolder | passed — combined 53c16ae: 14 T1/T2 PASS (orchestrator re-ran by exact name); darwin+linux vet ok | — |
+| 34 | S2-06/T4 GREEN | green-worker | passed — 6 T4 PASS; note wording follows test/tasks.md ("recorded, not claimed") over stub recipe; held 0278d76 for combine with T3 | — |
+| 34 | C1 GREEN + C2 GREEN | green-worker ×2 | passed — C1: README/install.sh/mkdocs/docs.yml → snapback.run + GitHub releases URL; C2: Makefile (help/build/install/uninstall/test/cover/lint/fmt/vet/vuln/docs/release-check/ci/clean), `make ci` run for real exit 0 | — |
+| 34 | MERGE C1 + C2 → stage-1 | orchestrator | a3c617d, dbfa7c8; full gate GREEN (cov 82.1%); `make -n ci` ok | Pages custom domain / deploy need push (human) |
+| 34 | C3 site (human request: React site in snapback design system) | planner | spawned 03:26Z — intake written from the user's design-system artifact (tokens, IBM Plex, Liquid Glass, man-page voice) | — |
+| 34 | S2-06/T3 GREEN (running), S2-07/T5 RED | green/red | spawned | — |
 
 ## Plugin issues found
 
