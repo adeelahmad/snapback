@@ -110,6 +110,7 @@ func (s *Server) routes() http.Handler {
 	}
 	mux.Handle("GET /api/status", s.requireSession(http.HandlerFunc(s.handleAPIStatus)))
 	mux.Handle("GET /api/config", s.requireSession(http.HandlerFunc(s.handleAPIConfigGet)))
+	mux.Handle("PUT /api/config", s.requireSession(http.HandlerFunc(s.handleAPIConfigPut)))
 	mux.Handle("POST /api/setup/validate", s.requireSession(http.HandlerFunc(s.handleAPISetupValidate)))
 	mux.Handle("GET /api/integrations", s.requireSession(http.HandlerFunc(s.handleAPIIntegrations)))
 	mux.Handle("/", s.requireSession(http.NotFoundHandler()))
