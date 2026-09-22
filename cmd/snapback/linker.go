@@ -8,9 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/daemon"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/ipc"
 	"github.com/adeelahmad/snapback/internal/links"
@@ -85,17 +87,33 @@ func linkPolicy(cfg config.Config) links.Policy {
 	return pol
 }
 
+// How long to keep dialling while a daemon holds the state dir lock but has
+// not yet opened its socket, and the pause between dials.
+const (
+	daemonDialWait    = 5 * time.Second
+	daemonDialBackoff = 100 * time.Millisecond
+)
+
 // viaDaemon sends req to the running daemon and decodes its data into out.
-// It reports false, with no error, when no daemon answers the dial, so the
-// caller falls back to the registry. A not-OK reply keeps the daemon's code.
+// It reports false, with no error, when no daemon answers the dial and none
+// holds the state dir lock, so the caller falls back to the registry. While
+// a daemon holds the lock it keeps dialling for daemonDialWait and then fails
+// with PrereqMissing rather than open the registry the daemon owns. A not-OK
+// reply keeps the daemon's code.
 func (l *lazyLinker) viaDaemon(ctx context.Context, req ipc.Request, out any) (bool, error) {
 	cfg, err := l.load(l.path)
 	if err != nil {
 		return true, err
 	}
-	c, err := ipc.Dial(ctx, ipc.SocketPath(os.Getenv, cfg.StateDir))
+	sock := ipc.SocketPath(os.Getenv, cfg.StateDir)
+	c, err := ipc.Dial(ctx, sock)
 	if err != nil {
-		return false, nil
+		if !daemon.Running(cfg.StateDir) {
+			return false, nil
+		}
+		if c, err = dialWait(ctx, sock); err != nil {
+			return true, errcode.New(errcode.PrereqMissing, "daemon holds the state lock but its socket did not answer", err)
+		}
 	}
 	defer func() { _ = c.Close() }()
 	resp, err := c.Call(ctx, req)
@@ -109,6 +127,23 @@ func (l *lazyLinker) viaDaemon(ctx context.Context, req ipc.Request, out any) (b
 		return true, fmt.Errorf("decode daemon %s: %w", req.Op, err)
 	}
 	return true, nil
+}
+
+// dialWait retries ipc.Dial on sock every daemonDialBackoff until it answers
+// or daemonDialWait has passed.
+func dialWait(ctx context.Context, sock string) (*ipc.Client, error) {
+	deadline := time.Now().Add(daemonDialWait)
+	for {
+		c, err := ipc.Dial(ctx, sock)
+		if err == nil || time.Now().After(deadline) {
+			return c, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(daemonDialBackoff):
+		}
+	}
 }
 
 func (l *lazyLinker) Ensure(ctx context.Context, dir string) (links.Result, error) {
