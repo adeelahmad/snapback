@@ -10,9 +10,6 @@ import (
 	"github.com/adeelahmad/snapback/internal/setup"
 )
 
-// setupNext is the command setup points at once a configuration exists.
-const setupNext = "snapback run"
-
 // setupFix is the corrective action shown when detection found too little to
 // write a configuration.
 const setupFix = "pass --repo and --password-file, or set RESTIC_REPOSITORY and RESTIC_PASSWORD_FILE"
@@ -33,7 +30,7 @@ func SetupCommand(d Deps) Command {
 	return Command{
 		Name:    "setup",
 		Summary: "detect this machine and write a working configuration",
-		Run: func(_ context.Context, env Env, args []string) int {
+		Run: func(ctx context.Context, env Env, args []string) int {
 			o, help, err := parseSetup(env, args)
 			switch {
 			case help:
@@ -41,7 +38,7 @@ func SetupCommand(d Deps) Command {
 			case err != nil:
 				return WriteError(env, "setup", false, err)
 			}
-			return runSetup(d, env, o)
+			return runSetup(ctx, d, env, o)
 		},
 	}
 }
@@ -70,7 +67,7 @@ func parseSetup(env Env, args []string) (setupOpts, bool, error) {
 
 // runSetup detects the machine, turns the result into a configuration and
 // writes it to the resolved configuration path.
-func runSetup(d Deps, env Env, o setupOpts) int {
+func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) int {
 	path, err := setupConfigPath(env)
 	if err != nil {
 		return WriteError(env, "setup", false, err)
@@ -96,6 +93,11 @@ func runSetup(d Deps, env Env, o setupOpts) int {
 		res.CredentialFile = o.passwordFile
 	}
 
+	res, advice, err := setup.Plan(ctx, d.Run, res)
+	if err != nil {
+		return WriteError(env, "setup", false, err)
+	}
+
 	cfg, err := setup.ToConfig(res, setup.Options{StateDir: stateDir})
 	if err != nil {
 		return setupUndetected(env, res, err)
@@ -109,6 +111,9 @@ func runSetup(d Deps, env Env, o setupOpts) int {
 	}
 
 	writeSetupFacts(env, res)
+	for _, note := range advice.Notes {
+		_, _ = fmt.Fprintf(env.Stdout, "note: %s\n", note)
+	}
 	if o.dryRun {
 		b, err := config.Marshal(cfg)
 		if err != nil {
@@ -120,7 +125,7 @@ func runSetup(d Deps, env Env, o setupOpts) int {
 	} else if err := setup.Save(cfg, path); err != nil {
 		return WriteError(env, "setup", false, err)
 	}
-	if err := WriteNext(env.Stdout, setupNext); err != nil {
+	if err := WriteNext(env.Stdout, advice.Next); err != nil {
 		return 1
 	}
 	return 0

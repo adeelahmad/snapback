@@ -81,6 +81,9 @@ func realDeps(configPath string) cli.Deps {
 		Exec: func(ctx context.Context, name string, args []string) error {
 			return exec.CommandContext(ctx, name, args...).Run()
 		},
+		Run: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			return exec.CommandContext(ctx, name, args...).CombinedOutput()
+		},
 		LoadConfig: loadConfig,
 		Hostname:   os.Hostname,
 		Now:        time.Now,

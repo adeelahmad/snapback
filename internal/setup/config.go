@@ -62,11 +62,7 @@ func rootsFor(r Result) []config.Root {
 			ID:           uniqueID(filepath.Base(path), seen),
 			LocalPath:    path,
 			RepositoryID: repoID,
-			PrefixMap: []config.PrefixMapping{{
-				Hostname:   r.Hostname,
-				SourcePath: path,
-				TreePrefix: path,
-			}},
+			PrefixMap:    prefixMapFor(r, path),
 		}
 		if r.Hostname != "" {
 			root.Snapshots.Hostname = r.Hostname
@@ -74,6 +70,15 @@ func rootsFor(r Result) []config.Root {
 		roots = append(roots, root)
 	}
 	return roots
+}
+
+// prefixMapFor returns the prefix map the repository probe derived, or the
+// identity mapping of path on the detected host when the probe derived none.
+func prefixMapFor(r Result, path string) []config.PrefixMapping {
+	if len(r.PrefixMappings) > 0 {
+		return r.PrefixMappings
+	}
+	return []config.PrefixMapping{{Hostname: r.Hostname, SourcePath: path, TreePrefix: path}}
 }
 
 // uniqueID returns id, or id with the lowest numeric suffix that seen does not
