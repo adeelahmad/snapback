@@ -24,15 +24,34 @@ type Deps struct {
 	LookPath func(string) (string, error)
 	Getwd    func() (string, error)
 	Hostname func() (string, error)
+
+	// Given holds the roots the caller asked for explicitly. An empty Given
+	// means the working directory is the only candidate.
+	Given []string
+	// Excluded holds paths that are never valid as roots, such as the
+	// directories Snapback manages itself.
+	Excluded []string
+	// TempDir names the temporary directory whose contents are never roots.
+	// An empty TempDir means no such directory is known.
+	TempDir string
 }
 
-// Detect reports what setup can infer from deps. Seams left nil behave as if
-// the environment, the binary, the working directory and the hostname were all
-// unavailable, which yields a zero Result.
+// Detect reports what setup can infer from deps: the environment, then the
+// binaries, then the backup roots, then the hostname. Seams left nil behave as
+// if the environment, the binary, the working directory and the hostname were
+// all unavailable, which yields a zero Result: deps that name neither a
+// working directory nor an explicit root describe no machine, so the binary
+// and root steps have nothing to report about and are skipped.
 func Detect(deps Deps) (Result, error) {
 	deps = withDefaults(deps)
 
 	var res Result
+	applyEnv(&res, deps.Getenv)
+	if wd, err := deps.Getwd(); err != nil || wd != "" || len(deps.Given) > 0 {
+		applyBinaries(&res, deps.LookPath)
+		applyRoots(&res, deps.Given, deps.Getwd, deps.Excluded, deps.TempDir)
+	}
+
 	host, err := deps.Hostname()
 	if err != nil {
 		res.Reasons = append(res.Reasons, "hostname unavailable: "+err.Error())
