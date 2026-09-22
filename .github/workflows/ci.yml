@@ -97,6 +97,9 @@ jobs:
   fuse-linux:
     name: FUSE integration (linux)
     runs-on: ubuntu-latest
+    env:
+      SNAPBACK_FUSE_TESTS: "1"
+      SNAPBACK_EVIDENCE_DIR: ${{ github.workspace }}/stage1-evidence
     steps:
       - uses: actions/checkout@v4
 
@@ -116,3 +119,19 @@ jobs:
           bunzip2 restic.bz2
           sudo install -m 0755 restic /usr/local/bin/restic
           restic version | grep -F 'restic 0.19.0'
+
+      - name: Check FUSE device
+        run: test -c /dev/fuse
+
+      - name: Integration tests
+        run: |
+          mkdir -p "$SNAPBACK_EVIDENCE_DIR"
+          go test -race -tags=integration ./...
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage1-evidence-linux
+          path: ${{ env.SNAPBACK_EVIDENCE_DIR }}
+          if-no-files-found: warn
