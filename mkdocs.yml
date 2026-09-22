@@ -1,0 +1,10 @@
+site_name: Snapback
+site_url: https://adeelahmad.github.io/snapback/
+repo_url: https://github.com/adeelahmad/snapback
+docs_dir: docs-site
+
+theme:
+  name: material
+
+nav:
+  - Home: index.md
