@@ -1,5 +1,7 @@
 package webui
 
+import "strings"
+
 // Kind is the control a configuration field is rendered with.
 type Kind string
 
@@ -41,6 +43,37 @@ type Section struct {
 }
 
 // Sections groups fields by their top-level key, keeping the given order.
+// Top-level scalars share one "General" section.
 func Sections(fields []Field) []Section {
-	return nil
+	var out []Section
+	at := map[string]int{}
+	for _, f := range fields {
+		key := sectionKey(f.Path)
+		i, ok := at[key]
+		if !ok {
+			i = len(out)
+			at[key] = i
+			out = append(out, Section{Title: sectionTitle(key)})
+		}
+		out[i].Fields = append(out[i].Fields, f)
+	}
+	return out
+}
+
+// sectionKey is the top-level configuration key a field path belongs to.
+func sectionKey(path string) string {
+	head, _, _ := strings.Cut(path, ".")
+	name, _, indexed := strings.Cut(head, "[")
+	if name == path && !indexed {
+		return "general"
+	}
+	return name
+}
+
+func sectionTitle(key string) string {
+	s := strings.ReplaceAll(key, "_", " ")
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
