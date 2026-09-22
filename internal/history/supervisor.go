@@ -72,6 +72,11 @@ func (s *Supervisor) WithModes(m fsmode.Modes) *Supervisor {
 	return s
 }
 
+// Modes returns the modes the supervisor creates its mount directories with.
+func (s *Supervisor) Modes() fsmode.Modes {
+	return s.modes
+}
+
 // MountFailures returns the repos whose mount failed with errcode.MountFailure at startup.
 func (s *Supervisor) MountFailures() []string {
 	s.mu.Lock()

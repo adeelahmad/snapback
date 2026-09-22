@@ -31,6 +31,8 @@ const (
 	mountBackoffInitial = time.Second
 	mountBackoffMax     = time.Minute
 	registryFile        = "links.db"
+	// cacheDirName is the refresh and prewarm cache under the state dir.
+	cacheDirName = "cache"
 )
 
 // daemonBuilder builds the production daemon.Deps from cfg. It opens the
@@ -81,6 +83,7 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 
 	ref := refresh.New(refresh.Config{
 		BackendMountDir:    cfg.BackendMountDir,
+		CacheDir:           filepath.Join(cfg.StateDir, cacheDirName),
 		Dirs:               registryDirs(cfg, reg),
 		Aliases:            aliasOptions(cfg),
 		PrewarmSnapshots:   cfg.Catalog.PrewarmSnapshots,

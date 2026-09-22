@@ -32,9 +32,6 @@ const (
 	wantFileMode fs.FileMode = 0o640
 )
 
-// cacheDirName is the refresh and prewarm cache directory under the state dir.
-const cacheDirName = "cache"
-
 // umaskForTest sets a process umask for the duration of the test.
 func umaskForTest(t *testing.T, mask int) {
 	t.Helper()
