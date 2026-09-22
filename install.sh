@@ -41,7 +41,7 @@ next_steps() {
 	printf '\nNext steps:\n'
 	case "$1" in
 		darwin) printf '  1. Install macFUSE: https://macfuse.github.io/\n' ;;
-		linux) printf '  1. Install fuse3 with your package manager (e.g. apt install fuse3)\n' ;;
+		linux) printf '  1. Install the fuse3 package with your distribution package manager\n' ;;
 	esac
 	printf '  2. Run: snapback config\n'
 }
