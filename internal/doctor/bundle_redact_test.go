@@ -69,6 +69,15 @@ func TestRedactForBundleMasksConfigSecrets(t *testing.T) {
 	if !strings.Contains(string(configYAML), "***") {
 		t.Errorf("redactForBundle configYAML = %q, want the masked marker %q", configYAML, "***")
 	}
+	if strings.Contains(string(configYAML), testRepoURI) {
+		t.Errorf("redactForBundle configYAML = %q, want no repository URI", configYAML)
+	}
+	if strings.Contains(string(configYAML), testPasswordFile) {
+		t.Errorf("redactForBundle configYAML = %q, want no password-file path", configYAML)
+	}
+	if !strings.Contains(string(configYAML), "primary") {
+		t.Errorf("redactForBundle configYAML = %q, want the repository id kept", configYAML)
+	}
 }
 
 func TestRedactForBundleMasksPasswordValuePatterns(t *testing.T) {
