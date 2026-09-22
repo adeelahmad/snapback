@@ -24,6 +24,29 @@ type Probes struct {
 }
 
 // Run executes every doctor check in order and returns their results.
+// It never stats through history_mount or backend_mount_dir and never
+// installs anything.
 func Run(ctx context.Context, cfg *config.Config, cfgErr error, p Probes) []Check {
-	panic("SUB-AGENT-TODO: run each check per plan.md Decisions using only the injected Probes (config load, restic binary, FUSE, mountinfo, repositories, service manager, inodes, daemon status, optional mount test); return one Check per check with Status/Code/Detail/Fix")
+	checks := []Check{checkConfig(cfg, cfgErr), checkRestic(ctx, cfg, p)}
+	if cfg == nil {
+		checks = append(checks, skip("rclone"))
+	} else {
+		checks = append(checks, checkRclone(ctx, cfg, p))
+	}
+	checks = append(checks, checkFuseDevice(p), checkFusermount(p))
+	if cfg == nil {
+		checks = append(checks, skip("password_file"))
+	} else {
+		checks = append(checks, checkPasswordFiles(cfg, p))
+		for _, repo := range cfg.Repositories {
+			checks = append(checks, checkRepository(ctx, cfg, repo, p)...)
+		}
+	}
+	checks = append(checks, checkServiceManager(p))
+	if cfg == nil {
+		checks = append(checks, skip("inode_headroom"))
+	} else {
+		checks = append(checks, checkInodes(cfg, p))
+	}
+	return append(checks, checkDaemon(ctx, p), onAccess())
 }
