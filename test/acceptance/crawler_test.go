@@ -63,9 +63,13 @@ func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
 	mkdirs(t, root, "proj/src/deep")
 	writeFiles(t, root, map[string]string{"proj/src/deep/a.txt": "x\n"})
 	hist := writeLinkConfig(t, e, linkConfig{Root: root, SeedPath: "proj", MaxDepth: 3})
-	repo := resticRepoFromConfig(t, e)
-	startDaemon(t, e)
+	repo := configValue(t, e, "repository")
 	proj := filepath.Join(root, "proj")
+	// newRepo only runs restic init. Without a snapshot of proj the history view
+	// has no entry for it, so proj/.snapshot dangles (ENOENT) and no crawler can
+	// ever reach FUSE, which makes the zero-reads and throttle checks meaningless.
+	resticRun(t, root, repo, configValue(t, e, "password_file"), "backup", proj)
+	startDaemon(t, e)
 	if _, stderr, code := runSnapback(t, e, "seed", proj); code != 0 {
 		t.Fatalf("snapback seed exit = %d, want 0 (stderr %q)", code, stderr)
 	}
@@ -73,7 +77,11 @@ func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
 		t.Fatalf("owned links after seed = %v, want at least one", got)
 	}
 
-	c := watchOpens(t, repo)
+	// Watch only the pack files. The daemon's own restic processes open config,
+	// keys, locks, snapshots and index in the background; that is not a crawler
+	// read. Any file or directory content served through .snapshot comes from
+	// data/ packs, so opens there are the ones a crawler could cause.
+	c := watchOpens(t, filepath.Join(repo, "data"))
 	dst := filepath.Join(e.Root, "dst")
 	crawlers := [][]string{
 		{"rg", "x", proj},
@@ -91,8 +99,18 @@ func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
 	}
 
 	// M-002: the counter must see a direct .snapshot read, or 0 above proves nothing.
-	if _, err := os.ReadDir(filepath.Join(proj, ".snapshot")); err != nil {
-		t.Errorf("ReadDir(%s/.snapshot) error = %v, want nil (history mount up?)", proj, err)
+	// Read file content, not just the listing: only content comes from data/ packs.
+	var read bool
+	err := filepath.WalkDir(filepath.Join(proj, ".snapshot")+"/", func(p string, d os.DirEntry, err error) error {
+		if err != nil || read || !d.Type().IsRegular() {
+			return err
+		}
+		_, err = os.ReadFile(p)
+		read = err == nil
+		return err
+	})
+	if err != nil || !read {
+		t.Errorf("read a file under %s/.snapshot: read = %t, error = %v, want a read (history mount up?)", proj, read, err)
 	}
 	if got := c.settle(); got == 0 {
 		t.Errorf("repo IN_OPEN count after direct .snapshot read = 0, want > 0")
@@ -112,18 +130,18 @@ func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
 	}
 }
 
-// resticRepoFromConfig returns the repository path from the written config.
-func resticRepoFromConfig(t *testing.T, e env) string {
+// configValue returns the first "key: value" entry for key in the written config.
+func configValue(t *testing.T, e env, key string) string {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join(e.Config, "snapback", "config.yaml"))
 	if err != nil {
 		t.Fatalf("read config: %v", err)
 	}
 	for _, line := range strings.Split(string(b), "\n") {
-		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "repository: "); ok {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), key+": "); ok {
 			return v
 		}
 	}
-	t.Fatalf("config has no repository line")
+	t.Fatalf("config has no %s line", key)
 	return ""
 }
