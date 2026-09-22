@@ -10,8 +10,7 @@ type Kind = uint8
 const (
 	KindDir     Kind = 1
 	KindSymlink Kind = 2
-	// KindFile is a placeholder value. SUB-AGENT-TODO: set KindFile to 3 (tasks.md T1).
-	KindFile Kind = 0
+	KindFile    Kind = 3
 )
 
 // Entry is one node in a catalog.
@@ -44,8 +43,9 @@ func (o Op) String() string {
 		return "readdir"
 	case OpReadlink:
 		return "readlink"
+	case OpRead:
+		return "read"
 	default:
-		// SUB-AGENT-TODO: name OpRead as "read" (tasks.md T1).
 		return "unknown"
 	}
 }
