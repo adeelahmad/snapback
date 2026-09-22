@@ -18,15 +18,39 @@ latency go/no-go decision; that decision is left to a human.
 
 ## Path-template verification
 
-Not filled yet.
+Each row is one `pathtemplate-<goos>.json` file: restic `mount --path-template ids/%I`
+was checked to expose the snapshot under its full ID.
+
+| Evidence | Platform | Result | Snapshot ID |
+| --- | --- | --- | --- |
+| pathtemplate-darwin.json | macOS (Apple Silicon, macFUSE, local host) | pass | dbd065721f05c11d20f80e67270fe6f4507b20a958cc07279fe862614aa88ede |
+| pathtemplate-linux.json | Linux (ubuntu-latest CI, fuse3) | pass | cc439810023786886736bf838bb44e4a6f5fd2d1050687ca2f049abdcd3d7dea |
 
 ## Catalog mount, browse and unmount
 
-Not filled yet.
+Each row is one `catalog-<goos>.json` file: the tiny directory/symlink catalog was
+mounted, browsed and unmounted.
+
+| Evidence | Platform | Result | go-fuse |
+| --- | --- | --- | --- |
+| catalog-darwin.json | macOS (Apple Silicon, macFUSE, local host) | pass | v2.11.0 |
+| catalog-linux.json | Linux (ubuntu-latest CI, fuse3) | pass | v2.11.0 |
 
 ## Metadata fidelity
 
-Not filled yet.
+Each row is one `fidelity-<goos>.json` file: files read through the `.snapshot`
+alias were compared with `restic ls --json` on mode, size and mtime.
+
+| Evidence | Platform | Files compared | mtime precision (ns) | Result |
+| --- | --- | --- | --- | --- |
+| fidelity-darwin.json | macOS (Apple Silicon, macFUSE, local host) | 9 | 1 | pass |
+| fidelity-linux.json | Linux (ubuntu-latest CI, fuse3) | 9 | 1 | pass |
+
+restic ls --json 0.19 does not report symlink size or link target. The symlink
+was compared on mode and mtime, and its target was checked through the catalog
+alias.
+
+ctime and birth time: FUSE-approximated; recorded, not claimed.
 
 ## Latency over rclone:gdrive
 
