@@ -203,7 +203,7 @@ func TestSweepLoopRunsPeriodically(t *testing.T) {
 	specs := []Spec{{Root: r, MaxDepth: 3}}
 	l := &fakeLinker{}
 	reports := make(chan Report, 16)
-	onReport := func(rep Report) {
+	onReport := func(rep Report, _ error) {
 		select {
 		case reports <- rep:
 		default:
@@ -232,5 +232,37 @@ func TestSweepLoopRunsPeriodically(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatalf("SweepLoop(ctx, 20ms, ...) still running 1s after cancel, want returned")
+	}
+}
+
+func TestSweepLoopReportsSweepError(t *testing.T) {
+	r := t.TempDir()
+	outside := t.TempDir()
+	specs := []Spec{{Root: r, SeedPath: outside, MaxDepth: 3}}
+	errs := make(chan error, 16)
+	onReport := func(_ Report, err error) {
+		select {
+		case errs <- err:
+		default:
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		SweepLoop(ctx, 20*time.Millisecond, &fakeLinker{}, specs, onReport)
+	}()
+	defer func() {
+		cancel()
+		<-done
+	}()
+
+	select {
+	case err := <-errs:
+		if got, want := errcode.Of(err), errcode.InvalidConfig; got != want {
+			t.Errorf("SweepLoop onReport error = %v (code %q), want code %q", err, got, want)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("SweepLoop(ctx, 20ms, ...) never called onReport in 2s")
 	}
 }

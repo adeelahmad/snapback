@@ -2,10 +2,12 @@ package seed
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -180,5 +182,42 @@ func TestDegradedDefaultsHealthy(t *testing.T) {
 	w := newTestWatcher(t, &watchFake{}, []WatchRoot{{Root: t.TempDir()}})
 	if got, reason := w.Degraded(); got || reason != "" {
 		t.Errorf("Degraded() = %v, %q, want false, \"\"", got, reason)
+	}
+}
+
+func TestDegradedReportsEnsureFailureUntilCleanBatch(t *testing.T) {
+	r := t.TempDir()
+	bad := filepath.Join(r, "bad")
+	ensureErr := errors.New("ensure boom")
+	l := &fakeLinker{errs: map[string]error{bad: ensureErr}}
+	w := newTestWatcher(t, l, []WatchRoot{{Root: r}})
+	w.BatchWindow = 20 * time.Millisecond
+	startDrain(t, w)
+
+	w.enqueue([]string{bad})
+	waitDegraded(t, w, true)
+	if got, reason := w.Degraded(); !got || !strings.Contains(reason, ensureErr.Error()) {
+		t.Errorf("Degraded() after failed Ensure = %v, %q, want true, reason containing %q", got, reason, ensureErr.Error())
+	}
+
+	l.mu.Lock()
+	delete(l.errs, bad)
+	l.mu.Unlock()
+	w.enqueue([]string{bad, filepath.Join(r, "good")})
+	waitDegraded(t, w, false)
+	if got, reason := w.Degraded(); got || reason != "" {
+		t.Errorf("Degraded() after clean batch = %v, %q, want false, \"\"", got, reason)
+	}
+}
+
+// waitDegraded polls Degraded until it reports want or 2s pass.
+func waitDegraded(t *testing.T, w *Watcher, want bool) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if got, _ := w.Degraded(); got == want {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
