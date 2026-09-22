@@ -51,10 +51,9 @@ func SweepLoop(ctx context.Context, interval time.Duration, l Linker, specs []Sp
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			// SUB-AGENT-TODO: R1 GREEN must pass the Sweep error to onReport.
-			r, _ := Sweep(ctx, l, specs)
+			r, err := Sweep(ctx, l, specs)
 			if onReport != nil {
-				onReport(r, nil)
+				onReport(r, err)
 			}
 		}
 	}

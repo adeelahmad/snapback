@@ -18,6 +18,8 @@ const (
 	// maxPending bounds the queued directories; beyond it new ones are
 	// dropped and the watcher reports Degraded.
 	maxPending = 1 << 20
+	// maxEnsureFailures caps the recorded Ensure failure count.
+	maxEnsureFailures = 1 << 20
 )
 
 // WatchRoot is a directory tree the watcher observes.
@@ -37,6 +39,10 @@ type Watcher struct {
 	pending  map[string]struct{}
 	degraded bool
 	reason   string
+	// ensureFailures and lastEnsureErr describe Ensure failures since the
+	// last fully clean batch.
+	ensureFailures int
+	lastEnsureErr  error
 }
 
 // NewWatcher returns a Watcher for roots.
@@ -64,7 +70,13 @@ func NewWatcher(l Linker, roots []WatchRoot) (*Watcher, error) {
 func (w *Watcher) Degraded() (bool, string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	return w.degraded, w.reason
+	if w.degraded {
+		return true, w.reason
+	}
+	if w.lastEnsureErr != nil {
+		return true, fmt.Sprintf("%d ensure failures, last: %v", w.ensureFailures, w.lastEnsureErr)
+	}
+	return false, ""
 }
 
 func (w *Watcher) enqueue(dirs []string) {
@@ -92,6 +104,11 @@ func (w *Watcher) drain(ctx context.Context) {
 		batch := w.pending
 		w.pending = map[string]struct{}{}
 		w.mu.Unlock()
+		if len(batch) == 0 {
+			continue
+		}
+		var failures int
+		var lastErr error
 		for d := range batch {
 			if ctx.Err() != nil {
 				return
@@ -99,10 +116,28 @@ func (w *Watcher) drain(ctx context.Context) {
 			if !w.covered(d) {
 				continue
 			}
-			// Per-directory failures are left to the periodic sweep.
-			_, _ = w.linker.Ensure(ctx, d)
+			// The periodic sweep retries failed directories; the watcher only
+			// records the failure so Degraded can surface it.
+			if _, err := w.linker.Ensure(ctx, d); err != nil {
+				failures++
+				lastErr = err
+			}
 		}
+		w.recordEnsure(failures, lastErr)
 	}
+}
+
+// recordEnsure folds one batch's Ensure outcome into the degraded state: a
+// batch without failures clears it.
+func (w *Watcher) recordEnsure(failures int, lastErr error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if failures == 0 {
+		w.ensureFailures, w.lastEnsureErr = 0, nil
+		return
+	}
+	w.ensureFailures = min(w.ensureFailures+failures, maxEnsureFailures)
+	w.lastEnsureErr = lastErr
 }
 
 // covered reports whether dir lies under a root and is not excluded there.
