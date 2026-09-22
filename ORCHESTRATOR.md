@@ -4,7 +4,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 41
+- **Tick:** 42
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 — all stories merged on stage-1 (ccbfbbe); FINAL GATE → commit-subject rewrite → promotion
 - **Last gate:** FINAL GATE GREEN on stage-1 @ af90d5d (after 2 fixes)
@@ -481,6 +481,9 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 41 | fix (1) | orchestrator | ticked the box (bookkeeping; test verified PASS) | — |
 | 41 | fix (2) S2-12/rename | red-worker | git mv → test/site/contrast_helpers_test.go (af90d5d); stage-1 ff | — |
 | 41 | FINAL GATE re-verify | orchestrator | 0 shim-named files, 0 SUB-AGENT-TODO/agentic:shim in code, 0 unticked boxes, full gate GREEN @ af90d5d. OVERRIDE ON RECORD: remaining `zz_agentic_shim` text occurrences are in planning logs/ledger only (not code) — accepted | SIGN-OFF: GREEN |
+| 42 | COMMIT SUBJECT REWRITE | orchestrator | msg-filter origin/master..stage-1: merge:→chore: merge, build:→chore:, drop '# Conflicts' lines; then fold body lines to ≤100; trees identical, 187 commits all Adeel Ahmad, 0 trailers; bundle backup scratchpad/pre-subject-rewrite.bundle; force-pushed stage-1 (→413d568) | — |
+| 42 | PR #1 CI | orchestrator | all jobs green (build/test, 7 builds, FUSE linux, site build) except commitlint → PR TITLE (not commits) failed; renamed to "feat: stage 1 compatibility milestone"; needs a new push event to re-lint | — |
+| 42 | HUMAN SPEC REVIEW | human | 8-point refinement of SPEC.md (FUSE wording, linkage claims, versions dedup semantics, canonical source_paths_exact, reader_policy not a security boundary, explicit v0.1 release contract, preserve invariants, keep central idea) | story S2-14 (C5) green-worker spawned 04:22Z |
 
 ## Plugin issues found
 
