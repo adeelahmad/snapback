@@ -116,6 +116,7 @@ type Daemon struct {
 	refresh     RefreshResult
 	lastRefresh time.Time
 	recovery    *status.RecoverySummary
+	prewarmSum  status.PrewarmSummary
 	// mountFailed reports that a mount failed at startup; failed repos then
 	// carry errcode.MountFailure until a later refresh succeeds.
 	mountFailed bool
@@ -223,7 +224,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		d.unmountStarted(context.WithoutCancel(ctx))
 		return err
 	}
-	d.deps.Prewarmer.Prewarm(ctx)
+	d.prewarm(ctx)
 
 	d.mu.Lock()
 	d.phase = "ready"
@@ -253,7 +254,16 @@ func (t loopTarget) Refresh(ctx context.Context) (refresh.Result, error) {
 }
 
 func (t loopTarget) Prewarm(ctx context.Context) []provider.PrewarmResult {
-	return t.d.deps.Prewarmer.Prewarm(ctx)
+	return t.d.prewarm(ctx)
+}
+
+// prewarm runs one pre-warm pass and records its summary for status.
+func (d *Daemon) prewarm(ctx context.Context) []provider.PrewarmResult {
+	results := d.deps.Prewarmer.Prewarm(ctx)
+	d.mu.Lock()
+	d.prewarmSum = status.SummarizePrewarm(results, len(d.refresh.Pending), d.deps.Clock())
+	d.mu.Unlock()
+	return results
 }
 
 // shutdown stops the daemon in order: stop answering IPC, cancel finite
@@ -306,6 +316,7 @@ func mountErr(ctx context.Context, mount string, err error) error {
 func (d *Daemon) Status() status.Snapshot {
 	d.mu.Lock()
 	phase, res, last, rec, mountFailed := d.phase, d.refresh, d.lastRefresh, d.recovery, d.mountFailed
+	pre := d.prewarmSum
 	d.mu.Unlock()
 
 	repos := d.deps.Supervisor.States()
@@ -327,6 +338,7 @@ func (d *Daemon) Status() status.Snapshot {
 		Generation:    res.Generation,
 		EligibleCount: res.EligibleCount,
 		Warm:          res.Warm,
+		Prewarm:       pre,
 		Pending:       res.Pending,
 		Recovery:      rec,
 	}
