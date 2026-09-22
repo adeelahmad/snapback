@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync/atomic"
 
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
@@ -17,7 +18,17 @@ const fsName = "snapback"
 // Adapter mounts a mount.Catalog as a read-only go-fuse filesystem.
 type Adapter struct {
 	obs    mount.Observer
+	gate   mount.Gate
+	cat    atomic.Pointer[mount.Catalog]
 	server *fuse.Server
+}
+
+// Option configures an Adapter.
+type Option func(*Adapter)
+
+// WithGate makes the adapter consult g on lookup and readdir.
+func WithGate(g mount.Gate) Option {
+	panic("SUB-AGENT-TODO: return an Option that sets the adapter's gate to g; lookup and readdir consult the gate before touching the catalog (tasks.md T4)")
 }
 
 var (
@@ -28,6 +39,16 @@ var (
 // NewAdapter returns an Adapter that reports catalog reads to obs.
 func NewAdapter(obs mount.Observer, opts ...Option) *Adapter {
 	return &Adapter{obs: obs}
+}
+
+// Publish swaps the catalog the adapter serves.
+func (a *Adapter) Publish(cat mount.Catalog) {
+	panic("SUB-AGENT-TODO: atomically store cat in the adapter's catalog pointer so every node sees the new generation; *Adapter implements mount.Publisher (tasks.md T4)")
+}
+
+// rootNode returns a root node bound to the adapter's current catalog.
+func (a *Adapter) rootNode() *dirNode {
+	panic("SUB-AGENT-TODO: build the root dirNode sharing the adapter's atomic catalog pointer and gate instead of a captured catalog; Mount publishes cat first and serves rootNode (tasks.md T4)")
 }
 
 func mountOptions() fuse.MountOptions {
