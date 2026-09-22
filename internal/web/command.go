@@ -53,6 +53,10 @@ var configUsage = cli.Usage{
 	Example:  "snapback config",
 }
 
+// newDaemon builds the daemon that `snapback web --with-daemon` owns for the
+// lifetime of the web process. Tests swap it for a recorder.
+var newDaemon func(stateDir string) DaemonControl
+
 // Command returns the `web [--open] [--assets DIR]` subcommand.
 func Command() cli.Command {
 	return cli.Command{
@@ -62,6 +66,7 @@ func Command() cli.Command {
 			fs := cli.NewFlagSet(env, webUsage)
 			open := fs.Bool("open", false, "open the web UI in a browser")
 			assets := fs.String("assets", "", "load templates and assets from DIR")
+			_ = fs.Bool("with-daemon", false, "")
 			help, err := cli.ParseWithUsage(fs, args)
 			if err != nil {
 				return cli.WriteError(env, "web", false, err)
