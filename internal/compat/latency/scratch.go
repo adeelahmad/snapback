@@ -1,5 +1,12 @@
 package latency
 
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"os"
+	"path/filepath"
+)
+
 // scratch is a disposable temp tree holding the run's password file and working dirs.
 type scratch struct {
 	root         string
@@ -10,10 +17,41 @@ type scratch struct {
 }
 
 func newScratch() (scratch, error) {
-	panic("SUB-AGENT-TODO: T3 os.MkdirTemp root under os.TempDir() (refuse anything outside it); write password file mode 0600 with hex of >= 32 crypto/rand bytes; create empty cache, data and mount dirs inside root")
+	root, err := os.MkdirTemp(os.TempDir(), "snapback-latency-")
+	if err != nil {
+		return scratch{}, err
+	}
+	s := scratch{
+		root:         root,
+		passwordFile: filepath.Join(root, "password"),
+		cacheDir:     filepath.Join(root, "cache"),
+		dataDir:      filepath.Join(root, "data"),
+		mountDir:     filepath.Join(root, "mount"),
+	}
+	if err := s.populate(); err != nil {
+		_ = os.RemoveAll(root)
+		return scratch{}, err
+	}
+	return s, nil
+}
+
+func (s scratch) populate() error {
+	secret := make([]byte, 32)
+	if _, err := rand.Read(secret); err != nil {
+		return err
+	}
+	if err := os.WriteFile(s.passwordFile, []byte(hex.EncodeToString(secret)+"\n"), 0o600); err != nil {
+		return err
+	}
+	for _, dir := range []string{s.cacheDir, s.dataDir, s.mountDir} {
+		if err := os.Mkdir(dir, 0o700); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Close removes the scratch root and everything under it.
 func (s scratch) Close() error {
-	panic("SUB-AGENT-TODO: T3 os.RemoveAll(s.root)")
+	return os.RemoveAll(s.root)
 }
