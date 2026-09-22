@@ -56,7 +56,7 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 	if err != nil {
 		return daemon.Deps{}, errcode.New(errcode.PermissionDenied, daemonOp, err)
 	}
-	engine := links.NewEngine(reg, linksPolicy(cfg))
+	engine := links.NewEngine(reg, linkPolicy(*cfg))
 
 	watcher, err := seed.NewWatcher(engine, watchRoots(cfg))
 	if err != nil {
@@ -131,17 +131,6 @@ func daemonProvider(r config.Repository) (*restic.Provider, error) {
 		return nil, errcode.New(errcode.InvalidConfig, daemonOp, err)
 	}
 	return p, nil
-}
-
-func linksPolicy(cfg *config.Config) links.Policy {
-	pol := links.Policy{LinkName: cfg.LinkName, HistoryMount: cfg.HistoryMount}
-	for _, r := range cfg.Roots {
-		pol.Roots = append(pol.Roots, resolver.RootSpec{ID: r.ID, LocalPath: r.LocalPath})
-		for _, e := range r.ExcludeRelativePaths {
-			pol.Excluded = append(pol.Excluded, filepath.Join(r.LocalPath, e))
-		}
-	}
-	return pol
 }
 
 func watchRoots(cfg *config.Config) []seed.WatchRoot {
