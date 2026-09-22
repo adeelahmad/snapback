@@ -8,16 +8,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/adeelahmad/snapback/internal/links"
 )
 
 // Mount is one parsed mountinfo line.
 type Mount struct {
 	Point, FSType, Source string
-}
-
-// RepairReport stands in for links.RepairReport until S3-07 ships it.
-type RepairReport struct {
-	Repaired []string
 }
 
 // Input is what Scan needs.
@@ -27,13 +24,13 @@ type Input struct {
 	PIDFile   string
 	Alive     func(pid int) bool
 	Unmount   func(ctx context.Context, point string) error
-	Repair    func(ctx context.Context) (RepairReport, error)
+	Repair    func(ctx context.Context) (links.RepairReport, error)
 }
 
 // Report is what Scan did.
 type Report struct {
 	Unmounted, Foreign, SkippedLive []string
-	Repair                          RepairReport
+	Repair                          links.RepairReport
 }
 
 // ParseMountinfo parses /proc/self/mountinfo.
