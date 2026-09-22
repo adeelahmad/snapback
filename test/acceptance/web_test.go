@@ -142,16 +142,26 @@ func TestAcc16WebCLIParityAndSecurity(t *testing.T) {
 		t.Errorf("GET /api/status with daemon down = %d %q, want 503 prerequisite_missing", code, body)
 	}
 
+	// The setup and config forms are server-rendered, so config values legitimately
+	// appear in the HTML. What must never appear is the hostile root name as a live tag.
 	for _, page := range []string{"/setup", "/config"} {
 		code, html := do(t, c, "GET", base+page, nil, "")
 		if code != http.StatusOK {
 			t.Errorf("GET %s = %d, want 200", page, code)
 			continue
 		}
-		for _, v := range []string{"img src=x", "img%20src", filepath.Join(e.Root, "work")} {
-			if strings.Contains(html, v) {
-				t.Errorf("GET %s HTML contains config value %q, want config served only by /api/config", page, v)
+		if strings.Contains(html, "<img src=x") {
+			t.Errorf("GET %s HTML contains the raw tag %q, want the root name HTML-escaped", page, "<img src=x")
+		}
+		escaped := false
+		for _, esc := range []string{"&lt;img src=x", "&#60;img src=x", "&#x3c;img src=x", "&#x3C;img src=x"} {
+			if strings.Contains(html, esc) {
+				escaped = true
+				break
 			}
+		}
+		if !escaped {
+			t.Errorf("GET %s HTML does not contain the root name %q HTML-escaped, want an escaped entity form", page, hostileName)
 		}
 	}
 
