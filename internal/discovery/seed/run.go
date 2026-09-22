@@ -29,5 +29,26 @@ type Failure struct {
 
 // Run ensures a link in every directory of p and reports the outcome.
 func Run(ctx context.Context, l Linker, p Plan) (Report, error) {
-	panic("SUB-AGENT-TODO: T3 — walk p's directories in order, call l.Ensure per dir honouring ctx cancellation; count Linked/Existing from links.Result, collect per-dir errors as Failure (do not abort), set Elapsed and DirsPerSec = dirs/Elapsed.Seconds()")
+	start := time.Now()
+	var r Report
+	var err error
+	for _, dir := range p.Dirs {
+		if err = ctx.Err(); err != nil {
+			break
+		}
+		res, ensureErr := l.Ensure(ctx, dir)
+		switch {
+		case ensureErr != nil:
+			r.Failures = append(r.Failures, Failure{Dir: dir, Err: ensureErr})
+		case res.Created:
+			r.Linked++
+		default:
+			r.Existing++
+		}
+	}
+	r.Elapsed = time.Since(start)
+	if secs := r.Elapsed.Seconds(); secs > 0 {
+		r.DirsPerSec = float64(r.Linked+r.Existing+len(r.Failures)) / secs
+	}
+	return r, err
 }
