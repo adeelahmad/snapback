@@ -198,3 +198,34 @@ func TestInstallDownloadFailure(t *testing.T) {
 	}
 	assertDirEmpty(t, installDir)
 }
+
+func TestInstallDirFallbackHomeLocalBin(t *testing.T) {
+	archive := fakeArchive(t)
+	srv := newReleaseServer(t, map[string][]byte{
+		linuxAmd64Asset: archive,
+		"checksums.txt": []byte(sha256Hex(archive) + "  " + linuxAmd64Asset + "\n"),
+	})
+	home := t.TempDir()
+	wantDir := filepath.Join(home, ".local", "bin")
+	env := installEnv(srv.URL, "")
+	delete(env, "SNAPBACK_INSTALL_DIR")
+	// exec.Cmd keeps the last duplicate env entry, so these override runInstaller's defaults.
+	env["HOME"] = home
+	env["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin"
+
+	stdout, stderr, code := runInstaller(t, env)
+
+	if code != 0 {
+		t.Errorf("exit code = %d, want 0; stderr=%q", code, stderr)
+	}
+	if srv.hitCount(linuxAmd64Asset) == 0 {
+		t.Errorf("server never received a request for %s; the script did not attempt the download", linuxAmd64Asset)
+	}
+	if _, err := os.Stat(filepath.Join(wantDir, "snapback")); err != nil {
+		t.Errorf("binary not installed at fallback dir %s: %v", wantDir, err)
+	}
+	combined := stdout + stderr
+	if !strings.Contains(combined, wantDir) || !strings.Contains(combined, "PATH") {
+		t.Errorf("output does not warn that %s is not on PATH; output=%q", wantDir, combined)
+	}
+}
