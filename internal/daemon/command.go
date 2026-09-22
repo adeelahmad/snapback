@@ -50,6 +50,9 @@ func Command(build Builder) cli.Command {
 		Run: func(ctx context.Context, env cli.Env, args []string) int {
 			fs := cli.NewFlagSet(env, runUsage)
 			cfgPath := fs.String("config", env.ConfigPath, "configuration file")
+			// SUB-AGENT-TODO(S5-36/T11): resolve these over cfg.Logging and
+			// build Deps.Log from the result.
+			_ = cli.AddLogFlags(fs)
 			help, err := cli.ParseWithUsage(fs, args)
 			switch {
 			case help:
