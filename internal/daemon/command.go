@@ -129,7 +129,10 @@ func StatusCommand() cli.Command {
 		Name:    "status",
 		Summary: "print the running daemon's status",
 		Run: func(ctx context.Context, env cli.Env, args []string) int {
-			return callDaemon(ctx, env, "status", ipc.OpStatus, statusUsage, args, renderStatus)
+			sts := configuredMountPoints(env.ConfigPath)
+			render := func(data []byte) string { return renderStatus(data) + cli.RenderMountPoints(sts) }
+			payload := func(data []byte) json.RawMessage { return statusData(data, sts) }
+			return callDaemon(ctx, env, "status", ipc.OpStatus, statusUsage, args, render, payload)
 		},
 	}
 }
@@ -141,7 +144,7 @@ func RefreshCommand() cli.Command {
 		Name:    "refresh",
 		Summary: "ask the running daemon to refresh its snapshot view",
 		Run: func(ctx context.Context, env cli.Env, args []string) int {
-			return callDaemon(ctx, env, "refresh", ipc.OpRefresh, refreshUsage, args, nil)
+			return callDaemon(ctx, env, "refresh", ipc.OpRefresh, refreshUsage, args, nil, nil)
 		},
 	}
 }
@@ -160,9 +163,45 @@ func renderStatus(data []byte) string {
 	return out
 }
 
+// statusJSON is the "snapback status" --json data object: the daemon's
+// own snapshot, plus the mount point states resolved from the configuration.
+type statusJSON struct {
+	status.Snapshot
+	MountPoints []cli.MountPointStatus `json:"mount_points,omitempty"`
+}
+
+// statusData merges sts into the daemon's snapshot data. Data that does not
+// decode as a snapshot is passed through unchanged.
+func statusData(data []byte, sts []cli.MountPointStatus) json.RawMessage {
+	p := statusJSON{MountPoints: sts}
+	if err := json.Unmarshal(data, &p.Snapshot); err != nil {
+		return data
+	}
+	b, err := json.Marshal(p)
+	if err != nil {
+		return data
+	}
+	return b
+}
+
+// configuredMountPoints reports the mount point states of the configuration
+// at path, resolved from the filesystem alone. A configuration that cannot be
+// read reports no mount points: status must still print the daemon's view.
+func configuredMountPoints(path string) []cli.MountPointStatus {
+	if path == "" {
+		return nil
+	}
+	cfg, _, err := config.Load(path)
+	if err != nil {
+		return nil
+	}
+	return cli.MountPointStatuses(cfg)
+}
+
 // callDaemon sends op to the daemon and writes the response data inside the
-// cli envelope for --json, or through render, when given, as readable text.
-func callDaemon(ctx context.Context, env cli.Env, name, op string, u cli.Usage, args []string, render func([]byte) string) int {
+// cli envelope for --json, shaped by payload when given, or through render,
+// when given, as readable text.
+func callDaemon(ctx context.Context, env cli.Env, name, op string, u cli.Usage, args []string, render func([]byte) string, payload func([]byte) json.RawMessage) int {
 	fs := cli.NewFlagSet(env, u)
 	jsonOut := fs.Bool("json", false, "write a JSON envelope")
 	help, err := cli.ParseWithUsage(fs, args)
@@ -176,6 +215,9 @@ func callDaemon(ctx context.Context, env cli.Env, name, op string, u cli.Usage, 
 	defer cancel()
 	c, err := ipc.Dial(ctx, ipc.SocketPath(env.Getenv, ""))
 	if err != nil {
+		if !*jsonOut && render != nil {
+			_, _ = fmt.Fprint(env.Stdout, render(nil))
+		}
 		_, _ = fmt.Fprintf(env.Stderr, "snapback %s: daemon not running; start it with 'snapback run'\n", name)
 		return cli.WriteError(env, name, *jsonOut, err)
 	}
@@ -191,5 +233,9 @@ func callDaemon(ctx context.Context, env cli.Env, name, op string, u cli.Usage, 
 		_, _ = fmt.Fprint(env.Stdout, render(resp.Data))
 		return 0
 	}
-	return cli.WriteOK(env, *jsonOut, json.RawMessage(resp.Data))
+	data := json.RawMessage(resp.Data)
+	if payload != nil {
+		data = payload(resp.Data)
+	}
+	return cli.WriteOK(env, *jsonOut, data)
 }
