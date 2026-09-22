@@ -5,7 +5,10 @@ package acceptance
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -46,14 +49,25 @@ func TestAcc08ForeignEntriesSurvive(t *testing.T) {
 		name      string
 		args      []string
 		wantOwned bool
+		service   bool
 	}{
-		{"seed", []string{"seed", proj}, true},
-		{"link --repair", []string{"link", "--repair", proj}, true},
-		{"unlink --all", []string{"unlink", "--all"}, false},
-		{"uninstall --yes", []string{"uninstall", "--yes"}, false},
+		{"seed", []string{"seed", proj}, true, false},
+		{"links repair", []string{"links", "repair"}, true, false},
+		{"service uninstall", []string{"service", "uninstall"}, true, true},
+		{"links remove --managed", []string{"links", "remove", "--managed"}, false, false},
 	}
 	for _, s := range steps {
+		if s.service {
+			if reason := serviceManagerMissing(); reason != "" {
+				t.Logf("skipping step %q: %s", s.name, reason)
+				continue
+			}
+		}
 		_, stderr, code := runSnapback(t, e, s.args...)
+		if s.service && code != 0 && strings.Contains(stderr, "unsupported_service_manager") {
+			t.Logf("skipping step %q: snapback reports no supported service manager (stderr: %s)", s.name, stderr)
+			continue
+		}
 		if code != 0 {
 			t.Errorf("snapback %s exit = %d, want 0 (stderr: %s)", s.name, code, stderr)
 		}
@@ -66,4 +80,16 @@ func TestAcc08ForeignEntriesSurvive(t *testing.T) {
 			t.Errorf("after %s: owned links = %v, want none", s.name, owned)
 		}
 	}
+}
+
+// serviceManagerMissing names why no supported service manager (systemd, the
+// only one v0.1 manages) is available here, or returns "" when one is.
+func serviceManagerMissing() string {
+	if runtime.GOOS != "linux" {
+		return "no supported service manager: v0.1 manages systemd only and GOOS is " + runtime.GOOS
+	}
+	if _, err := exec.LookPath("systemctl"); err != nil {
+		return "no supported service manager: systemctl not found on PATH"
+	}
+	return ""
 }
