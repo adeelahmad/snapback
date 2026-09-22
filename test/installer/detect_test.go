@@ -14,9 +14,9 @@ func TestAssetNameAllTargets(t *testing.T) {
 		{"Linux", "aarch64", "snapback_linux_arm64.tar.gz"},
 		{"Darwin", "x86_64", "snapback_darwin_amd64.tar.gz"},
 		{"Darwin", "arm64", "snapback_darwin_arm64.tar.gz"},
-		{"Linux", "armv7l", "snapback_linux_arm_unverified.tar.gz"},
-		{"Linux", "mips", "snapback_linux_mips_unverified.tar.gz"},
-		{"Linux", "mipsel", "snapback_linux_mipsle_unverified.tar.gz"},
+		{"Linux", "armv7l", "snapback_linux_arm.tar.gz"},
+		{"Linux", "mips", "snapback_linux_mips.tar.gz"},
+		{"Linux", "mipsel", "snapback_linux_mipsle.tar.gz"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.osName+"/"+tc.arch, func(t *testing.T) {
@@ -37,7 +37,7 @@ func TestArchAliases(t *testing.T) {
 	}{
 		{"amd64", "linux_amd64"},
 		{"arm64", "linux_arm64"},
-		{"armv6l", "linux_arm_unverified"},
+		{"armv6l", "linux_arm"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.arch, func(t *testing.T) {
@@ -90,16 +90,13 @@ func TestUnsupportedPlatformFails(t *testing.T) {
 	}
 }
 
-func TestUnverifiedWarning(t *testing.T) {
-	cases := []struct {
-		osName, arch string
-		wantWarning  bool
-	}{
-		{"Linux", "armv7l", true},
-		{"Linux", "mips", true},
-		{"Linux", "mipsel", true},
-		{"Linux", "x86_64", false},
-		{"Darwin", "arm64", false},
+func TestNoUnverifiedWarning(t *testing.T) {
+	cases := []struct{ osName, arch string }{
+		{"Linux", "armv7l"},
+		{"Linux", "mips"},
+		{"Linux", "mipsel"},
+		{"Linux", "x86_64"},
+		{"Darwin", "arm64"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.osName+"/"+tc.arch, func(t *testing.T) {
@@ -108,8 +105,8 @@ func TestUnverifiedWarning(t *testing.T) {
 				t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr)
 			}
 			combined := stdout + stderr
-			if got := strings.Contains(combined, "unverified"); got != tc.wantWarning {
-				t.Errorf("output contains %q = %v, want %v; output=%q", "unverified", got, tc.wantWarning, combined)
+			if strings.Contains(combined, "unverified") {
+				t.Errorf("output contains %q, want no unverified warning: QEMU smoke-tests arm/mips/mipsle on every CI run; output=%q", "unverified", combined)
 			}
 		})
 	}

@@ -106,9 +106,9 @@ func TestV01NoFalsePlatformClaims(t *testing.T) {
 	}{
 		{osName: "Linux", arch: "amd64", hasAsset: true},
 		{osName: "Linux", arch: "arm64", hasAsset: true},
-		{osName: "Linux", arch: "armv7l", wantWarning: "unverified", hasAsset: true},
-		{osName: "Linux", arch: "mips", wantWarning: "unverified", hasAsset: true},
-		{osName: "Linux", arch: "mipsel", wantWarning: "unverified", hasAsset: true},
+		{osName: "Linux", arch: "armv7l", hasAsset: true},
+		{osName: "Linux", arch: "mips", hasAsset: true},
+		{osName: "Linux", arch: "mipsel", hasAsset: true},
 		{osName: "Darwin", arch: "amd64", wantWarning: "not verified", hasAsset: true},
 		{osName: "Darwin", arch: "arm64", wantWarning: "not verified", hasAsset: true},
 		{osName: "FreeBSD", arch: "amd64", wantFail: true},

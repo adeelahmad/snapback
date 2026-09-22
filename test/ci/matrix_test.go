@@ -10,8 +10,8 @@ import (
 const crossCompileJob = "cross-compile"
 
 var (
-	verifiedTargets   = []string{"linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64"}
-	unverifiedTargets = []string{"linux/arm", "linux/mips", "linux/mipsle"}
+	nativeTargets    = []string{"linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64"}
+	qemuSmokeTargets = []string{"linux/arm", "linux/mips", "linux/mipsle"}
 )
 
 type matrixEntry struct {
@@ -121,7 +121,7 @@ func TestMatrixHasAllSevenTargets(t *testing.T) {
 	for _, e := range entries {
 		got = append(got, e.target())
 	}
-	want := append(append([]string{}, verifiedTargets...), unverifiedTargets...)
+	want := append(append([]string{}, nativeTargets...), qemuSmokeTargets...)
 	sort.Strings(got)
 	sort.Strings(want)
 	if strings.Join(got, ",") != strings.Join(want, ",") {
@@ -129,38 +129,33 @@ func TestMatrixHasAllSevenTargets(t *testing.T) {
 	}
 }
 
-func TestMatrixUnverifiedLabelExact(t *testing.T) {
+func TestMatrixCarriesNoUnverifiedLabel(t *testing.T) {
 	entries := matrixEntries(crossCompileBlock(t))
 	if len(entries) == 0 {
 		t.Fatalf("no goos/goarch entries in jobs.%s matrix", crossCompileJob)
 	}
-	isUnverified := map[string]bool{}
-	for _, tgt := range unverifiedTargets {
-		isUnverified[tgt] = true
+	smokeTested := map[string]bool{}
+	for _, tgt := range qemuSmokeTargets {
+		smokeTested[tgt] = true
 	}
-	labelled := map[string]bool{}
 	for _, e := range entries {
-		hasLabel := false
 		for k, v := range e.fields {
-			if k != "goos" && k != "goarch" && strings.Contains(strings.ToLower(v), "unverified") {
-				hasLabel = true
+			if strings.Contains(strings.ToLower(v), "unverified") {
+				t.Errorf("target %s still carries %s: %q; QEMU smoke-tests arm/mips/mipsle on every CI run", e.target(), k, v)
 			}
 		}
-		if hasLabel {
-			labelled[e.target()] = true
+		if !smokeTested[e.target()] {
+			continue
 		}
-		if hasLabel && !isUnverified[e.target()] {
-			t.Errorf("verified target %s is labelled unverified: %v", e.target(), e.fields)
-		}
-	}
-	for _, tgt := range unverifiedTargets {
-		if !labelled[tgt] {
-			t.Errorf("unverified target %s lacks an `unverified` label", tgt)
+		for k := range e.fields {
+			if k != "goos" && k != "goarch" {
+				t.Errorf("QEMU smoke-tested target %s carries extra matrix field %s, want a plain goos/goarch row", e.target(), k)
+			}
 		}
 	}
 }
 
-func TestMatrixJobNameShowsLabel(t *testing.T) {
+func TestMatrixJobNameHasNoLabel(t *testing.T) {
 	block := crossCompileBlock(t)
 	var name string
 	for _, line := range strings.Split(block, "\n")[1:] {
@@ -172,25 +167,17 @@ func TestMatrixJobNameShowsLabel(t *testing.T) {
 	if name == "" {
 		t.Fatalf("jobs.%s has no name:", crossCompileJob)
 	}
-	if !regexp.MustCompile(`\$\{\{\s*matrix\.[A-Za-z0-9_-]+\s*\}\}`).MatchString(name) {
-		t.Fatalf("jobs.%s name %q does not interpolate a matrix field", crossCompileJob, name)
+	if !regexp.MustCompile(`\$\{\{\s*matrix\.goos\s*\}\}`).MatchString(name) ||
+		!regexp.MustCompile(`\$\{\{\s*matrix\.goarch\s*\}\}`).MatchString(name) {
+		t.Fatalf("jobs.%s name %q does not interpolate matrix.goos and matrix.goarch", crossCompileJob, name)
 	}
-	labelKeys := map[string]bool{}
-	for _, e := range matrixEntries(block) {
-		for k, v := range e.fields {
-			if strings.Contains(strings.ToLower(v), "unverified") {
-				labelKeys[k] = true
-			}
+	for _, field := range regexp.MustCompile(`\$\{\{[^}]*matrix\.([A-Za-z0-9_-]+)[^}]*\}\}`).FindAllStringSubmatch(name, -1) {
+		if field[1] != "goos" && field[1] != "goarch" {
+			t.Errorf("jobs.%s name %q interpolates matrix.%s, want only goos/goarch", crossCompileJob, name, field[1])
 		}
 	}
-	found := false
-	for k := range labelKeys {
-		if regexp.MustCompile(`\$\{\{[^}]*matrix\.` + regexp.QuoteMeta(k) + `\b[^}]*\}\}`).MatchString(name) {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatalf("jobs.%s name %q does not interpolate the matrix field carrying `unverified` (fields: %v)", crossCompileJob, name, labelKeys)
+	if strings.Contains(strings.ToLower(name), "unverified") {
+		t.Errorf("jobs.%s name %q still says unverified", crossCompileJob, name)
 	}
 }
 
