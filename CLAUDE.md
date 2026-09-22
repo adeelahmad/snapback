@@ -61,4 +61,7 @@ local UI, background service control and health checks. See ARCHITECTURE.md.
 - docs/agents/sprint1/standards.md: Go rule digest and the gate matrix
 - Restic is the only supported backend; name others only in a Roadmap section, marked
   "planned, not supported", and never say "multi-backend" until a second provider ships
-- Read-only by design: Snapback never writes to the Restic repository
+- Read-only by default: the `.snapshot` view, `restore`, `status`, `doctor`, `setup` and the
+  daemon never write to the repository, and every read runs `restic … --no-lock`. `snapback
+  snap` is the one command that adds a snapshot, and only when you run it. Nothing in Snapback
+  ever deletes, prunes or rewrites repository data

@@ -22,7 +22,7 @@ The image is published by the release workflow and first appears with the next t
 
 ## How it works
 
-Each directory your backups cover gets a read-only `.snapshot` entry. It lists the Restic snapshots that contain the directory, newest first, plus a `latest` alias. Restore with any program that reads files, for example `cp .snapshot/latest/report.docx .`. Snapback never writes to the Restic repository.
+Each directory your backups cover gets a read-only `.snapshot` entry. It lists the Restic snapshots that contain the directory, newest first, plus a `latest` alias. Restore with any program that reads files, for example `cp .snapshot/latest/report.docx .`. Browsing and restoring never write to the Restic repository, and every read runs `restic … --no-lock`; `snapback snap` is the one command that adds a snapshot, and only when you run it. Nothing in Snapback deletes, prunes or rewrites repository data.
 
 While the daemon runs, a new snapshot can take up to about a minute to appear under `.snapshot`, because the view reloads Restic snapshot metadata on a refresh interval.
 

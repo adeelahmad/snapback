@@ -99,9 +99,9 @@ While the daemon runs, a new snapshot can take up to about a minute to appear un
 ## What it doesn't do
 
 - It will not schedule backups, prune or forget snapshots. Keep using Restic for that.
-- It will not write to your Restic repository or replace your backup tool.
+- It will not replace your backup tool. Browsing, restoring, `status`, `doctor`, `setup` and the daemon only read your Restic repository, with `restic … --no-lock` on every read. `snapback snap` is the one command that adds a snapshot, and only when you run it; nothing in snapback ever deletes, prunes or rewrites repository data.
 - It will not run on Windows. FUSE is a hard requirement.
-- It only reads Restic repositories.
+- It works with Restic repositories only.
 
 ## Status
 

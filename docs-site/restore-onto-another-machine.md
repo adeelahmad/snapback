@@ -73,7 +73,7 @@ links on a machine that is still being backed up.
 
 ## 5. Copy the files out
 
-The mount is read-only: Snapback never writes to the Restic repository, and neither can you
+The mount is read-only: restoring never writes to the Restic repository, and neither can you
 through this path. A restore is therefore a plain copy out of it:
 
 ```

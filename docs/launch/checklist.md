@@ -53,4 +53,6 @@ backup  restore  restic  snapshot  fuse  time-machine  cli  golang  self-hosted 
 
 - lowercase `snapback` everywhere, including the release title
 - Restic is the only backend snapback supports; no other backend gets named or promised
-- read-only: snapback never writes to a Restic repository, and the posts say so
+- read-only: browsing and restoring never write to a Restic repository (`restic … --no-lock`),
+  `snapback snap` is the one command that adds a snapshot and only when you run it, and nothing
+  deletes, prunes or rewrites — the posts say it that way, not as a blanket "never writes"

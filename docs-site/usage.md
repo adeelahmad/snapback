@@ -162,7 +162,10 @@ Each registered directory gets a read-only `.snapshot` entry containing:
 - `snapshots/`: one entry per Restic snapshot, named by its full snapshot ID.
 - `info.json`: metadata about the directory and its snapshots.
 
-Snapback never writes to the Restic repository.
+Browsing this view never writes to the Restic repository: the `.snapshot` entry, `restore`,
+`status`, `doctor`, `setup` and the daemon only read, and every read runs `restic … --no-lock`.
+`snapback snap` is the one command that adds a snapshot, and only when you run it. Snapback
+never deletes, prunes or rewrites anything in the repository.
 
 ## Latency
 
