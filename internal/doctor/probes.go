@@ -62,21 +62,12 @@ func resticRepos(repo config.Repository) (provider.Validator, provider.Lister) {
 	return p, p
 }
 
-type stateDirKey struct{}
-
-// withStateDir returns ctx carrying the config's state dir, from which
-// dialStatus resolves the daemon socket.
-func withStateDir(ctx context.Context, dir string) context.Context {
-	return context.WithValue(ctx, stateDirKey{}, dir)
-}
-
 // dialStatus asks the running daemon for its status over the IPC socket
-// under the state dir carried by ctx.
-func dialStatus(ctx context.Context) (string, error) {
+// under stateDir.
+func dialStatus(ctx context.Context, stateDir string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, statusTimeout)
 	defer cancel()
-	dir, _ := ctx.Value(stateDirKey{}).(string)
-	if _, err := ipc.QueryStatus(ctx, ipc.SocketPath(os.Getenv, dir)); err != nil {
+	if _, err := ipc.QueryStatus(ctx, ipc.SocketPath(os.Getenv, stateDir)); err != nil {
 		return "", err
 	}
 	return "daemon is running", nil

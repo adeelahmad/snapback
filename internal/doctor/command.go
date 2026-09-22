@@ -55,7 +55,7 @@ func realProbes() Probes {
 			}
 			return st.FreeFiles, st.Files, nil
 		},
-		DialStatus: func(ctx context.Context, _ string) (string, error) { return dialStatus(ctx) },
+		DialStatus: dialStatus,
 		MountTest:  mountTest,
 	}
 }
