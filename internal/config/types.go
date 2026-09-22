@@ -37,6 +37,7 @@ type Repository struct {
 	CacheDir     string            `yaml:"cache_dir"`
 	NoCache      bool              `yaml:"no_cache"`
 	LockMode     string            `yaml:"lock_mode"`
+	MountPoint   string            `yaml:"mount_point,omitempty"`
 	Environment  map[string]string `yaml:"environment"`
 }
 
