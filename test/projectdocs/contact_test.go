@@ -34,7 +34,7 @@ func isPublicDoc(rel string) bool {
 	if !strings.HasSuffix(rel, ".md") {
 		return false
 	}
-	return !strings.HasPrefix(rel, "docs/agents/") && !strings.HasPrefix(rel, "docs-site/")
+	return !strings.HasPrefix(rel, "docs/agents/")
 }
 
 func TestRawContactDetection(t *testing.T) {

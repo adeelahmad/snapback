@@ -12,3 +12,4 @@ nav:
   - Home: index.md
   - Usage: usage.md
   - Configuration: configuration.md
+  - Web UI: web-ui.md
