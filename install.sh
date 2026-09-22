@@ -44,7 +44,13 @@ next_steps() {
 		linux) printf '  1. Install the fuse3 package with your distribution package manager\n' ;;
 	esac
 	printf '  2. Run: snapback config to create your configuration\n'
-	printf '  3. Run: snapback install service to start Snapback at login\n'
+	case "$1" in
+		darwin)
+			printf '  3. Run: snapback run to start the daemon in the foreground\n'
+			printf '     (starting Snapback at login is Linux-only for now; it needs systemd)\n'
+			;;
+		linux) printf '  3. Run: snapback install service to start Snapback at login\n' ;;
+	esac
 	printf '  4. Run: snapback doctor to check your setup\n'
 	printf '  5. Run: snapback version to confirm the install\n'
 }
