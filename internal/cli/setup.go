@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/setup"
@@ -102,11 +103,19 @@ func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) int {
 	if err != nil {
 		return setupUndetected(env, res, err)
 	}
+	save := !o.dryRun
 	if !o.dryRun && !o.force {
-		if _, statErr := os.Stat(path); statErr == nil {
+		rep, rerr := setup.Existing(path, cfg)
+		switch {
+		case rep.Same:
+			save = false
+		case rep.Exists || rerr != nil:
 			return WriteError(env, "setup", false, &UsageError{
 				Msg: "a configuration already exists at " + path + "; pass --force to overwrite it",
 			})
+		}
+		for _, line := range rep.Lines {
+			_, _ = fmt.Fprintln(env.Stdout, line)
 		}
 	}
 
@@ -122,13 +131,94 @@ func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) int {
 		if _, err := env.Stdout.Write(b); err != nil {
 			return 1
 		}
-	} else if err := setup.Save(cfg, path); err != nil {
-		return WriteError(env, "setup", false, err)
+	} else if save {
+		if err := setup.Save(cfg, path); err != nil {
+			return WriteError(env, "setup", false, err)
+		}
 	}
-	if err := WriteNext(env.Stdout, advice.Next); err != nil {
+
+	var linked []string
+	var installed bool
+	if !o.dryRun {
+		linked = linkSetupRoots(ctx, d, env, res.Roots, cfg.LinkName)
+		installed = installSetupService(ctx, d, env, o, path)
+	}
+	next := setup.NextAfterSetup(setupGOOS(d), installed, setupDaemonRunning(d, cfg.StateDir), linked, advice)
+	if err := WriteNext(env.Stdout, next); err != nil {
 		return 1
 	}
 	return 0
+}
+
+// linkSetupRoots links every root through the daemon-first link seam and
+// returns the ones it linked. A root that cannot be linked — a foreign
+// .snapshot among them — is reported and the rest are still linked.
+func linkSetupRoots(ctx context.Context, d Deps, env Env, roots []string, linkName string) []string {
+	if d.Link == nil {
+		return nil
+	}
+	linked := make([]string, 0, len(roots))
+	for _, root := range roots {
+		one, err := setup.LinkRoots(ctx, d.Link, []string{root})
+		if err != nil {
+			writeLinkError(env, root, linkName, err)
+			continue
+		}
+		linked = append(linked, one...)
+		_, _ = fmt.Fprintf(env.Stdout, "linked %s\n", root)
+	}
+	return linked
+}
+
+// writeLinkError reports one root setup could not link: a foreign .snapshot
+// entry names the conflict and the command that clears it, anything else is
+// reported as it came.
+func writeLinkError(env Env, root, linkName string, err error) {
+	if c, ok := setup.ClassifyLinkError(root, linkName, err); ok {
+		_, _ = fmt.Fprintf(env.Stderr, "conflict: %s \u2014 %s\n", c.Path, c.Kind)
+		_, _ = fmt.Fprintf(env.Stderr, "fix: %s\n", c.Fix)
+		return
+	}
+	_, _ = fmt.Fprintf(env.Stderr, "snapback setup: %v\n", err)
+}
+
+// installSetupService installs the login service unless the host or the flags
+// rule it out, reports what it decided and returns whether it installed.
+func installSetupService(ctx context.Context, d Deps, env Env, o setupOpts, path string) bool {
+	supported := d.ServiceSupported != nil && d.ServiceSupported()
+	out, err := setup.InstallService(ctx, setupGOOS(d), supported, o.noService, d.ServiceInstaller, setupExe(), path)
+	switch {
+	case err != nil:
+		_, _ = fmt.Fprintf(env.Stderr, "snapback setup: service: %v\n", err)
+	case out.Installed:
+		_, _ = fmt.Fprintf(env.Stdout, "service: installed (remove with: %s)\n", out.Removal)
+	default:
+		_, _ = fmt.Fprintf(env.Stdout, "service: %s\n", out.Reason)
+	}
+	return out.Installed
+}
+
+// setupGOOS returns the operating system setup decides for: the injected one
+// when a test names it, else the running host.
+func setupGOOS(d Deps) string {
+	if d.GOOS != "" {
+		return d.GOOS
+	}
+	return runtime.GOOS
+}
+
+// setupDaemonRunning reports whether a daemon already serves stateDir.
+func setupDaemonRunning(d Deps, stateDir string) bool {
+	return d.DaemonRunning != nil && d.DaemonRunning(stateDir)
+}
+
+// setupExe returns the path the login service starts Snapback from.
+func setupExe() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "snapback"
+	}
+	return exe
 }
 
 // setupConfigPath returns the configuration path setup writes: the --config
