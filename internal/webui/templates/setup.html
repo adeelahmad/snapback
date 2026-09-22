@@ -25,24 +25,9 @@
 <input type="text" id="credential-file" name="credential_file" value="{{.CredentialFile}}">
 {{range .PasswordControls}}{{if eq .Kind "password"}}{{template "control-password" .}}
 {{else}}{{template "control-select" .}}
-{{end}}{{end}}{{with .MountPoint}}<div class="field">
-<label for="f-{{.Path}}" class="field__label">{{.Label}}</label>
-<input class="field__control" type="text" id="f-{{.Path}}" name="{{.Path}}" value="{{.Value}}" aria-describedby="f-{{.Path}}-help">
-<p class="field__help" id="f-{{.Path}}-help">{{.Help}}</p>
-{{if .Error}}<p class="field__error">{{.Error}}</p>
-{{end}}</div>
-{{end}}{{with .DetectedHost}}{{if .Value}}<div class="field">
-<label class="field__label" for="f-{{.Path}}">{{.Label}}</label>
-<input class="field__control" type="text" id="f-{{.Path}}" name="{{.Path}}" value="{{.Value}}" aria-describedby="f-{{.Path}}-help">
-<p class="field__help" id="f-{{.Path}}-help">{{.Help}}</p>
-</div>
-{{end}}{{end}}{{with .DetectedPrefix}}{{if .Options}}<fieldset class="field field--rows">
-<legend class="field__label">{{.Label}}</legend>
-{{range $i, $o := .Options}}<div class="field__row">
-<label class="field__label" for="f-{{$.DetectedPrefix.Path}}[{{$i}}]">{{$o.Label}}</label>
-<input class="field__control" type="text" id="f-{{$.DetectedPrefix.Path}}[{{$i}}]" name="{{$.DetectedPrefix.Path}}[{{$i}}]" value="{{$o.Value}}">
-</div>
-{{end}}</fieldset>
+{{end}}{{end}}{{with .MountPoint}}{{template "control-input" .}}
+{{end}}{{with .DetectedHost}}{{if .Value}}{{template "control-input" .}}
+{{end}}{{end}}{{with .DetectedPrefix}}{{if .Options}}{{template "control-row" .}}
 {{end}}{{end}}<label for="roots">Roots, one per line</label>
 <textarea id="roots" name="roots" rows="4">{{range .Roots}}{{.}}
 {{end}}</textarea>

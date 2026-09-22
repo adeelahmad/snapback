@@ -18,8 +18,11 @@ const (
 )
 
 // mountPointWindow is how far from the control's name attribute a label, a
-// help text or an error still counts as adjacent to the field.
-const mountPointWindow = 400
+// help text or an error still counts as adjacent to the field. The shared
+// control-input partial repeats the help as a title attribute and adds an
+// aria-describedby, so the error paragraph sits further from the name than it
+// did when the Setup page inlined its own markup.
+const mountPointWindow = 700
 
 // mountPointHome is the home directory every mount point test detects, so the
 // platform default is the same on every host.

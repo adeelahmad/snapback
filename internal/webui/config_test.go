@@ -11,6 +11,8 @@ var (
 	inputTagRE   = regexp.MustCompile(`(?is)<input\b[^>]*>`)
 	optionRE     = regexp.MustCompile(`(?is)<option\b[^>]*>[^<]*</option>`)
 	idAttrRE     = regexp.MustCompile(`(?i)\bid="([^"]+)"`)
+	labelTagRE   = regexp.MustCompile(`(?is)<label\b[^>]*>`)
+	forAttrRE    = regexp.MustCompile(`(?i)\bfor="([^"]*)"`)
 	repoInputRE  = regexp.MustCompile(`(?is)<input\b[^>]*value="sftp:host:/repo"`)
 	seededOptRE  = regexp.MustCompile(`(?is)<option\b[^>]*value="seeded"[^>]*>`)
 )
@@ -85,6 +87,18 @@ func elementWith(out, attr string) string {
 	return out[start : i+end]
 }
 
+// labelledBy reports whether out has a <label> whose for attribute is id.
+// The attribute may sit anywhere in the start tag: the shared control
+// partials write class before for.
+func labelledBy(out, id string) bool {
+	for _, tag := range labelTagRE.FindAllString(out, -1) {
+		if m := forAttrRE.FindStringSubmatch(tag); m != nil && m[1] == id {
+			return true
+		}
+	}
+	return false
+}
+
 // checkLabelled fails t unless out has at least minControls visible form
 // controls and each has an id with a matching <label for>.
 func checkLabelled(t *testing.T, page, out string, minControls int) {
@@ -105,7 +119,7 @@ func checkLabelled(t *testing.T, page, out string, minControls int) {
 			t.Errorf("render(%q) control %s has no id, want one", page, c)
 			continue
 		}
-		if !strings.Contains(out, `<label for="`+m[1]+`"`) {
+		if !labelledBy(out, m[1]) {
 			t.Errorf("render(%q) has no <label for=%q>, want one for %s", page, m[1], c)
 		}
 	}
