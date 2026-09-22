@@ -5,11 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/daemon"
+	"github.com/adeelahmad/snapback/internal/discovery/seed"
 	"github.com/adeelahmad/snapback/internal/errcode"
 )
 
@@ -127,5 +129,37 @@ func TestDaemonDepsNoRestic(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "restic") {
 		t.Errorf("daemonBuilder(ctx, cfg, ln) error = %q, want it to name restic", err)
+	}
+}
+
+// TestWatchRootsSeedPathsOnly pins that the daemon watches exactly the
+// configured seed paths: one WatchRoot per seed path, rooted at the seed
+// path, carrying its max_depth and the root's exclusions; a root that names
+// no seed path is not watched at all.
+func TestWatchRootsSeedPathsOnly(t *testing.T) {
+	home := filepath.Join(string(filepath.Separator), "home", "u")
+	cfg := &config.Config{Roots: []config.Root{
+		{
+			ID:        "home",
+			LocalPath: home,
+			SeedPaths: []config.SeedPath{
+				{Path: "projects", MaxDepth: 2},
+				{Path: "docs", MaxDepth: 5},
+			},
+			ExcludeRelativePaths: []string{"cache"},
+		},
+		{
+			ID:                   "srv",
+			LocalPath:            filepath.Join(string(filepath.Separator), "srv"),
+			ExcludeRelativePaths: []string{"tmp"},
+		},
+	}}
+	homeExcludes := append(slices.Clone(seed.DefaultExcludes), "cache")
+	want := []seed.WatchRoot{
+		{Root: filepath.Join(home, "projects"), MaxDepth: 2, Excludes: homeExcludes},
+		{Root: filepath.Join(home, "docs"), MaxDepth: 5, Excludes: homeExcludes},
+	}
+	if got := watchRoots(cfg); !reflect.DeepEqual(got, want) {
+		t.Errorf("watchRoots(cfg) = %+v, want %+v", got, want)
 	}
 }

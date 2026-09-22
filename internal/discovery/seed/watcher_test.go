@@ -221,3 +221,42 @@ func waitDegraded(t *testing.T, w *Watcher, want bool) {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+// TestWatcherCoveredDepthLimit pins that a watch root's MaxDepth bounds how
+// deep below it the watcher links, while exclusions and ".snapshot"
+// components stay uncovered at any depth.
+func TestWatcherCoveredDepthLimit(t *testing.T) {
+	root := t.TempDir()
+	w := newTestWatcher(t, &fakeLinker{}, []WatchRoot{
+		{Root: root, MaxDepth: 2, Excludes: []string{"skip"}},
+	})
+	tests := []struct {
+		dir  string
+		want bool
+	}{
+		{root, true},
+		{filepath.Join(root, "a"), true},
+		{filepath.Join(root, "a", "b"), true},
+		{filepath.Join(root, "a", "b", "c"), false},
+		{filepath.Join(root, "a", "b", "c", "d"), false},
+		{filepath.Join(root, "skip"), false},
+		{filepath.Join(root, "a", ".snapshot"), false},
+		{filepath.Dir(root), false},
+	}
+	for _, tc := range tests {
+		if got := w.covered(tc.dir); got != tc.want {
+			t.Errorf("covered(%q) = %v, want %v (root %q, MaxDepth 2)", tc.dir, got, tc.want, root)
+		}
+	}
+}
+
+// TestWatcherCoveredUnlimitedDepth pins MaxDepth 0 as "no limit", so a
+// watch root without a configured depth still covers the whole subtree.
+func TestWatcherCoveredUnlimitedDepth(t *testing.T) {
+	root := t.TempDir()
+	w := newTestWatcher(t, &fakeLinker{}, []WatchRoot{{Root: root, MaxDepth: 0}})
+	deep := filepath.Join(root, "a", "b", "c", "d", "e")
+	if got := w.covered(deep); !got {
+		t.Errorf("covered(%q) = %v, want true (root %q, MaxDepth 0)", deep, got, root)
+	}
+}

@@ -27,6 +27,8 @@ const (
 type WatchRoot struct {
 	Root     string
 	Excludes []string
+	// MaxDepth bounds how deep below Root the watcher links; 0 means no limit.
+	MaxDepth int
 }
 
 // Watcher links new directories under its roots.
