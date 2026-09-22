@@ -1,4 +1,5 @@
 {{define "content"}}
+<h1>History</h1>
 <div class="history">
 <nav class="panel roots" aria-label="Backup roots">
 <h2>Roots</h2>
@@ -9,7 +10,7 @@
 <section class="panel files" aria-label="Snapshots and files">
 <h2>Snapshots</h2>
 <ol class="timeline" data-js="timeline">
-{{range .Timeline}}<li><button type="button" class="tick" data-snapshot="{{.ID}}"{{if .Selected}} aria-pressed="true"{{else}} aria-pressed="false"{{end}}>{{.Time}} {{if .Warm}}<span class="badge-ok">warm</span>{{else}}<span class="badge-muted">cold</span>{{end}}</button></li>
+{{range .Timeline}}<li><form method="get" action="/history"><input type="hidden" name="snapshot" value="{{.ID}}"><button type="submit" class="tick" data-snapshot="{{.ID}}"{{if .Selected}} aria-pressed="true"{{else}} aria-pressed="false"{{end}}>{{.Time}} {{if .Warm}}<span class="badge-ok">warm</span>{{else}}<span class="badge-muted">cold</span>{{end}}</button></form></li>
 {{end}}</ol>
 <table>
 <thead><tr><th>Name</th><th>Size</th><th>Modified</th><th>State</th></tr></thead>

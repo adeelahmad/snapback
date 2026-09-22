@@ -15,11 +15,6 @@ function csrfFetch(url, options = {}) {
 function initTimeline(timeline) {
   const ticks = Array.from(timeline.querySelectorAll('button[data-snapshot]'));
   ticks.forEach((tick, i) => {
-    tick.addEventListener('click', () => {
-      const url = new URL(window.location.href);
-      url.searchParams.set('snapshot', tick.dataset.snapshot);
-      window.location.assign(url.toString());
-    });
     tick.addEventListener('keydown', (event) => {
       const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
       const next = ticks[i + step];
