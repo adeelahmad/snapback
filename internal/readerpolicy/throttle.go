@@ -1,6 +1,7 @@
 package readerpolicy
 
 import (
+	"container/list"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/mount"
@@ -14,8 +15,9 @@ type trackerKey struct {
 
 // tracker holds the recent readdir times of one process, oldest first.
 type tracker struct {
-	key  trackerKey
-	hits []time.Time
+	key     trackerKey
+	hits    []time.Time
+	blocked bool
 }
 
 // throttled records ev for the process (pid, name) and reports whether that
@@ -31,13 +33,7 @@ func (p *Policy) throttled(ev Event, name string) bool {
 		if !isReadDir {
 			return false
 		}
-		el = p.lru.PushFront(&tracker{key: key})
-		p.trackers[key] = el
-		if p.lru.Len() > p.maxPIDs() {
-			oldest := p.lru.Back()
-			p.lru.Remove(oldest)
-			delete(p.trackers, oldest.Value.(*tracker).key)
-		}
+		el = p.track(key)
 	} else {
 		p.lru.MoveToFront(el)
 	}
@@ -56,7 +52,22 @@ func (p *Policy) throttled(ev Event, name string) bool {
 			tr.hits = tr.hits[1:]
 		}
 	}
-	return len(tr.hits) > p.cfg.BurstLimit
+	over := len(tr.hits) > p.cfg.BurstLimit
+	p.transition(tr, over, "burst")
+	return over
+}
+
+// track adds a tracker for key, evicting the least recently used one past
+// MaxPIDs. The caller must hold p.mu.
+func (p *Policy) track(key trackerKey) *list.Element {
+	el := p.lru.PushFront(&tracker{key: key})
+	p.trackers[key] = el
+	if p.lru.Len() > p.maxPIDs() {
+		oldest := p.lru.Back()
+		p.lru.Remove(oldest)
+		delete(p.trackers, oldest.Value.(*tracker).key)
+	}
+	return el
 }
 
 func (p *Policy) window() time.Duration {

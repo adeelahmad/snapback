@@ -57,6 +57,7 @@ type Policy struct {
 	mu       sync.Mutex
 	trackers map[trackerKey]*list.Element
 	lru      *list.List
+	events   []ThrottleEvent
 }
 
 // New returns a Policy for cfg that resolves process names with procName and
@@ -80,6 +81,7 @@ func (p *Policy) Allow(ev Event) bool {
 	name = filepath.Base(name)
 	for _, d := range p.cfg.Deny {
 		if name == d || (len(d) > commLen && name == d[:commLen]) {
+			p.denied(ev.PID, name)
 			return false
 		}
 	}
