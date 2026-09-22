@@ -37,6 +37,15 @@ asset_name() {
 	echo "snapback_$1_$2$suffix.tar.gz"
 }
 
+next_steps() {
+	printf '\nNext steps:\n'
+	case "$1" in
+		darwin) printf '  1. Install macFUSE: https://macfuse.github.io/\n' ;;
+		linux) printf '  1. Install fuse3 with your package manager (e.g. apt install fuse3)\n' ;;
+	esac
+	printf '  2. Run: snapback config\n'
+}
+
 main() {
 	os=$(detect_os)
 	arch=$(detect_arch)
@@ -49,9 +58,14 @@ main() {
 		arm | mips | mipsle) printf 'warning: %s/%s is an unverified target\n' "$os" "$arch" >&2 ;;
 	esac
 
+	install_dir="${SNAPBACK_INSTALL_DIR:-/usr/local/bin}"
+
 	if [ "${SNAPBACK_DRY_RUN:-0}" = 1 ]; then
 		printf 'asset: %s\n' "$asset"
 		printf 'url: %s/%s\n' "$SNAPBACK_BASE_URL" "$asset"
+		printf 'checksums: %s/checksums.txt\n' "$SNAPBACK_BASE_URL"
+		printf 'install dir: %s\n' "$install_dir"
+		next_steps "$os"
 		exit 0
 	fi
 
