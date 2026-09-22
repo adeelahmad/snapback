@@ -16,6 +16,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/daemon"
 	"github.com/adeelahmad/snapback/internal/discovery/seed"
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/fsmode"
 	"github.com/adeelahmad/snapback/internal/history"
 	"github.com/adeelahmad/snapback/internal/links"
 	"github.com/adeelahmad/snapback/internal/mount/gofuse"
@@ -88,9 +89,10 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 			Initial: mountBackoffInitial,
 			Max:     mountBackoffMax,
 		}),
-		History:   view,
-		Refresher: refresher{ref: ref, view: view, repos: slices.Sorted(maps.Keys(provs))},
-		Linker:    engine,
+		History:     view,
+		Refresher:   refresher{ref: ref, view: view, repos: slices.Sorted(maps.Keys(provs))},
+		Linker:      engine,
+		MountLinker: mountLinker{eng: engine, mode: fsmode.Modes{}.OrDefault().Dir},
 		Recoverer: recoverer{
 			owned:   []string{cfg.HistoryMount, cfg.BackendMountDir},
 			pidFile: filepath.Join(cfg.StateDir, "daemon.pid"),
