@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -62,6 +63,19 @@ func managerConfigHome(ctx context.Context) string {
 		}
 	}
 	return filepath.Join(home, ".config")
+}
+
+// managerRuntimeDir returns the XDG_RUNTIME_DIR the running systemd user
+// manager exports, else /run/user/<uid>. A daemon the manager starts derives
+// its socket path from that value, so the client must use the same one.
+func managerRuntimeDir(ctx context.Context) string {
+	out, _ := exec.CommandContext(ctx, "systemctl", "--user", "show-environment").Output()
+	for _, line := range strings.Split(string(out), "\n") {
+		if v, ok := strings.CutPrefix(line, "XDG_RUNTIME_DIR="); ok && v != "" {
+			return v
+		}
+	}
+	return filepath.Join("/run", "user", strconv.Itoa(os.Getuid()))
 }
 
 // logUserService logs the unit's status and recent journal when t failed.
@@ -154,8 +168,11 @@ func TestIntegrationUserServiceInstallReadyUninstall(t *testing.T) {
 		t.Skip(reason)
 	}
 
-	// Install into the unit directory the user manager actually searches.
+	// Install into the unit directory the user manager actually searches, and
+	// resolve the socket against the manager's runtime dir, which is what the
+	// daemon it starts will use.
 	t.Setenv("XDG_CONFIG_HOME", managerConfigHome(ctx))
+	t.Setenv("XDG_RUNTIME_DIR", managerRuntimeDir(ctx))
 	unitDir := userUnitDir(os.Getenv)
 	unitFile := filepath.Join(unitDir, "snapback.service")
 	if _, err := os.Lstat(unitFile); err == nil {
@@ -215,6 +232,8 @@ func TestIntegrationUserServiceInstallReadyUninstall(t *testing.T) {
 	env := cli.Env{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, Getenv: os.Getenv, ConfigPath: cfgPath}
 	s := &Systemd{UnitDir: unitDir, Run: execRunner, Ready: statusReady(env), ReadyTimeout: integrationReadyTimeout}
 	t.Cleanup(func() {
+		// Diagnostics first: Uninstall removes the unit, after which
+		// systemctl and journalctl only report "no such unit".
 		logUserService(t)
 		bg := context.Background()
 		_ = s.Uninstall(bg)

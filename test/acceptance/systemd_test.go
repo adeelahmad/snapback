@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -41,9 +42,25 @@ func missingUserSystemd(t *testing.T) string {
 	return ""
 }
 
+// managerRuntimeDir returns the XDG_RUNTIME_DIR the running systemd user
+// manager exports, else /run/user/<uid>. A daemon the manager starts derives
+// its socket path from that value, so the client must use the same one.
+func managerRuntimeDir(t *testing.T) string {
+	t.Helper()
+	out, _ := exec.CommandContext(t.Context(), "systemctl", "--user", "show-environment").Output()
+	for _, line := range strings.Split(string(out), "\n") {
+		if v, ok := strings.CutPrefix(line, "XDG_RUNTIME_DIR="); ok && v != "" {
+			return v
+		}
+	}
+	return filepath.Join("/run", "user", strconv.Itoa(os.Getuid()))
+}
+
 // useManagerConfigHome moves e's config into the config home the running
 // systemd user manager searches (its XDG_CONFIG_HOME, else $HOME/.config),
-// so the installed unit is visible to it. Cleanup removes only what it created.
+// so the installed unit is visible to it, and points e at the manager's
+// runtime dir so client and daemon agree on the socket path. Cleanup removes
+// only what it created.
 func useManagerConfigHome(t *testing.T, e env) env {
 	t.Helper()
 	out, _ := exec.CommandContext(t.Context(), "systemctl", "--user", "show-environment").Output()
@@ -80,6 +97,7 @@ func useManagerConfigHome(t *testing.T, e env) env {
 		t.Fatalf("write config: %v", err)
 	}
 	e.Config = cfgHome
+	e.Runtime = managerRuntimeDir(t)
 	return e
 }
 
@@ -121,8 +139,10 @@ func TestAcc17SystemdUserUnitVisibleAndClean(t *testing.T) {
 	state := filepath.Join(e.Root, "state")
 	configFile := filepath.Join(e.Config, "snapback", "config.yaml")
 	t.Cleanup(func() {
-		_, _, _ = runSnapback(t, e, "service", "uninstall")
+		// Diagnostics first: uninstall removes the unit, after which
+		// systemctl and journalctl only report "no such unit".
 		logUserService(t, e)
+		_, _, _ = runSnapback(t, e, "service", "uninstall")
 		_ = os.Remove(filepath.Join(e.Config, "systemd", "user", "snapback.service"))
 		_ = systemctlUser(t, e, "daemon-reload")
 	})
