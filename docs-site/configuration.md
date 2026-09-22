@@ -75,6 +75,34 @@ snapback config show              # prints the effective configuration as YAML
 result with the defaults filled in. It replaces every repository `environment` value with
 `***`, so the output is safe to share.
 
+## Minimal configuration
+
+`snapback setup` writes this for you; here is the smallest file that validates.
+
+```yaml
+version: 1
+link_name: .snapshot
+state_dir: /home/you/.local/state/snapback
+
+repositories:
+  - id: personal
+    repository: /home/you/backups/restic
+    password_file: /home/you/.config/restic/password
+    restic_binary: /usr/bin/restic
+
+roots:
+  - id: work
+    local_path: /home/you/work
+    repository_id: personal
+    prefix_map:
+      - hostname: your-laptop
+        source_path: /home/you/work
+        tree_prefix: /home/you/work
+```
+
+The password file must already exist with mode `0600` or `0400` and hold only the repository
+password. Every other key takes the default listed in the field reference.
+
 ## Complete annotated example
 
 Every key below is part of the schema. Unknown keys are rejected. If you leave a key out, it
