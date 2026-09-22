@@ -4,11 +4,11 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 34
+- **Tick:** 35
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 EXECUTION — S2-01..S2-04 + S2-08 merged (stage-1 e687157); wave 3 S2-06/S2-07 in GREEN/scaffold; chores C1 (snapback.run) + C2 (Makefile) in flight; awaiting human for gdrive latency run
 - **Last gate:** GREEN on stage-1 @ dbfa7c8 (full standards matrix, cov 82.1%); master @ f0f0d5b green on GitHub
-- **Human gate pending:** confirm real latency run `SNAPBACK_RCLONE_REMOTE=gdrive:snapback-stage1 go run ./tools/stage1latency -out docs/reports/stage1/latency.json` (S2-08 merged)
+- **Human gate pending:** latency go/no-go (numbers recorded tick 35)
 
 ## Stage table (README §22)
 
@@ -439,6 +439,13 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 34 | MERGE C1 + C2 → stage-1 | orchestrator | a3c617d, dbfa7c8; full gate GREEN (cov 82.1%); `make -n ci` ok | Pages custom domain / deploy need push (human) |
 | 34 | C3 site (human request: React site in snapback design system) | planner | spawned 03:26Z — intake written from the user's design-system artifact (tokens, IBM Plex, Liquid Glass, man-page voice) | — |
 | 34 | S2-06/T3 GREEN (running), S2-07/T5 RED | green/red | spawned | — |
+| 35 | HUMAN | human | "told u auto approve was enabled" → auto-approve covers plan-listed real runs and pushes | memory updated |
+| 35 | LATENCY RUN (gdrive:snapback-stage1) | orchestrator | exit 0; remote_deleted true; rclone lsf → directory not found. cold_listing 32.7 ms (n=1), warm_prewarmed_listing median 1.44 ms (n=3), cold_first_file_read 3012 ms (n=1), warm_listing_after_restart median 6.39 ms (n=3); 100×4 KiB generated files; committed 38bf8c4 docs/reports/stage1/latency.json | go/no-go = human |
+| 35 | PUSH stage-1 + draft PR #1 → master | orchestrator | pushed; PR #1 opened (CI runs on pull_request; fuse-linux evidence artifact) | — |
+| 35 | S2-07/T5 RED | red-worker | PASS-ON-RED (accepted): real macFUSE; non-following rg/fd/find/rsync 0 hits, rg -L 761 / fd -L 482 / find -L 400; chain2/s2-07 → 46a91cf | T5 GREEN = evidence + full matrix |
+| 35 | S2-06/T5 RED | red-worker | FAIL by assertion on real run: symlink size/linktarget absent from restic 0.19 `ls --json`; 8 regular files exact (mtime delta 0). chain2/s2-06 → 05571b5 | ORCHESTRATOR CONTRACT RULING → S2-06/T5b: symlinks compared on mode+mtime vs ls --json; target checked via alias vs generator; evidence records size/target as not reported |
+| 35 | C3 plan | planner | passed — plan-shape 0; Vite+React+TS in web/, no Tailwind, Go test/site + vitest, Node 26.0.0 pinned; 8 tasks; APPROVED via auto-approve | brand assets fetched to scratchpad/brand (26 files) |
+| 35 | C1/C2 merged earlier; S2-06/T5b RED, S2-07/T5 GREEN, S2-12/T1 RED | various | spawned 03:32Z | — |
 
 ## Plugin issues found
 
