@@ -4,7 +4,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 29
+- **Tick:** 30
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 EXECUTION — wave 1 merged (S2-01, S2-02, S2-03 on stage-1 @ e893fea); S2-05 T1-T2 merged; wave 2: S2-04 (T1 scaffold), S2-08 (T1-T3 RED) in flight
 - **Last gate:** GREEN on stage-1 @ bc2a030 (full standards matrix, cov 88.2%); master @ f0f0d5b green on GitHub
@@ -407,8 +407,14 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 29 | S2-02/structural | structural-reviewer | passed (report relayed); plugin gate 16 HIGH all traced to bare-name matcher / no Go _test.go exemption | — |
 | 29 | S2-08/T5 RED | red-worker | passed — 10 FAIL by assertion, 44 other PASS lines, lint 0; chain2/s2-08 → fec3c57. DECISION (orchestrator, auto-approve): accept Config{Remote,Runner,Mounter,Clock} + Mounter/Mounted interfaces (tasks.md said Config{Remote,Runner,Clock}, but a blocking Runner.Run cannot hold the long-running mount) | — |
 | 29 | S2-04/T4 RED, S2-08/T5 scaffold, S2-08/T6 RED | various | spawned 03:03Z | — |
+| 30 | S2-08/T5 scaffold | scaffolder | passed — run.go stubs; chain2/s2-08 → 72df2f8 | — |
+| 30 | S2-08/T6 RED | red-worker | passed — 5 FAIL by assertion (TestMainIsThin t.Fatal on missing main.go); fakes injected via package var newConfig; lint 0; chain2/s2-08 → 2e97947 | — |
+| 30 | S2-04/T4 RED | red-worker | PASS-ON-RED — TestCatalogMountLifecycle passes on real macFUSE (T1-T3 already satisfy it); override on record, accepted (gate-red-verify has no PASS-ON-RED path → plugin issue). Orchestrator re-ran: PASS 1.42s, no leftover mount (first re-run FAILed only because orchestrator passed a non-existent SNAPBACK_EVIDENCE_DIR). chain2/s2-04 → 864025d | T4 GREEN = evidence + full matrix only |
+| 30 | S2-08/T5 GREEN, S2-04/T4 GREEN (evidence), S2-08/T6 scaffold | various | spawned 03:06Z | — |
 
 ## Plugin issues found
+
+- gate-red-verify has no PASS-ON-RED path: a RED whose only test is legitimately already satisfied (S2-04 T4 integration test after T1-T3) cannot pass selfcheck; orchestrator override required.
 
 - `gate-plan-shape` given a directory exits 0 (grep 'Is a directory') — false pass. Orchestrator always passes the plan.md file path. Report upstream to agentic-agile.
 - `md-db validate` prints `files: []` even when files are valid; S1-05 planner confirmed via a negative test that it does read them.
