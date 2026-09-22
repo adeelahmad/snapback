@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/config"
@@ -85,7 +87,8 @@ func (h mountHistory) List(ctx context.Context, root, dir string, id provider.Sn
 		}
 		snap = filepath.Join("snapshots", string(id))
 	}
-	des, err := os.ReadDir(filepath.Join(h.dirPath(root, rel), snap))
+	linked, sub := h.linkedAncestor(root, rel)
+	des, err := os.ReadDir(filepath.Join(h.dirPath(root, linked), snap, sub))
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +157,23 @@ func (h mountHistory) rel(root, p string) (string, error) {
 		return "", nil
 	}
 	return p, nil
+}
+
+// linkedAncestor splits rel into the nearest directory at or above it that
+// has a history entry and the path below that directory. The mount has
+// entries only for linked directories, so an unlinked subdirectory is read
+// through its linked ancestor's snapshot trees.
+func (h mountHistory) linkedAncestor(root, rel string) (linked, sub string) {
+	for dir := rel; dir != ""; {
+		if _, err := os.Stat(filepath.Join(h.dirPath(root, dir), "info.json")); err == nil {
+			return dir, filepath.FromSlash(strings.TrimPrefix(strings.TrimPrefix(rel, dir), "/"))
+		}
+		dir = path.Dir(dir)
+		if dir == "." {
+			dir = ""
+		}
+	}
+	return "", filepath.FromSlash(rel)
 }
 
 func (h mountHistory) dirPath(root, rel string) string {
