@@ -1,6 +1,9 @@
 package resticfx
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 // Probe injects the environment MissingPrerequisite inspects.
 type Probe struct {
@@ -13,5 +16,27 @@ type Probe struct {
 
 // MissingPrerequisite names the first missing integration prerequisite, or "" when all are present.
 func MissingPrerequisite(p Probe) string {
-	panic("SUB-AGENT-TODO: in order: SNAPBACK_FUSE_TESTS=1, restic on PATH, FUSE (linux /dev/fuse + fusermount3; darwin /Library/Filesystems/macfuse.fs), CheckPinnedVersion(ResticVersionOut)")
+	if p.Getenv("SNAPBACK_FUSE_TESTS") != "1" {
+		return "SNAPBACK_FUSE_TESTS=1 is not set"
+	}
+	if _, err := p.LookPath("restic"); err != nil {
+		return "restic not found on PATH"
+	}
+	switch p.GOOS {
+	case "linux":
+		if _, err := p.Stat("/dev/fuse"); err != nil {
+			return "FUSE device /dev/fuse not present"
+		}
+		if _, err := p.LookPath("fusermount3"); err != nil {
+			return "fusermount3 not found on PATH"
+		}
+	case "darwin":
+		if _, err := p.Stat("/Library/Filesystems/macfuse.fs"); err != nil {
+			return "macFUSE not installed: /Library/Filesystems/macfuse.fs missing"
+		}
+	}
+	if err := CheckPinnedVersion(p.ResticVersionOut); err != nil {
+		return fmt.Sprintf("restic version: %v", err)
+	}
+	return ""
 }

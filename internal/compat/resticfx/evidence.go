@@ -1,6 +1,13 @@
 package resticfx
 
-import "time"
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+)
 
 // Evidence is the path-template verification record written for CI.
 type Evidence struct {
@@ -19,15 +26,34 @@ type Evidence struct {
 
 // EvidenceDir returns the evidence directory from SNAPBACK_EVIDENCE_DIR.
 func EvidenceDir(getenv func(string) string) string {
-	panic("SUB-AGENT-TODO: return getenv of SNAPBACK_EVIDENCE_DIR")
+	return getenv("SNAPBACK_EVIDENCE_DIR")
 }
 
 // WriteEvidence writes pathtemplate-<ev.GOOS>.json under dir.
 func WriteEvidence(dir string, ev Evidence) (string, error) {
-	panic("SUB-AGENT-TODO: pretty-printed JSON + trailing newline, 0644, to dir/pathtemplate-<ev.GOOS>.json; return path")
+	if dir == "" {
+		return "", errors.New("evidence dir is empty")
+	}
+	data, err := json.MarshalIndent(ev, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("encode evidence: %w", err)
+	}
+	path := filepath.Join(dir, "pathtemplate-"+ev.GOOS+".json")
+	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
+		return "", fmt.Errorf("write evidence: %w", err)
+	}
+	return path, nil
 }
 
 // ReadEvidence reads an evidence file.
 func ReadEvidence(path string) (Evidence, error) {
-	panic("SUB-AGENT-TODO: read file and json-decode into Evidence")
+	var ev Evidence
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ev, fmt.Errorf("read evidence: %w", err)
+	}
+	if err := json.Unmarshal(data, &ev); err != nil {
+		return ev, fmt.Errorf("decode evidence: %w", err)
+	}
+	return ev, nil
 }
