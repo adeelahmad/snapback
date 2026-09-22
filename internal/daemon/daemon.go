@@ -164,11 +164,6 @@ func (d *Daemon) Run(ctx context.Context) error {
 	return nil
 }
 
-// handle answers IPC requests until the op handlers land.
-func (d *Daemon) handle(context.Context, ipc.Request) ipc.Response {
-	return ipc.Response{Code: errcode.InvalidConfig, Error: "unknown op"}
-}
-
 // Status returns the daemon status.
 func (d *Daemon) Status() status.Snapshot {
 	d.mu.Lock()
