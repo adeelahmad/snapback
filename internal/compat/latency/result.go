@@ -1,6 +1,20 @@
 package latency
 
-import "time"
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"slices"
+	"time"
+)
+
+// measurementKeys are the measurements every Result must carry.
+var measurementKeys = []string{
+	"cold_listing",
+	"warm_prewarmed_listing",
+	"cold_first_file_read",
+	"warm_listing_after_restart",
+}
 
 // Stats holds the samples and summary figures for one measurement, in milliseconds.
 type Stats struct {
@@ -26,10 +40,30 @@ type Result struct {
 
 // Summarize converts samples to milliseconds and computes median, min and max.
 func Summarize(samples []time.Duration) (Stats, error) {
-	panic("SUB-AGENT-TODO: T2 error on empty input; SamplesMS = each sample in float64 ms (input order); median of sorted copy (even count = mean of middle two), min, max")
+	if len(samples) == 0 {
+		return Stats{}, errors.New("latency: no samples to summarize")
+	}
+	ms := make([]float64, len(samples))
+	for i, d := range samples {
+		ms[i] = float64(d) / float64(time.Millisecond)
+	}
+	sorted := slices.Clone(ms)
+	slices.Sort(sorted)
+	n := len(sorted)
+	median := sorted[n/2]
+	if n%2 == 0 {
+		median = (sorted[n/2-1] + sorted[n/2]) / 2
+	}
+	return Stats{SamplesMS: ms, MedianMS: median, MinMS: sorted[0], MaxMS: sorted[n-1]}, nil
 }
 
 // Encode renders r as indented JSON after checking all four measurements exist.
 func Encode(r Result) ([]byte, error) {
-	panic("SUB-AGENT-TODO: T2 error if Measurements lacks any of cold_listing, warm_prewarmed_listing, cold_first_file_read, warm_listing_after_restart; else json.MarshalIndent with timestamp in UTC RFC 3339")
+	for _, k := range measurementKeys {
+		if _, ok := r.Measurements[k]; !ok {
+			return nil, fmt.Errorf("latency: result missing measurement %q", k)
+		}
+	}
+	r.TimestampUTC = r.TimestampUTC.UTC()
+	return json.MarshalIndent(r, "", "  ")
 }
