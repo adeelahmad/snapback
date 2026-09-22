@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -41,18 +39,35 @@ var openBrowser = func(ctx context.Context, url string) error {
 	return nil
 }
 
+// webUsage is the help text printed for web -h and for a bad flag.
+var webUsage = cli.Usage{
+	Synopsis: "web [flags]",
+	Args:     "web takes no positional arguments.",
+	Example:  "snapback web",
+}
+
+// configUsage is the help text printed for config -h and for a bad flag.
+var configUsage = cli.Usage{
+	Synopsis: "config [flags]",
+	Args:     "config takes no positional arguments.",
+	Example:  "snapback config",
+}
+
 // Command returns the `web [--open] [--assets DIR]` subcommand.
 func Command() cli.Command {
 	return cli.Command{
 		Name:    "web",
 		Summary: "serve the local web UI",
 		Run: func(ctx context.Context, env cli.Env, args []string) int {
-			fs := flag.NewFlagSet("web", flag.ContinueOnError)
-			fs.SetOutput(io.Discard)
+			fs := cli.NewFlagSet(env, webUsage)
 			open := fs.Bool("open", false, "open the web UI in a browser")
 			assets := fs.String("assets", "", "load templates and assets from DIR")
-			if err := fs.Parse(args); err != nil {
-				return cli.WriteError(env, "web", false, &cli.UsageError{Msg: err.Error()})
+			help, err := cli.ParseWithUsage(fs, args)
+			if err != nil {
+				return cli.WriteError(env, "web", false, err)
+			}
+			if help {
+				return 0
 			}
 			return serve(ctx, env, "web", *assets, *open, "")
 		},
@@ -65,11 +80,14 @@ func ConfigCommand() cli.Command {
 		Name:    "config",
 		Summary: "open the setup page in the web UI",
 		Run: func(ctx context.Context, env cli.Env, args []string) int {
-			fs := flag.NewFlagSet("config", flag.ContinueOnError)
-			fs.SetOutput(io.Discard)
+			fs := cli.NewFlagSet(env, configUsage)
 			file := fs.String("file", "", "validate and save the config file at PATH")
-			if err := fs.Parse(args); err != nil {
-				return cli.WriteError(env, "config", false, &cli.UsageError{Msg: err.Error()})
+			help, err := cli.ParseWithUsage(fs, args)
+			if err != nil {
+				return cli.WriteError(env, "config", false, err)
+			}
+			if help {
+				return 0
 			}
 			if *file != "" {
 				return saveFile(env, *file)
