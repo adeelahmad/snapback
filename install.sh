@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 
+SNAPBACK_BASE_URL_SET="${SNAPBACK_BASE_URL:+1}"
 SNAPBACK_BASE_URL="${SNAPBACK_BASE_URL:-https://github.com/adeelahmad/snapback/releases/latest/download}"
 
 die() {
@@ -80,7 +81,64 @@ on_path() {
 	esac
 }
 
+usage() {
+	printf '%s\n' \
+		'Usage: install.sh [options]' \
+		'' \
+		'Downloads the snapback release binary for this OS and architecture,' \
+		'verifies its checksum and copies it into an install directory.' \
+		'' \
+		'Options:' \
+		'  --dry-run       print the download and install plan, then exit' \
+		'  --dir DIR       install into DIR instead of the default location' \
+		'  --version VER   install release tag VER instead of the latest release' \
+		'  --yes           assume yes; reserved for a later confirmation step' \
+		'  -h, --help      print this help and exit' \
+		'' \
+		'Environment:' \
+		'  SNAPBACK_INSTALL_DIR   same as --dir' \
+		'  SNAPBACK_DRY_RUN=1     same as --dry-run' \
+		'  SNAPBACK_BASE_URL      base URL to download the release assets from' \
+		'  SNAPBACK_OS            override the detected OS' \
+		'  SNAPBACK_ARCH          override the detected architecture'
+}
+
+parse_args() {
+	version=
+	while [ "$#" -gt 0 ]; do
+		case "$1" in
+			-h | --help)
+				usage
+				exit 0
+				;;
+			--dry-run) SNAPBACK_DRY_RUN=1 ;;
+			--dir)
+				[ "$#" -ge 2 ] || die "--dir needs a directory"
+				SNAPBACK_INSTALL_DIR="$2"
+				shift
+				;;
+			--version)
+				[ "$#" -ge 2 ] || die "--version needs a release tag"
+				version="$2"
+				shift
+				;;
+			--yes) ;;
+			*)
+				printf 'unknown argument: %s\n' "$1" >&2
+				usage >&2
+				exit 2
+				;;
+		esac
+		shift
+	done
+	if [ -n "$version" ] && [ -z "${SNAPBACK_BASE_URL_SET:-}" ]; then
+		SNAPBACK_BASE_URL="https://github.com/adeelahmad/snapback/releases/download/$version"
+	fi
+}
+
 main() {
+	parse_args "$@"
+
 	os=$(detect_os)
 	arch=$(detect_arch)
 	case "$os/$arch" in
