@@ -77,7 +77,6 @@ catalog:
 discovery:
   mode: seed
   shell: false
-  finder: false
   seed:
     inode_threshold: 0.99
     max_links_per_path: @MAXLINKS@

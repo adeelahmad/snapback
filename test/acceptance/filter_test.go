@@ -37,7 +37,6 @@ web:
 discovery:
   mode: seed
   shell: false
-  finder: false
 repositories:
   - id: acc
     repository: %[2]s

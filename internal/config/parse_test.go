@@ -95,10 +95,9 @@ func TestParseExampleGolden(t *testing.T) {
 			RsnapshotKeep: RsnapshotKeep{Hourly: 0, Daily: 7, Weekly: 4, Monthly: 6},
 		},
 		Discovery: Discovery{
-			Mode:   "seed",
-			Shell:  true,
-			Finder: false,
-			Seed:   SeedSettings{InodeThreshold: 0.90, MaxLinksPerPath: 500000},
+			Mode:  "seed",
+			Shell: true,
+			Seed:  SeedSettings{InodeThreshold: 0.90, MaxLinksPerPath: 500000},
 			OnAccess: OnAccess{
 				AllowProcesses: []string{"zsh", "bash", "fish", "nautilus", "dolphin", "code"},
 				HandlerTimeout: 20 * time.Millisecond,
@@ -289,7 +288,6 @@ func TestParseAppliesDefaults(t *testing.T) {
 		{"ReaderPolicy.BurstLimit", c.Catalog.ReaderPolicy.BurstLimit, 50},
 		{"Discovery.Mode", c.Discovery.Mode, "seed"},
 		{"Discovery.Shell", c.Discovery.Shell, true},
-		{"Discovery.Finder", c.Discovery.Finder, false},
 		{"Seed.InodeThreshold", c.Discovery.Seed.InodeThreshold, 0.90},
 		{"Seed.MaxLinksPerPath", c.Discovery.Seed.MaxLinksPerPath, 500000},
 		{"Service", c.Service, Service{Manager: "auto", Scope: "user"}},

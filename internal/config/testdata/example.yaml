@@ -32,7 +32,6 @@ views:
 discovery:
   mode: seed
   shell: true
-  finder: false
   seed:
     inode_threshold: 0.90
     max_links_per_path: 500000

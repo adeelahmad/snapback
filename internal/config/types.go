@@ -116,7 +116,6 @@ type RsnapshotKeep struct {
 type Discovery struct {
 	Mode     string       `yaml:"mode"`
 	Shell    bool         `yaml:"shell"`
-	Finder   bool         `yaml:"finder"`
 	Seed     SeedSettings `yaml:"seed"`
 	OnAccess OnAccess     `yaml:"on_access"`
 }
