@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -35,10 +36,18 @@ func TestFishNotifiesOnCdAndPreservesStatus(t *testing.T) {
 		t.Errorf("hook stdout = %q, stderr = %q, want suffix %q and empty", res.stdout, res.stderr, "rc=1\n")
 	}
 	recs := waitLog(t, h.log, 3)
-	for i, want := range []string{h.dir, a, m} {
-		if got := recs[i][len(recs[i])-1]; got != want {
-			t.Errorf("notify %d dir = %q, want %q", i, got, want)
-		}
+	// Each notify runs detached, so the records can reach the log in any
+	// order; compare the notified directories as a sorted set instead of by
+	// position.
+	got := make([]string, len(recs))
+	for i, rec := range recs {
+		got[i] = rec[len(rec)-1]
+	}
+	slices.Sort(got)
+	want := []string{h.dir, a, m}
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
+		t.Errorf("notify dirs = %q, want %q (each dir exactly once)", got, want)
 	}
 	for _, p := range []string{filepath.Join(h.dir, "PWNED"), filepath.Join(a, "PWNED"), filepath.Join(m, "PWNED")} {
 		if _, err := os.Lstat(p); err == nil {
