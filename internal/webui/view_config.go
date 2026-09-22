@@ -14,6 +14,9 @@ type SetupView struct {
 	// the repository's snapshot hostname and the prefix map it derived.
 	DetectedHost   Control
 	DetectedPrefix Control
+
+	// MountPoint is the directory the repository history is mounted under.
+	MountPoint Control
 }
 
 // Control is one form control on a page, shaped like the controls.html

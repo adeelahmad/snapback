@@ -139,6 +139,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		v.DetectedPrefix.Options = append(v.DetectedPrefix.Options,
 			webui.ControlOption{Value: m.SourcePath, Label: m.SourcePath})
 	}
+	v.MountPoint = mountPointField(cfg, goos, s.setupHome())
 	v.ResticPaths = binaries(restic, "restic")
 	v.RclonePaths = binaries(rclone, "rclone")
 	s.render(w, "setup", v)

@@ -250,6 +250,8 @@ func (s *Server) setupFormView(r *http.Request, errs []string) webui.SetupView {
 	}
 	v.ResticPaths = binaries([]string{r.PostFormValue("restic_path")}, "restic")
 	v.RclonePaths = binaries([]string{r.PostFormValue("rclone_path")}, "rclone")
+	v.MountPoint = mountPointField(nil, goos, s.setupHome())
+	v.MountPoint.Value = strings.TrimSpace(r.PostFormValue(mountPointKey))
 	return v
 }
 
@@ -270,9 +272,17 @@ func (s *Server) handleSetupSave(w http.ResponseWriter, r *http.Request) {
 	repo.ResticBinary = strings.TrimSpace(r.PostFormValue("restic_path"))
 	repo.RcloneBinary = strings.TrimSpace(r.PostFormValue("rclone_path"))
 	repo.PasswordFile = strings.TrimSpace(r.PostFormValue("credential_file"))
+	repo.MountPoint = strings.TrimSpace(r.PostFormValue(mountPointKey))
 	applyRoots(cfg, lines(r.PostFormValue("roots")))
 	config.ApplyDefaults(cfg)
 
+	if msg := mountPointError(cfg); msg != "" {
+		v := s.setupFormView(r, nil)
+		v.MountPoint.Error = msg
+		w.WriteHeader(http.StatusBadRequest)
+		s.render(w, "setup", v)
+		return
+	}
 	if s.opts.Validator != nil {
 		if err := s.opts.Validator.Validate(r.Context(), cfg); err != nil {
 			s.render(w, "setup", s.setupFormView(r, []string{err.Error()}))

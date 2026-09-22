@@ -22,7 +22,13 @@
 <input type="text" id="repo-uri" name="repo_uri" value="{{.RepoURI}}" required>
 <label for="credential-file">Password file</label>
 <input type="text" id="credential-file" name="credential_file" value="{{.CredentialFile}}">
-{{with .DetectedHost}}{{if .Value}}<div class="field">
+{{with .MountPoint}}<div class="field">
+<label for="f-{{.Path}}" class="field__label">{{.Label}}</label>
+<input class="field__control" type="text" id="f-{{.Path}}" name="{{.Path}}" value="{{.Value}}" aria-describedby="f-{{.Path}}-help">
+<p class="field__help" id="f-{{.Path}}-help">{{.Help}}</p>
+{{if .Error}}<p class="field__error">{{.Error}}</p>
+{{end}}</div>
+{{end}}{{with .DetectedHost}}{{if .Value}}<div class="field">
 <label class="field__label" for="f-{{.Path}}">{{.Label}}</label>
 <input class="field__control" type="text" id="f-{{.Path}}" name="{{.Path}}" value="{{.Value}}" aria-describedby="f-{{.Path}}-help">
 <p class="field__help" id="f-{{.Path}}-help">{{.Help}}</p>
