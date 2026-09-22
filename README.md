@@ -16,7 +16,7 @@
 
 snapback is a restore tool for your backups. It supports Restic today; other backends are on the [roadmap](#roadmap).
 
-snapback puts a read-only `.snapshot` entry inside your directories, backed by the Restic snapshots you already have. The v0.1 acceptance run on macOS (macFUSE) exercised this restore; the results are in [docs/reports/v0.1-acceptance.md](docs/reports/v0.1-acceptance.md):
+snapback puts a read-only `.snapshot` entry inside your directories, backed by the Restic snapshots you already have. The v0.1 acceptance run on Linux (CI, fuse3) exercised this restore, with macOS (macFUSE) as supplementary evidence; the results are in [docs/reports/v0.1-acceptance.md](docs/reports/v0.1-acceptance.md):
 
 ```console
 $ ls .snapshot/

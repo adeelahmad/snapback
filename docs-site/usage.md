@@ -5,8 +5,8 @@ the current build. Restic is the only backend.
 
 ## Getting started
 
-1. **Build.** Build from source with `go build ./cmd/snapback`. The install script fetches the
-   latest tagged release, which predates v0.1.
+1. **Install.** Run `curl -fsSL https://snapback.run/install.sh | sh`. The installer fetches the
+   latest release for your platform. Building from source with `go build ./cmd/snapback` also works.
 2. **Configure.** Write `~/.config/snapback/config.yaml` with your Restic repository, then run
    `snapback config`. It starts the local web UI and opens its setup page. `snapback web` serves
    the same UI without jumping to setup. See [Configuration](configuration.md) for every key,

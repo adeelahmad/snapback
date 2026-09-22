@@ -4,13 +4,13 @@ Snapback is about one thing: getting a file back. Restoring a file should be as 
 
 ## Install
 
-The latest tagged release predates v0.1. Until v0.1 is tagged, build from source:
-
 ```sh
-go build ./cmd/snapback
+curl -fsSL https://snapback.run/install.sh | sh
 ```
 
-Snapback needs the `restic` CLI and FUSE (`fuse3` on Linux, macFUSE on macOS). The [usage guide](usage.md) covers setup, the service and every command.
+The installer downloads the latest release (v1.4.0) for your operating system and architecture, verifies it against the signed `checksums.txt`, and installs the binary to `/usr/local/bin`, or to `~/.local/bin` when that directory is not writable or not on your `PATH`.
+
+Before running it you need FUSE (`fuse3` on Linux, [macFUSE](https://macfuse.github.io) on macOS), the `restic` CLI and an existing Restic repository. You can also build from source with `go build ./cmd/snapback`. The [usage guide](usage.md) covers setup, the service and every command.
 
 ## How it works
 
