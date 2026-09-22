@@ -5,10 +5,21 @@
 package readerpolicy
 
 import (
+	"path/filepath"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/mount"
 )
+
+// Defaults applied when the matching Config field is zero.
+const (
+	DefaultWindow    = 10 * time.Second
+	DefaultMaxPIDs   = 1024
+	DefaultMaxEvents = 128
+)
+
+// commLen is the length of a Linux process comm name (TASK_COMM_LEN-1).
+const commLen = 15
 
 // Config holds the reader policy settings from catalog.reader_policy.
 type Config struct {
@@ -27,16 +38,38 @@ type Event struct {
 	PID  uint32
 }
 
+// ThrottleEvent records a process's transition into being denied or throttled.
+type ThrottleEvent struct {
+	PID     uint32
+	Process string
+	Rule    string
+	At      time.Time
+}
+
 // Policy applies a Config to incoming events.
-type Policy struct{}
+type Policy struct {
+	cfg      Config
+	procName func(uint32) string
+	now      func() time.Time
+}
 
 // New returns a Policy for cfg that resolves process names with procName and
 // reads the time from now.
 func New(cfg Config, procName func(uint32) string, now func() time.Time) *Policy {
-	panic("SUB-AGENT-TODO: store cfg, procName and now; return a ready *Policy (T1: deny list only)")
+	return &Policy{cfg: cfg, procName: procName, now: now}
 }
 
 // Allow reports whether ev may proceed.
 func (p *Policy) Allow(ev Event) bool {
-	panic("SUB-AGENT-TODO: resolve filepath.Base(procName(ev.PID)) once; empty name allows; deny when it equals a Deny entry or that entry truncated to 15 bytes")
+	name := p.procName(ev.PID)
+	if name == "" {
+		return true
+	}
+	name = filepath.Base(name)
+	for _, d := range p.cfg.Deny {
+		if name == d || (len(d) > commLen && name == d[:commLen]) {
+			return false
+		}
+	}
+	return true
 }
