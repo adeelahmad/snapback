@@ -241,3 +241,35 @@ func (l *lazyLinker) RemoveManaged(ctx context.Context) (links.RepairReport, err
 	}
 	return e.RemoveManaged(ctx)
 }
+
+// EnsureBatch ensures the links of dirs. The direct route stores the whole
+// batch in one registry transaction; the daemon route sends one ensure_link
+// per dir over the kept connection. The error joins one *links.EnsureError
+// per failed dir.
+func (l *lazyLinker) EnsureBatch(ctx context.Context, dirs []string) ([]links.Result, error) {
+	if len(dirs) == 0 {
+		return nil, nil
+	}
+	var first links.Result
+	ok, err := l.viaDaemon(ctx, ipc.Request{V: 1, Op: ipc.OpEnsureLink, Path: rawpath.Path(dirs[0])}, &first)
+	if !ok {
+		e, err := l.engine()
+		if err != nil {
+			return nil, err
+		}
+		return e.EnsureBatch(ctx, dirs)
+	}
+	res := make([]links.Result, len(dirs))
+	var errs []error
+	for i, dir := range dirs {
+		if i > 0 {
+			res[i], err = l.Ensure(ctx, dir)
+		} else {
+			res[i] = first
+		}
+		if err != nil {
+			errs = append(errs, &links.EnsureError{Dir: dir, Err: err})
+		}
+	}
+	return res, errors.Join(errs...)
+}
