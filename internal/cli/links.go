@@ -2,9 +2,7 @@ package cli
 
 import (
 	"context"
-	"flag"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/adeelahmad/snapback/internal/links"
@@ -31,50 +29,63 @@ type repairReport struct {
 	Preserved []repairEntry `json:"preserved"`
 }
 
+// linksUsage is the help text of the links command.
+var linksUsage = Usage{
+	Synopsis: "links <list|repair|remove> [flags]",
+	Args: "list    print the managed .snapshot links\n" +
+		"repair  restore the managed links that are missing or stale\n" +
+		"remove  remove the managed links; requires --managed",
+	Example: "snapback links remove --managed --json",
+}
+
 // LinksCommand returns the links command.
 func LinksCommand(d Deps) Command {
 	return Command{
 		Name:    "links",
 		Summary: "list, repair or remove managed .snapshot links",
 		Run: func(ctx context.Context, env Env, args []string) int {
-			usage := &UsageError{Msg: "usage: snapback links list|repair|remove --managed [--json]"}
-			if len(args) == 0 {
-				return WriteError(env, "links", false, usage)
+			usage := &UsageError{Msg: "usage: snapback " + linksUsage.Synopsis}
+			verb, rest := "", args
+			if len(args) != 0 && !strings.HasPrefix(args[0], "-") {
+				verb, rest = args[0], args[1:]
 			}
-			fs := flag.NewFlagSet("links", flag.ContinueOnError)
-			fs.SetOutput(io.Discard)
-			managed := fs.Bool("managed", false, "remove every registry-owned link")
-			jsonOut, pos, err := ParseFlags(fs, args[1:])
-			if err == nil && len(pos) != 0 {
+			fs := NewFlagSet(env, linksUsage)
+			managed := fs.Bool("managed", false, "with remove, remove every registry-owned link")
+			jsonOut := fs.Bool("json", false, "write a JSON envelope")
+			help, err := ParseWithUsage(fs, rest)
+			if help {
+				return 0
+			}
+			if err == nil && (verb == "" || fs.NArg() != 0) {
 				err = usage
 			}
 			if err != nil {
-				return WriteError(env, "links", jsonOut, err)
+				return WriteError(env, "links", *jsonOut, err)
 			}
-			switch args[0] {
+			switch verb {
 			case "list":
 				recs, err := d.Linker.List()
 				if err != nil {
-					return WriteError(env, "links", jsonOut, err)
+					return WriteError(env, "links", *jsonOut, err)
 				}
-				return writeRecords(env, jsonOut, recs)
+				return writeRecords(env, *jsonOut, recs)
 			case "repair":
 				rep, err := d.Linker.Repair(ctx)
 				if err != nil {
-					return WriteError(env, "links", jsonOut, err)
+					return WriteError(env, "links", *jsonOut, err)
 				}
-				return writeReport(env, jsonOut, rep)
+				return writeReport(env, *jsonOut, rep)
 			case "remove":
 				if !*managed {
-					return WriteError(env, "links", jsonOut, usage)
+					return WriteError(env, "links", *jsonOut, usage)
 				}
 				rep, err := d.Linker.RemoveManaged(ctx)
 				if err != nil {
-					return WriteError(env, "links", jsonOut, err)
+					return WriteError(env, "links", *jsonOut, err)
 				}
-				return writeReport(env, jsonOut, rep)
+				return writeReport(env, *jsonOut, rep)
 			}
-			return WriteError(env, "links", jsonOut, usage)
+			return WriteError(env, "links", *jsonOut, usage)
 		},
 	}
 }
