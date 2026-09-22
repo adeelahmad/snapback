@@ -49,9 +49,12 @@ type Refresher interface {
 	Refresh(ctx context.Context) (RefreshResult, error)
 }
 
-// Linker ensures a directory's managed link.
+// Linker ensures a directory's managed link and serves link maintenance.
 type Linker interface {
 	Ensure(ctx context.Context, dir string) (links.Result, error)
+	List() ([]links.Record, error)
+	Repair(ctx context.Context) (links.RepairReport, error)
+	RemoveManaged(ctx context.Context) (links.RepairReport, error)
 }
 
 // Recoverer cleans up after a crashed daemon.

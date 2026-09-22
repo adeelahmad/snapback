@@ -17,6 +17,11 @@ const (
 	OpDirEvent      = "dir_event"
 	OpSnapSubmitted = "snap_submitted"
 	OpShutdown      = "shutdown"
+
+	// Link maintenance ops; the daemon owns links.db while it runs.
+	OpLinksList          = "links_list"
+	OpLinksRepair        = "links_repair"
+	OpLinksRemoveManaged = "links_remove_managed"
 )
 
 // MaxRequestBytes is the default cap on one request line.
