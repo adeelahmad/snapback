@@ -152,6 +152,7 @@ func (s *Server) handleConfigSave(w http.ResponseWriter, r *http.Request) {
 		s.render(w, "config", s.configFormView(r, errs))
 		return
 	}
+	config.ApplyDefaults(cfg)
 	if _, err := s.opts.Backend.SaveConfig(cfg, config.Revision(r.PostFormValue("revision"))); err != nil {
 		msg := err.Error()
 		if errors.Is(err, config.ErrRevisionConflict) {
@@ -195,6 +196,7 @@ func (s *Server) handleSetupSave(w http.ResponseWriter, r *http.Request) {
 	repo.RcloneBinary = strings.TrimSpace(r.PostFormValue("rclone_path"))
 	repo.PasswordFile = strings.TrimSpace(r.PostFormValue("credential_file"))
 	applyRoots(cfg, lines(r.PostFormValue("roots")))
+	config.ApplyDefaults(cfg)
 
 	if s.opts.Validator != nil {
 		if err := s.opts.Validator.Validate(r.Context(), cfg); err != nil {

@@ -5,8 +5,8 @@ the current build. Restic is the only backend.
 
 ## Getting started
 
-1. **Build.** Build from source with `go build ./cmd/snapback`. The install script fetches the
-   latest tagged release, which predates v0.1.
+1. **Install.** Run `curl -fsSL https://snapback.run/install.sh | sh`. The installer fetches the
+   latest release for your platform. Building from source with `go build ./cmd/snapback` also works.
 2. **Configure.** Write `~/.config/snapback/config.yaml` with your Restic repository, then run
    `snapback config`. It starts the local web UI and opens its setup page. `snapback web` serves
    the same UI without jumping to setup. See [Configuration](configuration.md) for every key,
@@ -123,8 +123,8 @@ After a backup finishes, a new snapshot can take up to about a minute to appear 
 
 ## Limits
 
-- Linux is the v0.1 target. Linux acceptance evidence is pending.
-- The v0.1 acceptance run so far is on macOS with macFUSE; every applicable item passed there,
-  and Acc 2, 12 and 17 need Linux. See
+- Linux is the v0.1 target. The v0.1 acceptance run passed on Linux (CI, fuse3): Acc 1 to 17.
+- macOS (macFUSE) is supplementary evidence; Acc 2, 12 and 17 are Linux-only and were skipped
+  in the macOS runs. See
   `docs/reports/v0.1-acceptance.md` in the repository.
 - The service installer is tested with systemd in user scope only.

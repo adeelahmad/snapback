@@ -97,7 +97,7 @@ func TestLandingHasRequiredSections(t *testing.T) {
 
 func TestLandingInstallBuildsFromSource(t *testing.T) {
 	section := landingSection(t, readRepoFile(t, landingFile), "## Install")
-	for _, want := range []string{"go build ./cmd/snapback", "predates v0.1"} {
+	for _, want := range []string{"go build ./cmd/snapback", "https://snapback.run/install.sh"} {
 		if !strings.Contains(section, want) {
 			t.Errorf("`## Install` section = %q, want it to contain %q", section, want)
 		}

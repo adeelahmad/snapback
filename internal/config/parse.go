@@ -21,7 +21,7 @@ func Parse(data []byte) (*Config, error) {
 		}
 		return nil, errcode.New(errcode.InvalidConfig, "config.parse", err)
 	}
-	applyDefaults(c)
+	ApplyDefaults(c)
 	if err := Validate(c); err != nil {
 		return nil, err
 	}

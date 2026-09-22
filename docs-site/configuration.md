@@ -114,7 +114,7 @@ views:
 discovery:
   mode: seed                  # only seed is available in v0.1
   shell: true
-  finder: false
+  finder: false               # accepted, but has no effect in v0.1
   seed:
     inode_threshold: 0.90
     max_links_per_path: 500000
@@ -214,7 +214,7 @@ Durations use Go syntax: `20ms`, `60s`, `5m`, `1h`.
 |---|---|---|---|
 | `discovery.mode` | string | `seed` | How `.snapshot` entries appear. Only `seed` is available in v0.1, and `on-access` is rejected. |
 | `discovery.shell` | boolean | `true` | Shell integration. |
-| `discovery.finder` | boolean | `false` | Finder integration. |
+| `discovery.finder` | boolean | `false` | Finder integration. Accepted, but it has no effect in v0.1: the Finder companion is planned (see ARCHITECTURE.md). |
 | `discovery.seed.inode_threshold` | number | `0.90` | Inode usage above which seeding stops. Greater than 0 and at most 1. |
 | `discovery.seed.max_links_per_path` | integer | `500000` | Maximum number of links seeded under one seed path. At least 1. |
 | `discovery.on_access.allow_processes` | list of strings | empty | Processes allowed to trigger on-access discovery. |
