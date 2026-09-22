@@ -7,7 +7,7 @@
     "node": "26.0.0"
   },
   "scripts": {
-    "gen:tokens": "echo gen:tokens is added in S2-12 T2",
+    "gen:tokens": "node scripts/gen-tokens.mjs",
     "prebuild": "npm run gen:tokens",
     "build": "vite build",
     "test": "vitest run",
