@@ -325,6 +325,194 @@ button,
   background-color: currentColor;
 }
 
+/* Form controls */
+.field__label {
+  display: block;
+  color: var(--ink);
+  font-weight: 500;
+  margin: 0 0 var(--space-1);
+}
+
+.field__control {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.field__control:focus-visible,
+.field__switch:focus-visible,
+.chip__remove:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.field__control[aria-invalid="true"] {
+  border-color: var(--red);
+  border-width: 2px;
+}
+
+.field__control:disabled,
+.chip__remove:disabled {
+  background: var(--canvas-sunken);
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+
+.field__help {
+  margin: var(--space-1) 0 0;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.field__error {
+  margin: var(--space-1) 0 0;
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface);
+  color: var(--ink);
+  border-left: 3px solid var(--red);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.field__help:empty,
+.field__error:empty {
+  display: none;
+}
+
+/* Toggle: the checkbox sits invisibly over the track it drives. */
+.field--toggle {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-3);
+  row-gap: var(--space-1);
+}
+
+.field--toggle .field__label {
+  grid-area: 1 / 2;
+  margin: 0;
+}
+
+.field--toggle .field__help,
+.field--toggle .field__error {
+  grid-column: 1 / -1;
+}
+
+.field__switch {
+  grid-area: 1 / 1;
+  width: 44px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.field__switch-track {
+  grid-area: 1 / 1;
+  width: 44px;
+  height: 24px;
+  background: var(--canvas-sunken);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+  transition: background 120ms ease;
+}
+
+.field__switch-track::after {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--line-strong);
+  transition: transform 120ms ease;
+}
+
+.field__switch:checked + .field__switch-track {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.field__switch:checked + .field__switch-track::after {
+  background: var(--accent);
+  transform: translateX(18px);
+}
+
+/* Chips */
+.field--chips .field__control {
+  margin-top: var(--space-1);
+}
+
+.field__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+}
+
+.chip__text {
+  overflow-wrap: anywhere;
+}
+
+.chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  color: var(--ink-muted);
+  border-radius: var(--radius-pill);
+  font-size: 0;
+  line-height: 1;
+}
+
+.chip__remove::after {
+  content: "\00d7";
+  font-size: 15px;
+}
+
+/* Rows */
+.field--rows {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.field__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.field__row .field__label {
+  grid-column: 1 / -1;
+}
+
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
