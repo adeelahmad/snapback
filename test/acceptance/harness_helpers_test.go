@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -100,6 +101,17 @@ func runSnapback(t *testing.T, e env, args ...string) (stdout, stderr string, co
 	return out.String(), errb.String(), code
 }
 
+// skipReasons maps a test name to the reason passed to skip, because the
+// testing package cannot report a skip message back to recordEvidence.
+var skipReasons sync.Map
+
+// skip records reason for recordEvidence and then skips t.
+func skip(t testing.TB, reason string) {
+	t.Helper()
+	skipReasons.Store(t.Name(), reason)
+	t.Skip(reason)
+}
+
 func recordEvidence(t *testing.T, acc string) {
 	t.Helper()
 	dir := os.Getenv("SNAPBACK_EVIDENCE_DIR")
@@ -107,7 +119,10 @@ func recordEvidence(t *testing.T, acc string) {
 		return
 	}
 	t.Cleanup(func() {
-		status := "pass"
+		status, reason := "pass", ""
+		if r, ok := skipReasons.Load(t.Name()); ok {
+			reason, _ = r.(string)
+		}
 		switch {
 		case t.Skipped():
 			status = "skip"
@@ -117,7 +132,7 @@ func recordEvidence(t *testing.T, acc string) {
 		ev := map[string]string{
 			"acc":            acc,
 			"status":         status,
-			"skip_reason":    "",
+			"skip_reason":    reason,
 			"kernel":         commandOut("uname", "-r"),
 			"commit":         commandOut("git", "rev-parse", "HEAD"),
 			"restic_version": commandOut("restic", "version"),

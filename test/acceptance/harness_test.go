@@ -38,7 +38,7 @@ func TestRecordEvidenceWritesJSON(t *testing.T) {
 
 	t.Run("skipped", func(st *testing.T) {
 		recordEvidence(st, "acc-00")
-		st.Skip("no fuse")
+		skip(st, "no fuse")
 	})
 
 	data, err := os.ReadFile(filepath.Join(dir, "acc-00.json"))

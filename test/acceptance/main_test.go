@@ -72,6 +72,6 @@ func requireFUSE(t *testing.T) {
 		}
 	}
 	if msg := resticfx.MissingPrerequisite(p); msg != "" {
-		t.Skip("missing prerequisite: " + msg)
+		skip(t, "missing prerequisite: "+msg)
 	}
 }
