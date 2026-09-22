@@ -1,10 +1,14 @@
 package doctor
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/adeelahmad/snapback/internal/cli"
+	"github.com/adeelahmad/snapback/internal/config"
 )
 
 // bundleStdoutLines returns the non-empty lines of a doctor --bundle run.
@@ -69,6 +73,51 @@ func TestDoctorBundleMakesNoNetworkCalls(t *testing.T) {
 	for _, pkg := range []string{"net/http", "net/url", `"net"`} {
 		if strings.Contains(string(src), pkg) {
 			t.Errorf("bundle_cmd.go imports %s, want no network package", pkg)
+		}
+	}
+}
+
+func TestDoctorBundleScrubsRepositoryURIFromEveryMember(t *testing.T) {
+	const uri = "sftp://user@example.invalid/repo"
+	dir := t.TempDir()
+	stateDir := filepath.Join(dir, "state")
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
+		t.Fatalf("MkdirAll(%q) = %v, want nil error", stateDir, err)
+	}
+	logLine := "opening repository " + uri + "\n"
+	if err := os.WriteFile(filepath.Join(stateDir, daemonLogName), []byte(logLine), 0o600); err != nil {
+		t.Fatalf("WriteFile(daemon.log) = %v, want nil error", err)
+	}
+	cfg := &config.Config{
+		Version:      1,
+		LinkName:     ".snapshot",
+		StateDir:     stateDir,
+		Repositories: []config.Repository{{ID: "repoA", Repository: uri, ResticBinary: "restic"}},
+	}
+	checks := []Check{{Name: "repository:repoA", Status: statusFail,
+		Detail: "repository " + uri + " could not be opened"}}
+
+	var stdout, stderr bytes.Buffer
+	env := cli.Env{Stdout: &stdout, Stderr: &stderr, Getenv: func(string) string { return "" }}
+	if code := writeBundleFor(env, checks, cfg, dir); code != 0 {
+		t.Fatalf("writeBundleFor = %d, want 0; stderr %q", code, stderr.String())
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, "snapback-bundle-*.tar.gz"))
+	if err != nil || len(matches) != 1 {
+		t.Fatalf("Glob(snapback-bundle-*.tar.gz) = %v, %v, want exactly 1 match", matches, err)
+	}
+
+	members := readBundle(t, matches[0])
+	for _, name := range []string{"doctor.json", "daemon.log"} {
+		body, ok := members[name]
+		if !ok {
+			t.Fatalf("bundle members = %v, want one named %q", memberNames(members), name)
+		}
+		if strings.Contains(body, uri) {
+			t.Errorf("bundle member %s = %q, want it not to contain %q", name, body, uri)
+		}
+		if !strings.Contains(body, bundleRedactedMarker) {
+			t.Errorf("bundle member %s = %q, want it to contain %q", name, body, bundleRedactedMarker)
 		}
 	}
 }
