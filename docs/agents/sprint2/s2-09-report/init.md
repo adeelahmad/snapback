@@ -157,3 +157,91 @@ Write every T4 test bullet in `plan.md` § T4 at the exact path::fn so each FAIL
 - all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
 - red-worker: make shim bodies differ so comparison tests cannot pass by accident.
 - all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.
+
+## S2-09/T4 · attempt 1 · green-worker · 2026-09-22T03:55:12Z
+
+### Mandate
+Implement S2-09 T4 per `tasks.md` § T4 with the least change that makes exactly the 3 T4 latency tests (+ T1-T3) pass. Pipe table per measurement (name, median, min, max in ms to 1 decimal, samples) generated from latency.json, then 'Data: 100 files, 4096 bytes' and 'Remote deleted: true'. No verdict/threshold words; go/no-go is human.
+
+### Scope
+#### May
+- docs/reports/stage1-measurements.md (## Latency over rclone:gdrive only) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § T4, `plan-ready.md` § T4, `validate.md` § T4. Chain base `chain/s2-09` @ 110af59.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`docs/reports/stage1-measurements.md`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S2-09/T5 · attempt 1 · red-worker · 2026-09-22T03:56:24Z
+
+### Mandate
+Write every T5 test bullet in `plan.md` § T5 at the exact path::fn so each FAILS BY ASSERTION (compiles, runs, assertion or t.Fatal on a missing/incorrect artifact) — never by a compile error or missing symbol. Sequential story. crawler-darwin.json and crawler-linux.json: non-following tools 0 hits; following tools hit counts recorded; VS Code row not-tested-here.
+
+### Scope
+#### May
+- Create the test files named for T5 in `tasks.md`: the T5 test file(s) named in plan.md § T5
+- Test helpers that a T5 test itself exercises (e.g. `repoRoot`, `readRepoFile`, `yamlBlock`, `runInstaller`) go in a marked shim `zz_agentic_shim_test.go` in the same test package (first line `// agentic:shim`) with deliberately WRONG bodies so those tests fail by assertion; helpers NOT under test may be real and live in the named helpers file.
+#### May Not
+- Create or edit any non-test artifact (workflow YAML, JSON config, install.sh, .goreleaser.yaml, SPEC.md/README.md, go.mod) — those are GREEN's job; touch other stories' files; suppress/skip tests (except the tool-absent `t.Skip` cases plan.md explicitly allows).
+
+### Inputs
+- `plan.md` § T5, `tasks.md` § T5 (contracts), `validate.md` § T5. Chain base: the story chain branch named in your prompt (stage-1 @ 2158ade = master + sprint2 plan).
+
+### Acceptance
+`go test ./test/...` for this story's package compiles; every new test FAILS by assertion; `go vet ./...` clean; diff vs BASE_REF = only this task's test files (+ shim); output.md block appended; selfcheck PASS.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
+- red-worker: make shim bodies differ so comparison tests cannot pass by accident.
+- all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.
+
+## S2-09/T5 · attempt 1 · green-worker · 2026-09-22T03:58:36Z
+
+### Mandate
+Implement S2-09 T5 per `tasks.md` § T5 with the least change that makes exactly the 3 T5 crawler tests (+ T1-T4) pass. Table generated from crawler-darwin.json and crawler-linux.json: one row per JSON row per platform (8 each), hits integer or — when absent, VS Code row not-tested-here with its JSON reason verbatim. No verdict wording.
+
+### Scope
+#### May
+- docs/reports/stage1-measurements.md (## Crawler hit counts only) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § T5, `plan-ready.md` § T5, `validate.md` § T5. Chain base `chain/s2-09` @ 643c323.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`docs/reports/stage1-measurements.md`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S2-09/T6 · attempt 1 · red-worker · 2026-09-22T04:00:24Z
+
+### Mandate
+Write every T6 test bullet in `plan.md` § T6 at the exact path::fn so each FAILS BY ASSERTION (compiles, runs, assertion or t.Fatal on a missing/incorrect artifact) — never by a compile error or missing symbol. Last S2-09 task (requirement matrix, open item, honesty gate). Honesty: no verdict/threshold/go-no-go words; latency go/no-go is the human's open item. Known contract rulings to reflect honestly: symlink size/linktarget not reported by restic ls --json 0.19 (fidelity); VS Code crawler row not tested here.
+
+### Scope
+#### May
+- Create the test files named for T6 in `tasks.md`: the T6 test file(s) named in plan.md § T6
+- Test helpers that a T6 test itself exercises (e.g. `repoRoot`, `readRepoFile`, `yamlBlock`, `runInstaller`) go in a marked shim `zz_agentic_shim_test.go` in the same test package (first line `// agentic:shim`) with deliberately WRONG bodies so those tests fail by assertion; helpers NOT under test may be real and live in the named helpers file.
+#### May Not
+- Create or edit any non-test artifact (workflow YAML, JSON config, install.sh, .goreleaser.yaml, SPEC.md/README.md, go.mod) — those are GREEN's job; touch other stories' files; suppress/skip tests (except the tool-absent `t.Skip` cases plan.md explicitly allows).
+
+### Inputs
+- `plan.md` § T6, `tasks.md` § T6 (contracts), `validate.md` § T6. Chain base: the story chain branch named in your prompt (stage-1 @ 2158ade = master + sprint2 plan).
+
+### Acceptance
+`go test ./test/...` for this story's package compiles; every new test FAILS by assertion; `go vet ./...` clean; diff vs BASE_REF = only this task's test files (+ shim); output.md block appended; selfcheck PASS.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
+- red-worker: make shim bodies differ so comparison tests cannot pass by accident.
+- all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.

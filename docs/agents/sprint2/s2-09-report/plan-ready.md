@@ -32,15 +32,15 @@ Contracts under test: `tasks.md` (S2-09). Package `test/reports` (`package repor
 
 ## T4 — Latency numbers
 
-- [ ] `test/reports/latency_test.go::TestLatencyMediansMinMaxMatchJSON` — assert `latency.json` has all four measurement names; for each, the row exists and median/min/max equal `strconv.FormatFloat(json, 'f', 1, 64)`.
-- [ ] `test/reports/latency_test.go::TestLatencySampleCounts` — for each measurement, assert `samples_ms` is non-empty and the row's count equals `len(samples_ms)`; assert every measurement with count 1 is one of the two cold measurements.
-- [ ] `test/reports/latency_test.go::TestLatencyDataAndRemoteDeleted` — assert `latency.json` `remote_deleted` is `true` and `remote` is `gdrive:snapback-stage1`; assert the report lines `Data: <count> files, <bytes> bytes` and `Remote deleted: true` match the JSON.
+- [x] `test/reports/latency_test.go::TestLatencyMediansMinMaxMatchJSON` — assert `latency.json` has all four measurement names; for each, the row exists and median/min/max equal `strconv.FormatFloat(json, 'f', 1, 64)`.
+- [x] `test/reports/latency_test.go::TestLatencySampleCounts` — for each measurement, assert `samples_ms` is non-empty and the row's count equals `len(samples_ms)`; assert every measurement with count 1 is one of the two cold measurements.
+- [x] `test/reports/latency_test.go::TestLatencyDataAndRemoteDeleted` — assert `latency.json` `remote_deleted` is `true` and `remote` is `gdrive:snapback-stage1`; assert the report lines `Data: <count> files, <bytes> bytes` and `Remote deleted: true` match the JSON.
 
 ## T5 — Crawler hit counts
 
-- [ ] `test/reports/crawler_test.go::TestCrawlerRowsMatchEvidence` — assert at least one present crawler file with at least one `tested` row; for each JSON row, a report row with the platform label, tool, status and hits (`—` when null) equal to the JSON.
-- [ ] `test/reports/crawler_test.go::TestCrawlerNotTestedShownHonestly` — assert each platform has a VS Code row with status `not-tested-here`; every JSON row with status `not-tested-here` appears as such with `—` hits (never `0`), and its reason appears in the section.
-- [ ] `test/reports/crawler_test.go::TestCrawlerRowCountEqualsEvidence` — assert the number of crawler report rows per platform equals that file's JSON row count (no omitted tool).
+- [x] `test/reports/crawler_test.go::TestCrawlerRowsMatchEvidence` — assert at least one present crawler file with at least one `tested` row; for each JSON row, a report row with the platform label, tool, status and hits (`—` when null) equal to the JSON.
+- [x] `test/reports/crawler_test.go::TestCrawlerNotTestedShownHonestly` — assert each platform has a VS Code row with status `not-tested-here`; every JSON row with status `not-tested-here` appears as such with `—` hits (never `0`), and its reason appears in the section.
+- [x] `test/reports/crawler_test.go::TestCrawlerRowCountEqualsEvidence` — assert the number of crawler report rows per platform equals that file's JSON row count (no omitted tool).
 
 ## T6 — Requirement matrix, open item, honesty gate and full matrix
 

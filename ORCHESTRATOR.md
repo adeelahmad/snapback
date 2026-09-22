@@ -4,7 +4,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 38
+- **Tick:** 39
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 EXECUTION — S2-01..S2-04, S2-06, S2-07, S2-08, C1, C2 merged (stage-1 b2572b2); S2-05 T3 + S2-09 in flight; C3 site + C4 launch in flight
 - **Last gate:** GREEN on stage-1 @ df2d91f (full standards matrix)
@@ -465,6 +465,12 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 38 | C3 T3/T4/T6/T7 GREEN, T4 scaffold, T7 RED | various | passed — fonts+brand assets byte-copied (+NOTICE OFL); header/hero/how-it-works (13 vitest PASS, build ok; brand glass highlight gradient replaced by inset shadow because test bans linear-gradient); head meta (4/5 — TestThemeColorPerScheme test bug: single-string tokens) ; Pages layout on side chain c3-t7 (_site: web at /, mkdocs at /docs/, install.sh). chain2/c3-site → 477c6ee | T6fix RED opened |
 | 38 | S2-09 T3 RED/GREEN | red/green | passed — path-template, catalog, fidelity sections from JSON (symlink ls --json gap stated); 10 tests PASS | — |
 | 38 | S2-09/T4 RED, C3 T5 RED, C3 T6fix RED | red | spawned 03:54Z | — |
+| 39 | S2-09 T4/T5 RED+GREEN | red/green | passed — latency + crawler sections generated from JSON (jq); 16 report tests PASS; chain2/s2-09 → c49c36e | — |
+| 39 | C3 T5 scaffold+GREEN, T6fix | various | passed — limits/install/status/footer; 21 vitest PASS; full matrix green; chain2/c3-site → 81ea7e0 (all 8 C3 tasks done) | — |
+| 39 | Structural S2-03/04/08 | structural-reviewer | passed — no findings beyond 2 LOW (logged) | — |
+| 39 | Structural S2-06/07 | structural-reviewer | findings: SNAPBACK_FUSE_TESTS truthiness drift (fidelity "any non-empty" vs resticfx/crawler "=1") → REAL BUG; evidence writer duplication → tech debt | S2-06/fix-gate RED spawned |
+| 39 | MERGE C3 → stage-1 (orchestrator attempt) | orchestrator | CONFLICT in ci.yml (S2-05 upload=error vs new site job) → aborted; delegated to S2-12/integrate worker (keep both sides) | — |
+| 39 | S2-09/T6 RED, S2-12/integrate, S2-06/fix-gate RED | various | spawned 04:02Z | — |
 
 ## Plugin issues found
 
@@ -486,6 +492,10 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 - gate-scaffold-verify counts symbols by bare name across the repo → a method `Op.String` collides with unrelated `version.String()`.
 
 ## Technical debt (for next planning session)
+
+- MED (S2-06/07 structural): evidence writers duplicated across fidelity/crawler/resticfx with two file-name contracts (runtime.GOOS vs caller field); consolidate into one helper later.
+
+- LOW (S2-03/08 structural): latency.Runner mirrors resticfx.Runner (deliberate decoupling); latency runner.versions and resticfx Fixture.ToolVersions both fetch tool versions — consolidate later.
 
 - S2-06 evidence: symlink `restic_ls_unreported` note is injected by the integration test post-write (T5b could only edit the test). Add a real `FileEvidence` field in production code in a follow-up.
 

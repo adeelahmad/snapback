@@ -364,3 +364,40 @@ Write every T5 test bullet in `plan.md` § T5 at the exact path::fn so each FAIL
 - all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
 - red-worker: make shim bodies differ so comparison tests cannot pass by accident.
 - all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.
+
+## S2-12/T5 · attempt 1 · scaffolder · 2026-09-22T03:56:40Z
+
+### Mandate
+Replace `web/src/zz_agentic_shim_t5.ts` with production stubs: `web/src/sections/Limits.tsx`, `Install.tsx`, `Status.tsx`, `Footer.tsx` (each returns null with a `// SUB-AGENT-TODO: <recipe from tasks.md § T5>` comment) and a `stages` export added to `web/src/content.ts` (empty array, SUB-AGENT-TODO). Change ONLY the import lines in `web/src/copy.test.tsx` and `web/src/status.test.ts` that point at the shim so they import from `./sections/*` and `./content`. Delete the shim.
+
+### Acceptance
+`npm --prefix web run lint` clean; T5 tests fail by assertion (TestVoiceLint/TestHonesty may pass); earlier tests unchanged; no shim marker; commit `chore: scaffold site limits, install, status, footer (S2-12 T5)`, no AI trailers.
+
+## S2-12/T5 · attempt 1 · green-worker · 2026-09-22T03:57:51Z
+
+### Mandate
+Implement S2-12 T5 per `tasks.md` § T5 with the least change that makes exactly the T5 vitest tests (copy.test.tsx, status.test.ts) + all earlier tests pass. LAST C3 task on this chain: full matrix + Node gates (npm ci, lint, test, build). Section ids hero, how-it-works, limits, install, status; stages from SPEC.md §22 (only stage 0 done). Limits: what snapback does NOT do (no scheduling, no retention, no file-content cache, no union/overlay FS, no Windows, Restic only). Install: exactly one 'curl -fsSL https://snapback.run/install.sh | sh'. Footer: /docs/, GitHub repo, LICENSE. Voice: lowercase snapback, no emoji, no '!', no banned icons; honest (skeleton + compatibility evidence). Tokens only; no blue/yellow text.
+
+### Scope
+#### May
+- web/src/sections/{Limits,Install,Status,Footer}.tsx, web/src/content.ts, web/src/App.tsx, web/src/styles/site.css only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § T5, `plan-ready.md` § T5, `validate.md` § T5. Chain base `chain/s2-12` @ 0961bed.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`web/src/sections/** web/src/content.ts web/src/App.tsx web/src/styles/site.css`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S2-12/integrate · attempt 1 · green-worker · 2026-09-22T04:01:55Z
+
+### Mandate
+Integrate C3 into the stage-1 line on branch `chain2/c3-int` (= stage-1): `git merge --no-ff chain2/c3-site -m "chore: merge S2-12 snapback.run site into stage-1"`, resolve the ONE conflict in `.github/workflows/ci.yml` by keeping BOTH sides (stage-1's fuse-linux upload `if-no-files-found: error` AND the new `site` job), commit; then `git merge --no-ff chain2/c3-t7 -m "chore: merge S2-12 pages layout into stage-1"` (resolve any conflict keeping both intents). Do not change anything else.
+
+### Acceptance
+Full standards matrix green; `GOTOOLCHAIN=auto go test ./...` (incl. test/site, test/ci, test/docs, test/projectdocs); in web/: npm ci, npm test, npm run lint, npm run build; actionlint clean; local dry run of the Pages assembly: `mkdocs build --strict --site-dir site && (cd web && npm run build) && rm -rf _site && mkdir -p _site/docs && cp -R web/dist/. _site/ && cp -R site/. _site/docs/ && cp install.sh _site/install.sh && test -f _site/index.html && test -f _site/docs/index.html && test -f _site/install.sh`, then delete _site/ site/ web/dist web/node_modules. Merge commits authored by the repo user, no AI trailers.

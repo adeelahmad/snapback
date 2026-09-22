@@ -224,3 +224,26 @@ Target tests PASS under `go test -race`; previously passing tests still pass; ac
 ### Memory
 - all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
 - green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S2-06/fix-gate · attempt 1 · red-worker · 2026-09-22T04:01:46Z
+
+### Mandate
+Write every fix-gate test bullet in `plan.md` § fix-gate at the exact path::fn so each FAILS BY ASSERTION (compiles, runs, assertion or t.Fatal on a missing/incorrect artifact) — never by a compile error or missing symbol. Structural review finding: fidelity.MissingPrereq treats any non-empty SNAPBACK_FUSE_TESTS (e.g. "0") as enabled, while resticfx.MissingPrerequisite and the crawler test require exactly "1". Add a table row/test: SNAPBACK_FUSE_TESTS="0" (and "yes") must return the same skip message as unset. Must FAIL BY ASSERTION on current prereq.go. Tests only.
+
+### Scope
+#### May
+- Create the test files named for fix-gate in `tasks.md`: internal/compat/fidelity/prereq_test.go only
+- Test helpers that a fix-gate test itself exercises (e.g. `repoRoot`, `readRepoFile`, `yamlBlock`, `runInstaller`) go in a marked shim `zz_agentic_shim_test.go` in the same test package (first line `// agentic:shim`) with deliberately WRONG bodies so those tests fail by assertion; helpers NOT under test may be real and live in the named helpers file.
+#### May Not
+- Create or edit any non-test artifact (workflow YAML, JSON config, install.sh, .goreleaser.yaml, SPEC.md/README.md, go.mod) — those are GREEN's job; touch other stories' files; suppress/skip tests (except the tool-absent `t.Skip` cases plan.md explicitly allows).
+
+### Inputs
+- `plan.md` § fix-gate, `tasks.md` § fix-gate (contracts), `validate.md` § fix-gate. Chain base: the story chain branch named in your prompt (stage-1 @ 2158ade = master + sprint2 plan).
+
+### Acceptance
+`go test ./test/...` for this story's package compiles; every new test FAILS by assertion; `go vet ./...` clean; diff vs BASE_REF = only this task's test files (+ shim); output.md block appended; selfcheck PASS.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
+- red-worker: make shim bodies differ so comparison tests cannot pass by accident.
+- all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.

@@ -292,3 +292,87 @@ Filled the T4 stubs on chain2/c3-t4 (base 2772af5), commit 3452960. `content.ts`
 | diff within SCOPE_GLOBS | PASS | 7 files under web/src, no tests touched |
 ### Next
 Structural review. Then T5 appends to content.ts and App.tsx. Style note: the brand asks for a top-to-45% highlight gradient on glass, but the T4 test bans `linear-gradient`, so an inset highlight shadow stands in for it (the contract wins).
+
+## S2-12/T6fix · attempt 1 · red-worker · 2026-09-22T03:53:46Z
+status: ok
+### Summary
+Fixed the test bug in `canvasValues` (test/site/meta_test.go). It decoded every colour token value as map[string]string, and tokens.json token 10 has a single-string value, so JSON decoding failed before index.html was checked. Values are now json.RawMessage and only the canvas token is decoded: a string applies to both themes, otherwise a {light,dark} object. With the fix, TestThemeColorPerScheme passes against the committed index.html (#f8f9fa light, #202124 dark). The orchestrator waived the FAIL rule for this task. Mutation check: setting the dark theme-color in index.html to #000000 makes it fail with `theme-color "(prefers-color-scheme: dark)" content = "#000000", want "#202124"` (reverted). Commit 5dd66f1, only test/site/meta_test.go changed, no shim needed.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/site/meta_test.go::TestThemeColorPerScheme` | before FAIL, after PASS (waived) | before: `decode web/tokens.json: json: cannot unmarshal string into Go struct field .color.tokens.10.value of type map[string]string` |
+| `test/site/meta_test.go::TestHeadMeta` | PASS before and after | unchanged |
+| `test/site/meta_test.go::TestMetaVoice` | PASS before and after | unchanged |
+| `test/site/meta_test.go::TestMetaIconsExist` | PASS before and after | unchanged |
+| `test/site/meta_test.go::TestNoExternalOrigins` | PASS before and after | unchanged |
+| `go test ./test/site/` | PASS | whole package green |
+| `go vet ./...` / `golangci-lint run ./test/site/...` | PASS | 0 issues |
+### Next
+Merge 5dd66f1 into chain2/c3-site. T6 GREEN needs no more work for this test; no scaffold required.
+
+## S2-12/T5 · attempt 1 · red-worker · 2026-09-22T03:55:48Z
+status: ok
+### Summary
+Wrote all 8 T5 plan bullets in web/src/copy.test.tsx (6 tests) and web/src/status.test.ts (2 tests), commit 2c5469d on the worktree branch. Limits, Install, Footer and `stages` do not exist yet. Following the T4 pattern, they come from the marked shim web/src/zz_agentic_shim_t5.ts (first line `// agentic:shim`), whose bodies are deliberately wrong. The scaffolder deletes the shim and points the imports at ./sections/{Limits,Install,Footer} and ./content. Six tests fail by assertion. TestVoiceLint and TestHonesty are static guards over copy that already exists, and that copy already satisfies them, so they pass on RED. They are written exactly as planned and not weakened. `tsc --noEmit` and `go vet ./...` are clean. test/site/meta_test.go was not touched. The TEST_GLOBS in .agentic/task.env had to gain **/*.test.ts, **/*.test.tsx and **/zz_agentic_shim_*.ts (as the brief names) for gate-red-verify to accept the TS files.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `web/src/copy.test.tsx::TestSectionOrder` | FAIL | section ids expected ['',''] to equal [hero,how-it-works,limits,install,status] |
+| `web/src/copy.test.tsx::TestVoiceLint` | PASS-ON-RED | static guard; current hero/how-it-works copy and content.ts already clean |
+| `web/src/copy.test.tsx::TestHonesty` | PASS-ON-RED | static guard; current copy has no banned claims and contains "not yet" and "Restic" |
+| `web/src/copy.test.tsx::TestLimitsSection` | FAIL | expected 'shim' to match /schedul/i |
+| `web/src/copy.test.tsx::TestInstallSection` | FAIL | install command occurrences expected 0 to be 1 |
+| `web/src/copy.test.tsx::TestFooterLinks` | FAIL | expected ['http://shim'] to include '/docs/' |
+| `web/src/status.test.ts::stageNamesMatchSPECSection22` | FAIL | stages names ['shim'] vs 8 SPEC §22 names (Scaffolding ... Release) |
+| `web/src/status.test.ts::onlyStage0IsDone` | FAIL | stages[0].state expected 'planned' to be 'done' |
+### Next
+Scaffold web/src/sections/{Limits,Install,Status,Footer}.tsx, add `Stage`/`stages` to content.ts, delete zz_agentic_shim_t5.ts and point the imports in copy.test.tsx and status.test.ts at ./sections/* and ./content. GREEN must add section ids (hero, how-it-works, limits, install, status) and the footer to App, and keep the voice and honesty guards passing.
+
+## S2-12/T5 · attempt 1 · scaffolder · 2026-09-22T03:57:31Z
+status: ok
+### Summary
+Replaced the marked shim web/src/zz_agentic_shim_t5.ts with canonical stubs, commit 0961bed on top of RED c1b9752. Limits, Install, Status and Footer each return null and carry a SUB-AGENT-TODO recipe taken from tasks.md § T5. content.ts gains StageState, Stage and an empty `stages` with a SUB-AGENT-TODO. In copy.test.tsx and status.test.ts only the shim import lines changed, as the brief directed. The shim is deleted and no `agentic:shim` marker remains. npm ci and lint (tsc --noEmit) are clean. vitest: 6 T5 tests fail by assertion, and TestVoiceLint, TestHonesty and all 13 earlier tests pass (15 passed, 6 failed).
+### Scaffold
++ create Limits @ web/src/sections/Limits.tsx
++ create Install @ web/src/sections/Install.tsx
++ create Status @ web/src/sections/Status.tsx
++ create Footer @ web/src/sections/Footer.tsx
++ update content.ts: add StageState, Stage, stages @ web/src/content.ts
+~ update import lines @ web/src/copy.test.tsx, web/src/status.test.ts
+- delete shim @ web/src/zz_agentic_shim_t5.ts
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| stubs TODO | PASS | 5 symbols (4 components return null, stages = []) |
+| npm run lint | PASS | tsc --noEmit clean |
+| T5 tests fail by assertion | PASS | 6 AssertionErrors, no import errors |
+| earlier tests | PASS | 15 passed incl. voice/honesty guards |
+| shim removed | PASS | no agentic:shim marker in web/src |
+### Next
+green: fill the stubs and content `stages`, then render Limits, Install, Status and Footer in App after HowItWorks, with section ids hero, how-it-works, limits, install and status.
+
+## S2-12/T5 · attempt 1 · green-worker · 2026-09-22T04:02:00Z
+status: ok
+
+### Summary
+Filled the T5 stubs: `content.ts` gains `stages` (the eight SPEC §22 names; stage 0 done, stage 1 in progress, 2-7 planned), `limits`, `install` and `footerLinks`. `Limits`, `Install`, `Status` and `Footer` render from content. `App` renders them after HowItWorks. Hero and HowItWorks gained `id="hero"` and `id="how-it-works"`, which TestSectionOrder needs; both files are in `web/src/sections/**`. site.css gets token-only rules for the new sections. The install command appears once in Install, reused from `hero.installCommand`. External footer links carry `rel="noopener noreferrer"`. The licence link points to the repo's LICENSE on GitHub. Commit 81ea7e0, no AI trailers.
+
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `web/src/copy.test.tsx` (6 tests) | PASS | TestSectionOrder, TestVoiceLint, TestHonesty, TestLimitsSection, TestInstallSection, TestFooterLinks |
+| `web/src/status.test.ts` (2 tests) | PASS | stageNamesMatchSPECSection22, onlyStage0IsDone |
+| earlier vitest (App, sections) | PASS | 21/21 total across 5 files |
+| `npm ci && npm run lint && npm run build` | PASS | tsc clean; vite build ok |
+| gofmt / goimports | PASS | no output |
+| `CGO_ENABLED=0 go build ./...`, `go vet ./...`, `golangci-lint run` | PASS | 0 issues |
+| `go test -race ./...` + coverage | PASS | total 82.1% (>=80%) |
+| govulncheck | PASS | no vulnerabilities |
+| actionlint | PASS | |
+| `shellcheck -s sh install.sh` | PASS | |
+| `mkdocs build --strict` | PASS | |
+| `goreleaser check` | PASS | |
+| diff scope | PASS | only web/src/sections/**, content.ts, App.tsx, styles/site.css |
+
+### Next
+Structural review of S2-12 T5, then T6 (SEO/OG meta).

@@ -56,32 +56,32 @@ Contracts under test: `tasks.md`. Vitest test names below are the `it()` titles 
 
 ## T5 — Remaining sections and copy lint
 
-- [ ] `web/src/copy.test.tsx::TestSectionOrder` — render `<App/>`; collect `<section id>` values; assert exactly `["hero","how-it-works","limits","install","status"]` followed by a `<footer>`.
-- [ ] `web/src/copy.test.tsx::TestVoiceLint` — rendered text (asserted > 200 chars) plus `content.ts` string values; assert no match of `\p{Extended_Pictographic}` (u flag), no `!`, no `Snapback`, no `snap back`, no Title Case heading (each `<h1>`-`<h3>` text: no word after the first starts uppercase except `Restic`, `Time`, `Machine`, `GitHub`, `Linux`, `macOS`, `FUSE`, `SPEC`).
-- [ ] `web/src/copy.test.tsx::TestHonesty` — rendered text; assert no case-insensitive match of `production-ready`, `cross-platform`, `static`, `finder-integrated`, `available now`, `works today`, `now supports`, `first-of-its-kind`, `borg`, `kopia`, `duplicity`, `duplicati`, `tarsnap`, `rustic`, `multi-backend`; assert no sentence containing `.snapshot` also contains `today` or `now` unless it contains `not yet`; assert text contains `not yet` and `Restic`.
-- [ ] `web/src/copy.test.tsx::TestLimitsSection` — render `<Limits/>`; assert text mentions `schedul`, `retention`, `Windows`, and `never writes` near `Restic repository`.
-- [ ] `web/src/copy.test.tsx::TestInstallSection` — render `<Install/>`; assert the command appears once, and text contains `snapback version` and `checksum`.
-- [ ] `web/src/copy.test.tsx::TestFooterLinks` — render `<Footer/>`; assert hrefs `/docs/` and `https://github.com/adeelahmad/snapback`; every `<a>` with `http` href has `rel` containing `noopener`.
-- [ ] `web/src/status.test.ts::stageNamesMatchSPECSection22` — read `../SPEC.md` via `node:fs`; parse the §22 table rows `| <n>. <name> |`; assert 8 rows parsed and `stages.map(s => s.name)` equals them in order.
-- [ ] `web/src/status.test.ts::onlyStage0IsDone` — assert `stages[0].state === "done"`, `stages[1].state === "in progress"`, and `stages.slice(2).every(s => s.state === "planned")`.
+- [x] `web/src/copy.test.tsx::TestSectionOrder` — render `<App/>`; collect `<section id>` values; assert exactly `["hero","how-it-works","limits","install","status"]` followed by a `<footer>`.
+- [x] `web/src/copy.test.tsx::TestVoiceLint` — rendered text (asserted > 200 chars) plus `content.ts` string values; assert no match of `\p{Extended_Pictographic}` (u flag), no `!`, no `Snapback`, no `snap back`, no Title Case heading (each `<h1>`-`<h3>` text: no word after the first starts uppercase except `Restic`, `Time`, `Machine`, `GitHub`, `Linux`, `macOS`, `FUSE`, `SPEC`).
+- [x] `web/src/copy.test.tsx::TestHonesty` — rendered text; assert no case-insensitive match of `production-ready`, `cross-platform`, `static`, `finder-integrated`, `available now`, `works today`, `now supports`, `first-of-its-kind`, `borg`, `kopia`, `duplicity`, `duplicati`, `tarsnap`, `rustic`, `multi-backend`; assert no sentence containing `.snapshot` also contains `today` or `now` unless it contains `not yet`; assert text contains `not yet` and `Restic`.
+- [x] `web/src/copy.test.tsx::TestLimitsSection` — render `<Limits/>`; assert text mentions `schedul`, `retention`, `Windows`, and `never writes` near `Restic repository`.
+- [x] `web/src/copy.test.tsx::TestInstallSection` — render `<Install/>`; assert the command appears once, and text contains `snapback version` and `checksum`.
+- [x] `web/src/copy.test.tsx::TestFooterLinks` — render `<Footer/>`; assert hrefs `/docs/` and `https://github.com/adeelahmad/snapback`; every `<a>` with `http` href has `rel` containing `noopener`.
+- [x] `web/src/status.test.ts::stageNamesMatchSPECSection22` — read `../SPEC.md` via `node:fs`; parse the §22 table rows `| <n>. <name> |`; assert 8 rows parsed and `stages.map(s => s.name)` equals them in order.
+- [x] `web/src/status.test.ts::onlyStage0IsDone` — assert `stages[0].state === "done"`, `stages[1].state === "in progress"`, and `stages.slice(2).every(s => s.state === "planned")`.
 
 ## T6 — Meta
 
-- [ ] `test/site/meta_test.go::TestHeadMeta` — parse `web/index.html` head with regexp over `<meta|<link|<title|<html`; table of required (selector, value): `html[lang]=en`; `title` starts `snapback`; `link[rel=canonical]=https://snapback.run/`; `meta[name=color-scheme]=light dark`; `og:url=https://snapback.run/`; `og:type=website`; `og:image=https://snapback.run/og-card-light.png`; `twitter:card=summary_large_image`; `link[rel=icon][type=image/svg+xml]=/favicon.svg`; `link[rel=apple-touch-icon]=/app-icon-180.png`; assert each present with the exact value.
-- [ ] `test/site/meta_test.go::TestThemeColorPerScheme` — assert two `theme-color` metas with `media` `(prefers-color-scheme: light)` / `dark` whose `content` equals the canvas light and dark values read from `web/tokens.json`.
-- [ ] `test/site/meta_test.go::TestMetaVoice` — collect title, description, og:title, og:description (all non-empty); assert no `!`, no `Snapback`, no emoji (rune ranges U+1F000-U+1FAFF, U+2600-U+27BF), description length 50-160.
-- [ ] `test/site/meta_test.go::TestMetaIconsExist` — for every local `href`/`content` path starting `/` in the head, assert `web/public/<path>` exists.
-- [ ] `test/site/meta_test.go::TestNoExternalOrigins` — assert no `src=` or `href=` with `http` other than the canonical, og and twitter values on `https://snapback.run/`.
+- [x] `test/site/meta_test.go::TestHeadMeta` — parse `web/index.html` head with regexp over `<meta|<link|<title|<html`; table of required (selector, value): `html[lang]=en`; `title` starts `snapback`; `link[rel=canonical]=https://snapback.run/`; `meta[name=color-scheme]=light dark`; `og:url=https://snapback.run/`; `og:type=website`; `og:image=https://snapback.run/og-card-light.png`; `twitter:card=summary_large_image`; `link[rel=icon][type=image/svg+xml]=/favicon.svg`; `link[rel=apple-touch-icon]=/app-icon-180.png`; assert each present with the exact value.
+- [x] `test/site/meta_test.go::TestThemeColorPerScheme` — assert two `theme-color` metas with `media` `(prefers-color-scheme: light)` / `dark` whose `content` equals the canvas light and dark values read from `web/tokens.json`.
+- [x] `test/site/meta_test.go::TestMetaVoice` — collect title, description, og:title, og:description (all non-empty); assert no `!`, no `Snapback`, no emoji (rune ranges U+1F000-U+1FAFF, U+2600-U+27BF), description length 50-160.
+- [x] `test/site/meta_test.go::TestMetaIconsExist` — for every local `href`/`content` path starting `/` in the head, assert `web/public/<path>` exists.
+- [x] `test/site/meta_test.go::TestNoExternalOrigins` — assert no `src=` or `href=` with `http` other than the canonical, og and twitter values on `https://snapback.run/`.
 
 ## T7 — Pages restructure
 
-- [ ] `test/docs/mkdocs_config_test.go::TestSiteURLAndName` — updated: `site_url` = `https://snapback.run/docs/`.
-- [ ] `test/docs/workflow_test.go::TestWorkflowBuildsSite` — build job has a `setup-node` step pinned `@v<major>` (not `latest`/`main`) with `node-version-file: web/.nvmrc`, and `npm ci` then `npm run build` steps with `working-directory: web`, both before the assemble step.
-- [ ] `test/docs/workflow_test.go::TestWorkflowAssemblesPagesTree` — an assemble step after both `npm run build` and `mkdocs build` copies `web/dist/.` to `_site/`, `site/.` to `_site/docs/`, and `install.sh` to `_site/install.sh`; it precedes `upload-pages-artifact`.
-- [ ] `test/docs/workflow_test.go::TestWorkflowUploadsPagesArtifact` — updated: `path: _site`.
-- [ ] `test/docs/workflow_test.go::TestWorkflowPublishesInstallScript` — updated (C1): target is `_site/install.sh`.
-- [ ] `test/docs/workflow_test.go::TestWorkflowBuildsStrict` — unchanged: `mkdocs build --strict --site-dir site` still present (the gate matrix command stays valid).
-- [ ] `test/projectdocs/readme_links_test.go::TestReadmeLinksDocs` — updated: `docsSiteURL = "https://snapback.run/docs/"`; README still has no `adeelahmad.github.io/snapback`.
+- [x] `test/docs/mkdocs_config_test.go::TestSiteURLAndName` — updated: `site_url` = `https://snapback.run/docs/`.
+- [x] `test/docs/workflow_test.go::TestWorkflowBuildsSite` — build job has a `setup-node` step pinned `@v<major>` (not `latest`/`main`) with `node-version-file: web/.nvmrc`, and `npm ci` then `npm run build` steps with `working-directory: web`, both before the assemble step.
+- [x] `test/docs/workflow_test.go::TestWorkflowAssemblesPagesTree` — an assemble step after both `npm run build` and `mkdocs build` copies `web/dist/.` to `_site/`, `site/.` to `_site/docs/`, and `install.sh` to `_site/install.sh`; it precedes `upload-pages-artifact`.
+- [x] `test/docs/workflow_test.go::TestWorkflowUploadsPagesArtifact` — updated: `path: _site`.
+- [x] `test/docs/workflow_test.go::TestWorkflowPublishesInstallScript` — updated (C1): target is `_site/install.sh`.
+- [x] `test/docs/workflow_test.go::TestWorkflowBuildsStrict` — unchanged: `mkdocs build --strict --site-dir site` still present (the gate matrix command stays valid).
+- [x] `test/projectdocs/readme_links_test.go::TestReadmeLinksDocs` — updated: `docsSiteURL = "https://snapback.run/docs/"`; README still has no `adeelahmad.github.io/snapback`.
 
 ## T8 — CI job
 
