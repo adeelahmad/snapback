@@ -8,7 +8,7 @@ import (
 
 const (
 	creditHeading = "## Prior art and credit"
-	docsSiteURL   = "https://snapback.run/"
+	docsSiteURL   = "https://snapback.run/docs/"
 	oldDocsURL    = "adeelahmad.github.io/snapback"
 )
 

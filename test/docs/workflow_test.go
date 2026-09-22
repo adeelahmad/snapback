@@ -2,6 +2,7 @@ package docs
 
 import (
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -92,7 +93,7 @@ func TestWorkflowBuildsStrict(t *testing.T) {
 
 	requireContains(t, docsWorkflowFile, text,
 		"pip install -r requirements-docs.txt",
-		"mkdocs build --strict",
+		"mkdocs build --strict --site-dir site",
 	)
 }
 
@@ -101,7 +102,7 @@ func TestWorkflowUploadsPagesArtifact(t *testing.T) {
 
 	requireContains(t, docsWorkflowFile, text,
 		"actions/upload-pages-artifact@",
-		"path: site",
+		"path: _site",
 	)
 }
 
@@ -145,8 +146,8 @@ func TestWorkflowTopLevelPermissionsReadOnly(t *testing.T) {
 }
 
 // TestWorkflowPublishesInstallScript pins that the build job copies install.sh
-// into site/ after mkdocs builds it and before the Pages artifact is uploaded,
-// so https://snapback.run/install.sh is served.
+// to _site/install.sh after mkdocs builds and before the Pages artifact is
+// uploaded, so https://snapback.run/install.sh is served.
 func TestWorkflowPublishesInstallScript(t *testing.T) {
 	text := readRepoFile(t, docsWorkflowFile)
 
@@ -158,16 +159,115 @@ func TestWorkflowPublishesInstallScript(t *testing.T) {
 		switch {
 		case mkdocsAt < 0 && strings.Contains(line, "mkdocs build"):
 			mkdocsAt = i
-		case copyAt < 0 && strings.Contains(line, "install.sh") && strings.Contains(line, "site"):
+		case copyAt < 0 && strings.Contains(line, "install.sh") && strings.Contains(line, "_site/install.sh"):
 			copyAt = i
 		case uploadAt < 0 && strings.Contains(line, "actions/upload-pages-artifact@"):
 			uploadAt = i
 		}
 	}
 	if copyAt < 0 {
-		t.Fatalf("build job: no step copies install.sh into site/")
+		t.Fatalf("build job: no step copies install.sh to _site/install.sh")
 	}
 	if mkdocsAt < 0 || uploadAt < 0 || copyAt < mkdocsAt || copyAt > uploadAt {
 		t.Errorf("build job: install.sh copy at line %d, want after mkdocs build (line %d) and before upload-pages-artifact (line %d)", copyAt, mkdocsAt, uploadAt)
 	}
+}
+
+// buildSteps returns the text of each step in the build job, in order.
+func buildSteps(t *testing.T, text string) []string {
+	t.Helper()
+	build := indentedBlock(t, text, false, "build:")
+	steps := indentedBlock(t, build, false, "steps:")
+	var out []string
+	stepIndent := -1
+	for _, line := range strings.Split(steps, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "- ") && (stepIndent < 0 || indentOf(line) == stepIndent) {
+			stepIndent = indentOf(line)
+			out = append(out, line)
+			continue
+		}
+		if len(out) > 0 {
+			out[len(out)-1] += "\n" + line
+		}
+	}
+	return out
+}
+
+// stepIndex returns the index of the first step containing every part, or -1.
+func stepIndex(steps []string, parts ...string) int {
+	for i, step := range steps {
+		ok := true
+		for _, p := range parts {
+			if !strings.Contains(step, p) {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return i
+		}
+	}
+	return -1
+}
+
+const (
+	assembleSite    = "cp -R web/dist/. _site/"
+	assembleDocs    = "cp -R site/. _site/docs/"
+	assembleInstall = "cp install.sh _site/install.sh"
+)
+
+var setupNodeRe = regexp.MustCompile(`uses:\s*actions/setup-node@v\d+\s*$`)
+
+func TestWorkflowBuildsSite(t *testing.T) {
+	steps := buildSteps(t, readRepoFile(t, docsWorkflowFile))
+
+	node := stepIndex(steps, "actions/setup-node@")
+	if node < 0 {
+		t.Fatalf("build job: no actions/setup-node step")
+	}
+	if !hasMatchingLine(steps[node], setupNodeRe) {
+		t.Errorf("build job: setup-node step = %q, want uses: actions/setup-node@v<major>", steps[node])
+	}
+	requireContains(t, "setup-node step", steps[node], "node-version-file: web/.nvmrc")
+
+	ci := stepIndex(steps, "npm ci", "working-directory: web")
+	run := stepIndex(steps, "npm run build", "working-directory: web")
+	assemble := stepIndex(steps, assembleSite)
+	if ci < 0 || run < 0 {
+		t.Fatalf("build job: npm ci step at %d, npm run build step at %d, want both with working-directory: web", ci, run)
+	}
+	if node > ci || ci > run {
+		t.Errorf("build job: setup-node at %d, npm ci at %d, npm run build at %d, want that order", node, ci, run)
+	}
+	if assemble < 0 || run > assemble {
+		t.Errorf("build job: npm run build at %d, assemble at %d, want build before assemble", run, assemble)
+	}
+}
+
+func TestWorkflowAssemblesPagesTree(t *testing.T) {
+	steps := buildSteps(t, readRepoFile(t, docsWorkflowFile))
+
+	assemble := stepIndex(steps, assembleSite, assembleDocs, assembleInstall)
+	if assemble < 0 {
+		t.Fatalf("build job: no step runs %q, %q and %q", assembleSite, assembleDocs, assembleInstall)
+	}
+	run := stepIndex(steps, "npm run build")
+	mkdocs := stepIndex(steps, "mkdocs build")
+	upload := stepIndex(steps, "actions/upload-pages-artifact@")
+	if run < 0 || mkdocs < 0 || run > assemble || mkdocs > assemble {
+		t.Errorf("build job: assemble at %d, npm run build at %d, mkdocs build at %d, want assemble after both", assemble, run, mkdocs)
+	}
+	if upload < 0 || assemble > upload {
+		t.Errorf("build job: assemble at %d, upload-pages-artifact at %d, want assemble first", assemble, upload)
+	}
+}
+
+func hasMatchingLine(block string, re *regexp.Regexp) bool {
+	for _, line := range strings.Split(block, "\n") {
+		if re.MatchString(strings.TrimRight(line, " \t\r")) {
+			return true
+		}
+	}
+	return false
 }
