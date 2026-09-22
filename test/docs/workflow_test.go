@@ -116,7 +116,7 @@ func TestWorkflowDeployJob(t *testing.T) {
 		"pages: write",
 		"id-token: write",
 	)
-	if !hasLineWith(deploy, "environment:", "github-pages") && !(strings.Contains(deploy, "environment:") && hasLineWith(deploy, "name:", "github-pages")) {
+	if !hasLineWith(deploy, "environment:", "github-pages") && (!strings.Contains(deploy, "environment:") || !hasLineWith(deploy, "name:", "github-pages")) {
 		t.Errorf("deploy job: no environment github-pages")
 	}
 }
