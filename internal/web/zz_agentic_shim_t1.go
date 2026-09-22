@@ -25,6 +25,7 @@ type Options struct {
 	Pages    *webui.Pages
 	Backend  Backend
 	StateDir string
+	History  History
 	Token    string
 	Stdout   io.Writer
 }
