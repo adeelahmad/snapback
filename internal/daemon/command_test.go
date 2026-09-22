@@ -375,3 +375,131 @@ func TestRunCommandBuilderError(t *testing.T) {
 	}
 	assertUnlocked(t, stateDir)
 }
+
+// serveSnapshot starts a fake daemon that answers OpStatus with want and
+// returns the XDG_RUNTIME_DIR holding its socket.
+func serveSnapshot(ctx context.Context, t *testing.T, want status.Snapshot) string {
+	t.Helper()
+	xdg := filepath.Dir(sockPath(t))
+	sock := ipc.SocketPath(func(string) string { return xdg }, "")
+	l, err := ipc.Listen(sock)
+	if err != nil {
+		t.Fatalf("ipc.Listen(%q) = %v", sock, err)
+	}
+	go func() {
+		_ = ipc.Serve(ctx, l, func(_ context.Context, req ipc.Request) ipc.Response {
+			if req.Op != ipc.OpStatus {
+				return ipc.Response{Code: errcode.InvalidConfig, Error: "unexpected op " + req.Op}
+			}
+			b, err := json.Marshal(want)
+			if err != nil {
+				return ipc.Response{Code: errcode.InvalidConfig, Error: err.Error()}
+			}
+			return ipc.Response{OK: true, Data: b}
+		}, ipc.ServeOptions{UID: uint32(os.Getuid())})
+	}()
+	return xdg
+}
+
+// populatedSnapshot is a snapshot whose top-level state disagrees with one
+// repository, so both the human rendering and the explanation are non-empty.
+func populatedSnapshot() status.Snapshot {
+	return status.Snapshot{
+		State: "ready",
+		Repos: []status.Repo{
+			{ID: "repoA", State: "ready"},
+			{ID: "repoB", State: "failed", Code: errcode.RepoUnavailable},
+		},
+		LastRefresh: fixedNow,
+		Generation:  7,
+		Links:       2,
+		Discovery:   "running",
+	}
+}
+
+// TestStatusCommandHuman pins that status prints the readable rendering by
+// default, followed by the state explanation.
+func TestStatusCommandHuman(t *testing.T) {
+	want := populatedSnapshot()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	env, stdout, stderr := cmdEnv(serveSnapshot(ctx, t, want), "")
+
+	code := runWithin(t, 2*time.Second, func() int { return StatusCommand().Run(ctx, env, nil) })
+
+	if code != 0 {
+		t.Fatalf("StatusCommand().Run() = %d, want 0 (stderr %q)", code, stderr.String())
+	}
+	got := stdout.String()
+	if !strings.HasPrefix(got, "snapback: ") {
+		t.Errorf("StatusCommand().Run() stdout = %q, want prefix %q", got, "snapback: ")
+	}
+	if !strings.Contains(got, "repositories:") {
+		t.Errorf("StatusCommand().Run() stdout = %q, want it to contain %q", got, "repositories:")
+	}
+	if human := RenderHuman(want); !strings.Contains(got, human) {
+		t.Errorf("StatusCommand().Run() stdout = %q, want it to contain %q", got, human)
+	}
+	if explain := explainState(want); !strings.Contains(got, explain) {
+		t.Errorf("StatusCommand().Run() stdout = %q, want it to contain %q", got, explain)
+	}
+}
+
+// TestStatusCommandJSONBytes pins the --json envelope byte for byte, because
+// the acceptance harness parses it.
+func TestStatusCommandJSONBytes(t *testing.T) {
+	want := populatedSnapshot()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	env, stdout, stderr := cmdEnv(serveSnapshot(ctx, t, want), "")
+
+	code := runWithin(t, 2*time.Second, func() int { return StatusCommand().Run(ctx, env, []string{"--json"}) })
+
+	if code != 0 {
+		t.Fatalf("StatusCommand().Run(--json) = %d, want 0 (stderr %q)", code, stderr.String())
+	}
+	data, err := json.Marshal(want)
+	if err != nil {
+		t.Fatalf("json.Marshal(want) = %v", err)
+	}
+	wantOut := `{"ok":true,"data":` + string(data) + "}\n"
+	if got := stdout.String(); got != wantOut {
+		t.Errorf("StatusCommand().Run(--json) stdout = %q, want %q", got, wantOut)
+	}
+	if stderr.Len() != 0 {
+		t.Errorf("StatusCommand().Run(--json) stderr = %q, want empty", stderr.String())
+	}
+}
+
+// TestCommandHelp pins that -h prints a real usage on stderr and exits 0.
+func TestCommandHelp(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  cli.Command
+		want []string
+	}{
+		{"run", Command(unusedBuilder(t)), []string{"Usage: snapback run [flags]", "-config"}},
+		{"status", StatusCommand(), []string{"Usage: snapback status [flags]", "-json"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env, stdout, stderr := cmdEnv("", "")
+
+			code := runWithin(t, 2*time.Second, func() int {
+				return tt.cmd.Run(context.Background(), env, []string{"-h"})
+			})
+
+			if code != 0 {
+				t.Errorf("%s -h = %d, want 0", tt.name, code)
+			}
+			if stdout.Len() != 0 {
+				t.Errorf("%s -h stdout = %q, want empty", tt.name, stdout.String())
+			}
+			for _, w := range tt.want {
+				if !strings.Contains(stderr.String(), w) {
+					t.Errorf("%s -h stderr = %q, want it to contain %q", tt.name, stderr.String(), w)
+				}
+			}
+		})
+	}
+}
