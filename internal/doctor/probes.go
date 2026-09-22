@@ -1,0 +1,86 @@
+package doctor
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"time"
+
+	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/ipc"
+	"github.com/adeelahmad/snapback/internal/mount"
+	"github.com/adeelahmad/snapback/internal/mount/gofuse"
+	"github.com/adeelahmad/snapback/internal/projection"
+	"github.com/adeelahmad/snapback/internal/provider"
+	"github.com/adeelahmad/snapback/internal/provider/restic"
+)
+
+const statusTimeout = 5 * time.Second
+
+// failedRepo reports err from every repository call.
+type failedRepo struct{ err error }
+
+func (f failedRepo) Validate(context.Context) (provider.Identity, error) {
+	return provider.Identity{}, f.err
+}
+
+func (f failedRepo) List(context.Context) ([]provider.Snapshot, error) { return nil, f.err }
+
+// resticRepos builds a restic provider for repo. It runs restic with
+// --no-lock so the doctor never writes to the repository.
+func resticRepos(repo config.Repository) (provider.Validator, provider.Lister) {
+	opts, err := restic.FromConfig(&config.Config{Repositories: []config.Repository{repo}}, repo.ID)
+	if err != nil {
+		f := failedRepo{err}
+		return f, f
+	}
+	opts.NoLock = true
+	p, err := restic.New(opts)
+	if err != nil {
+		f := failedRepo{errcode.New(errcode.InvalidConfig, "doctor repository", err)}
+		return f, f
+	}
+	return p, p
+}
+
+// dialStatus asks the running daemon for its status over the IPC socket
+// under stateDir.
+func dialStatus(ctx context.Context, stateDir string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, statusTimeout)
+	defer cancel()
+	if _, err := ipc.QueryStatus(ctx, ipc.SocketPath(os.Getenv, stateDir)); err != nil {
+		return "", err
+	}
+	return "daemon is running", nil
+}
+
+type noObserver struct{}
+
+func (noObserver) Observe(mount.Event) {}
+
+// mountTest mounts an empty history view read-only in a temporary directory
+// and unmounts it again.
+func mountTest(context.Context) error {
+	if _, err := exec.LookPath("fusermount3"); err != nil {
+		return errcode.New(errcode.PrereqMissing, "mount_test", fmt.Errorf("fusermount3 not found: %w", err))
+	}
+	dir, err := os.MkdirTemp("", "snapback-mount-test-")
+	if err != nil {
+		return errcode.New(errcode.MountFailure, "mount_test", err)
+	}
+	defer func() { _ = os.Remove(dir) }()
+	gen, err := projection.Build(projection.Spec{})
+	if err != nil {
+		return errcode.New(errcode.MountFailure, "mount_test", err)
+	}
+	a := gofuse.NewAdapter(noObserver{})
+	if err := a.Mount(dir, gen); err != nil {
+		return errcode.New(errcode.MountFailure, "mount_test", err)
+	}
+	if err := a.Unmount(); err != nil {
+		return errcode.New(errcode.MountFailure, "mount_test", err)
+	}
+	return nil
+}

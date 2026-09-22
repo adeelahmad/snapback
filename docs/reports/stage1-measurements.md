@@ -126,3 +126,103 @@ Latency go/no-go: PENDING — human decision
 - Proceed to Stage 2 with the current latency numbers.
 - Add a deeper pre-warm of the snapshot catalog before Stage 2.
 - Pull the §23 local hot-cache repository forward into an earlier stage.
+
+## Addendum A §11.1: per-file content identity (restic 0.19.0)
+
+Run on darwin/arm64 against two disposable repositories (`restic 0.19.0
+compiled with go1.26.4`), deleted after the run. Tree: `big.bin` (1 500 000 B
+random), `huge.bin` (9 000 000 B random), `mid.txt` (250 B), `small.txt` (12 B).
+
+### Fields a file node carries
+
+`restic ls --json <id>` emits per file: `name`, `type`, `path`, `uid`, `gid`,
+`size`, `mode`, `permissions`, `mtime`, `atime`, `ctime`, `inode`. It carries
+**no** `content` and no whole-file hash.
+
+`restic cat tree <snapshot-id>` (and `restic cat blob <tree-id>` for subtrees)
+emits per file: `name`, `type`, `mode`, `mtime`, `atime`, `ctime`, `uid`,
+`gid`, `user`, `group`, `inode`, `device_id`, `size`, `links`, and `content` —
+a list of data-blob IDs. Directory nodes carry `content: null` and `subtree`.
+There is **no** whole-file hash field; `content` is the only content-derived
+identity, and it is a list, not a scalar.
+
+### Cold vs warm cost
+
+With `RESTIC_CACHE_DIR` emptied, `restic cat blob <subtree-id>`:
+
+| Call | Wall time |
+| --- | --- |
+| cold (cache removed) | 0.826 s |
+| warm, run 1 | 1.287 s |
+| warm, runs 2-4 | 0.702 s, 0.713 s, 0.719 s |
+
+Both are dominated by process start and key derivation, not by the read. After
+the cold call the cache held `snapshots/`, `index/` and `data/`, totalling
+**16 K** with a single 4.0 K entry under `data/` (the tree pack), while
+`repo1/data` was **1.4 M**. No data pack was fetched. Honest limits: `fs_usage`
+needs root and was not run, so this is a cache-contents inference, not a
+syscall trace; per-call timings include restic start-up and cannot isolate the
+network or disk read.
+
+### Re-chunking
+
+Within one repository the `chunker_polynomial` is fixed (`restic cat config`
+reported `2edee7b50f2aa7` for repo1). A second backup of the unchanged tree
+produced byte-identical `content` lists for `big.bin`, `mid.txt` and
+`small.txt`. Modifying `huge.bin`, reverting it and backing up again with
+`--pack-size 64` produced the same 7-element `content` list: pack size does not
+affect chunking.
+
+A second repository (`restic init`, polynomial `38f8a858b3b20f`) backed up the
+same tree:
+
+| File | repo1 `content` | repo2 `content` |
+| --- | --- | --- |
+| `big.bin` (1 500 000 B) | 1 chunk `ebc35cc8…` | 1 chunk `ebc35cc8…` (identical) |
+| `mid.txt` (250 B) | 1 chunk `f8017b1a…` | identical |
+| `small.txt` (12 B) | 1 chunk `efde3611…` | identical |
+| `huge.bin` (9 000 000 B) | 7 chunks `711199dc…`…`6b9635f9…` | 8 chunks `1c3c6661…`…`15ed3165…`, no ID in common |
+
+Single-chunk files hash the whole file, so their one blob ID is polynomial-
+independent and matches across repositories. Multi-chunk files do not: the cut
+points differ, so every blob ID differs and there is no overlap to compare.
+
+### Conclusion
+
+Snapback can read a per-file content identity from tree metadata alone, with no
+data-blob reads: the node's `content` list. Within one repository that list is
+stable across backups and across pack-size changes, so rung 1 can compare it
+directly for same-repository instances.
+
+Across two repositories it is **not** a usable identity in general. It survives
+re-chunking only where the node's `content` holds exactly one blob — here
+`big.bin` at 1 500 000 B, `mid.txt` and `small.txt` did; for multi-chunk files
+the lists are disjoint, and restic exposes no whole-file hash to fall back on.
+For cross-repository comparison rung 1 must therefore use size plus mtime, and
+may use `content` only as an opportunistic match when both nodes have exactly
+one chunk.
+
+### Refinements (human review, 2026-09-22)
+
+**The single-chunk rule is structural, not size-based.** Chunk boundaries come
+from the per-repository Rabin polynomial (`chunker_polynomial` in the repo
+config), so blob IDs for multi-chunk files diverge across repositories. A blob
+ID is SHA-256 of the plaintext chunk, so a node whose `content` has exactly one
+entry carries an ID equal to sha256(whole file), comparable everywhere. The
+rule is `len(content) == 1`, never a byte size: files between the 512 KiB
+minimum and 8 MiB maximum chunk size can land on either side, depending on
+where the polynomial cuts.
+
+**Within one repository, `content` is the strongest signal.** The same
+polynomial means the same boundaries: an equal blob-ID list is exact content
+identity, and equal tree IDs mean identical subtrees. The primary `.snapshot`
+overlay is per repository, so for per-repository rung 1 size+mtime is the fast
+pre-filter and `content` the confirmation, not the other way round.
+
+**Chunker-copy edge case.** Stated by the human; not measured in this spike.
+`restic copy` moves blobs verbatim; it does not re-chunk. A hot-cache repository
+created without `--copy-chunker-params` holds the primary's boundaries for
+copied snapshots but its own for anything backed up into it directly, so one
+file can carry two different multi-chunk ID lists in one repository. The
+single-blob rule still holds there (still sha256(file)). Requirement for the
+§23 hot-repository item: create the cache with `--copy-chunker-params`.

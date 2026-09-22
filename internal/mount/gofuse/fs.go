@@ -2,6 +2,7 @@ package gofuse
 
 import (
 	"context"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/hanwen/go-fuse/v2/fs"
@@ -10,11 +11,13 @@ import (
 	"github.com/adeelahmad/snapback/internal/mount"
 )
 
-// dirNode is a read-only catalog directory.
+// dirNode is a read-only catalog directory. It reads the current catalog
+// through the shared pointer on every operation.
 type dirNode struct {
 	fs.Inode
-	cat  mount.Catalog
+	cat  *atomic.Pointer[mount.Catalog]
 	obs  mount.Observer
+	gate mount.Gate
 	ino  uint64
 	path string
 }
@@ -22,7 +25,7 @@ type dirNode struct {
 // symlinkNode is a read-only catalog symlink.
 type symlinkNode struct {
 	fs.Inode
-	cat  mount.Catalog
+	cat  *atomic.Pointer[mount.Catalog]
 	obs  mount.Observer
 	ino  uint64
 	path string
@@ -38,7 +41,20 @@ var (
 )
 
 func newRoot(cat mount.Catalog, obs mount.Observer) *dirNode {
-	return &dirNode{cat: cat, obs: obs, ino: mount.RootIno, path: ""}
+	p := &atomic.Pointer[mount.Catalog]{}
+	p.Store(&cat)
+	return &dirNode{cat: p, obs: obs, ino: mount.RootIno, path: ""}
+}
+
+// allow observes ev with the caller's PID and reports whether the gate, if
+// any, lets it proceed.
+func (d *dirNode) allow(ctx context.Context, op mount.Op, path string) bool {
+	ev := mount.Event{Op: op, Path: path}
+	if fc, ok := ctx.(*fuse.Context); ok {
+		ev.PID = fc.Pid
+	}
+	d.obs.Observe(ev)
+	return d.gate == nil || d.gate.Allow(ev)
 }
 
 func childPath(parent, name string) string {
@@ -57,32 +73,44 @@ func entry(ino uint64, isDir bool, name string) mount.Entry {
 
 func (d *dirNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
 	path := childPath(d.path, name)
-	d.obs.Observe(mount.Event{Op: mount.OpLookup, Path: path})
-	ino, isDir, found := d.cat.Lookup(d.ino, name)
+	if !d.allow(ctx, mount.OpLookup, path) {
+		return nil, syscall.EACCES
+	}
+	cat := *d.cat.Load()
+	ino, kind, found := cat.Lookup(d.ino, name)
 	if !found {
 		return nil, syscall.ENOENT
 	}
-	e := entry(ino, isDir, name)
-	*out = EntryOut(e, DaemonOwner())
+	e := mount.Entry{Ino: ino, Kind: kind, Name: name}
 	var node fs.InodeEmbedder
-	if isDir {
-		node = &dirNode{cat: d.cat, obs: d.obs, ino: ino, path: path}
-	} else {
+	switch kind {
+	case mount.KindDir:
+		node = &dirNode{cat: d.cat, obs: d.obs, gate: d.gate, ino: ino, path: path}
+	case mount.KindFile:
+		data, _ := cat.ReadFile(ino)
+		e.Size = uint64(len(data))
+		node = &fileNode{cat: d.cat, obs: d.obs, ino: ino, path: path}
+	default:
+		e = entry(ino, false, name)
 		node = &symlinkNode{cat: d.cat, obs: d.obs, ino: ino, path: path}
 	}
+	*out = EntryOut(e, DaemonOwner())
 	return d.NewInode(ctx, node, StableAttr(e)), 0
 }
 
 func (d *dirNode) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) {
-	d.obs.Observe(mount.Event{Op: mount.OpReadDir, Path: d.path})
-	names, found := d.cat.ReadDir(d.ino)
+	if !d.allow(ctx, mount.OpReadDir, d.path) {
+		return nil, syscall.EACCES
+	}
+	cat := *d.cat.Load()
+	names, found := cat.ReadDir(d.ino)
 	if !found {
 		return nil, syscall.ENOENT
 	}
 	entries := make([]fuse.DirEntry, 0, len(names))
 	for _, name := range names {
-		ino, isDir, _ := d.cat.Lookup(d.ino, name)
-		entries = append(entries, fuse.DirEntry{Name: name, Ino: ino, Mode: StableAttr(entry(ino, isDir, name)).Mode})
+		ino, kind, _ := cat.Lookup(d.ino, name)
+		entries = append(entries, fuse.DirEntry{Name: name, Ino: ino, Mode: StableAttr(mount.Entry{Ino: ino, Kind: kind, Name: name}).Mode})
 	}
 	return fs.NewListDirStream(entries), 0
 }
@@ -99,7 +127,7 @@ func (d *dirNode) Statfs(ctx context.Context, out *fuse.StatfsOut) syscall.Errno
 
 func (s *symlinkNode) Readlink(ctx context.Context) ([]byte, syscall.Errno) {
 	s.obs.Observe(mount.Event{Op: mount.OpReadlink, Path: s.path})
-	target, found := s.cat.Readlink(s.ino)
+	target, found := (*s.cat.Load()).Readlink(s.ino)
 	if !found {
 		return nil, syscall.ENOENT
 	}

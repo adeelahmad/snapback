@@ -1,0 +1,84 @@
+# SPEC §12 example adapted for Linux. Tests replace @TMP@ with t.TempDir().
+version: 1
+
+link_name: .snapshot
+timestamps: utc
+
+state_dir: @TMP@/state
+history_mount: @TMP@/state/mounts/history
+backend_mount_dir: @TMP@/state/mounts/repositories
+
+web:
+  enabled: true
+  listen: 127.0.0.1:0
+  open_browser: false
+  assets_dir: ""
+
+catalog:
+  refresh_interval: 60s
+  prewarm_snapshots: 2
+  prewarm_concurrency: 2
+  probe_concurrency: 4
+  presence_cache_entries: 10000
+  presence_cache_ttl: 5m
+  reader_policy:
+    deny_processes: [rg, fd, find, rsync, mdworker, mds]
+    burst_limit: 50
+
+views:
+  rsnapshot: false
+  rsnapshot_keep: {hourly: 0, daily: 7, weekly: 4, monthly: 6}
+
+discovery:
+  mode: seed
+  shell: true
+  finder: false
+  seed:
+    inode_threshold: 0.90
+    max_links_per_path: 500000
+  on_access:
+    allow_processes: [zsh, bash, fish, nautilus, dolphin, code]
+    handler_timeout: 20ms
+
+repositories:
+  - id: personal
+    repository: rclone:gdrive:Backups/restic
+    restic_binary: /usr/bin/restic
+    rclone_binary: /usr/bin/rclone
+    password_file: @TMP@/password
+    cache_dir: @TMP@/cache/restic
+    no_cache: false
+    lock_mode: normal
+    environment:
+      RCLONE_CONFIG: @TMP@/rclone.conf
+
+roots:
+  - id: work
+    local_path: @TMP@/work
+    repository_id: personal
+    prefix_map:
+      - hostname: workstation
+        source_path: /home/alex/work
+        tree_prefix: /home/alex/work
+      - hostname: alex-laptop
+        source_path: /home/alex/src/work
+        tree_prefix: /home/alex/work
+    snapshots:
+      hostname: ""
+      tags_all: []
+      source_paths_exact: []
+    seed_paths:
+      - path: project
+        max_depth: 6
+      - path: notes
+        max_depth: 3
+    exclude_relative_paths:
+      - .git
+      - node_modules
+    snap:
+      tags: [snapback:adhoc]
+
+service:
+  manager: systemd
+  scope: user
+  run_as_user: alex

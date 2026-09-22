@@ -2,8 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, stage-2]
   pull_request:
+    branches: [master, stage-2]
 
 permissions:
   contents: read
@@ -99,7 +100,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SNAPBACK_FUSE_TESTS: "1"
+      SNAPBACK_SYSTEMD_TESTS: "1"
       SNAPBACK_EVIDENCE_DIR: ${{ github.workspace }}/stage1-evidence
+      SNAPBACK_BIN: ${{ github.workspace }}/bin/snapback
     steps:
       - uses: actions/checkout@v4
 
@@ -110,7 +113,10 @@ jobs:
       - name: Install FUSE and crawler tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y fuse3 ripgrep fd-find rsync
+          sudo apt-get install -y fuse3 ripgrep fd-find rsync inotify-tools
+
+      - name: Expose fdfind as fd
+        run: sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd
 
       - name: Install restic 0.19.0
         run: |
@@ -126,7 +132,9 @@ jobs:
       - name: Integration tests
         run: |
           mkdir -p "$SNAPBACK_EVIDENCE_DIR"
-          go test -race -tags=integration ./...
+          set -o pipefail
+          # test/acceptance needs $SNAPBACK_BIN, built later; its own step runs it.
+          go list -tags=integration ./... | grep -v /test/acceptance | xargs go test -race -tags=integration
 
       - name: Upload evidence
         if: always()
@@ -134,6 +142,44 @@ jobs:
         with:
           name: stage1-evidence-linux
           path: ${{ env.SNAPBACK_EVIDENCE_DIR }}
+          if-no-files-found: error
+
+      # Acceptance evidence is collected even when the integration step fails;
+      # the job still fails because that step failed.
+      - name: Build snapback for acceptance
+        if: ${{ !cancelled() }}
+        run: go build -o "$SNAPBACK_BIN" ./cmd/snapback
+
+      - name: Start the user systemd manager
+        if: ${{ !cancelled() }}
+        run: |
+          sudo loginctl enable-linger "$USER"
+          bus="/run/user/$(id -u)/bus"
+          for _ in $(seq 30); do
+            [ -S "$bus" ] && break
+            sleep 1
+          done
+          if [ ! -S "$bus" ]; then
+            echo "::warning::user bus $bus did not appear; systemd tests will skip"
+          fi
+          echo "XDG_RUNTIME_DIR=/run/user/$(id -u)" >> "$GITHUB_ENV"
+          echo "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus" >> "$GITHUB_ENV"
+
+      # The acceptance suite lands in a later task; skip until its sources exist.
+      - name: Acceptance tests
+        if: ${{ !cancelled() && hashFiles('test/acceptance/**/*.go') != '' }}
+        env:
+          SNAPBACK_EVIDENCE_DIR: ${{ github.workspace }}/v0.1-evidence
+        run: |
+          mkdir -p "$SNAPBACK_EVIDENCE_DIR"
+          go test -race -tags=integration ./test/acceptance/...
+
+      - name: Upload v0.1 evidence
+        if: always() && hashFiles('test/acceptance/**/*.go') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: v0.1-evidence-linux
+          path: ${{ github.workspace }}/v0.1-evidence
           if-no-files-found: error
 
   site:

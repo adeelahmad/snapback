@@ -1,0 +1,277 @@
+package web
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/provider"
+	"github.com/adeelahmad/snapback/internal/provider/restic"
+	"github.com/adeelahmad/snapback/internal/rawpath"
+	"github.com/adeelahmad/snapback/internal/resolver"
+)
+
+// productionOptions builds the Options that serve uses for cfg loaded from
+// configPath: every production dependency is wired here, and serve adds only
+// the per-run fields (pages, token and stdout).
+func productionOptions(cfg *config.Config, configPath string) Options {
+	return Options{
+		Listen:    cfg.Web.Listen,
+		Backend:   fileBackend{path: configPath},
+		StateDir:  cfg.StateDir,
+		History:   mountHistory{cfg: cfg},
+		Validator: resticValidator{},
+		Opener:    openBrowser,
+	}
+}
+
+// mountHistory reads snapshot trees from the S3-05 history mount at
+// cfg.HistoryMount. It only reads; it never writes to the mount.
+type mountHistory struct {
+	cfg *config.Config
+}
+
+// mountInfo is the part of a directory's info.json that the web UI reads.
+type mountInfo struct {
+	Rel       rawpath.Path `json:"rel"`
+	State     string       `json:"state"`
+	Snapshots []struct {
+		ID    provider.SnapshotID `json:"id"`
+		Alias string              `json:"alias"`
+		Time  time.Time           `json:"time"`
+		Host  string              `json:"host"`
+	} `json:"snapshots"`
+}
+
+func (h mountHistory) Roots() []Root {
+	out := make([]Root, 0, len(h.cfg.Roots))
+	for _, r := range h.cfg.Roots {
+		state := ""
+		if inf, err := h.info(r.ID, ""); err == nil {
+			state = inf.State
+		}
+		out = append(out, Root{ID: r.ID, Path: r.LocalPath, State: state})
+	}
+	return out
+}
+
+func (h mountHistory) SnapshotDir(root string, id provider.SnapshotID) (string, time.Time, error) {
+	if !id.Valid() {
+		return "", time.Time{}, fmt.Errorf("snapshot id %q is not 64 lowercase hex", id)
+	}
+	inf, err := h.info(root, "")
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	for _, s := range inf.Snapshots {
+		if s.ID == id {
+			return filepath.Join(h.dirPath(root, ""), "snapshots", string(id)), s.Time, nil
+		}
+	}
+	return "", time.Time{}, fmt.Errorf("snapshot %s is not in root %q", id, root)
+}
+
+func (h mountHistory) List(ctx context.Context, root, dir string, id provider.SnapshotID) ([]Entry, error) {
+	rel, err := h.rel(root, dir)
+	if err != nil {
+		return nil, err
+	}
+	snap := "latest"
+	if id != "" {
+		if !id.Valid() {
+			return nil, fmt.Errorf("snapshot id %q is not 64 lowercase hex", id)
+		}
+		snap = filepath.Join("snapshots", string(id))
+	}
+	linked, sub, err := h.linkedAncestor(root, rel)
+	if err != nil {
+		return nil, err
+	}
+	des, err := os.ReadDir(filepath.Join(h.dirPath(root, linked), snap, sub))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Entry, 0, len(des))
+	for _, de := range des {
+		fi, err := de.Info()
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, Entry{Name: de.Name(), Size: fi.Size(), ModTime: fi.ModTime(), Dir: fi.IsDir()})
+	}
+	return out, nil
+}
+
+func (h mountHistory) Versions(ctx context.Context, root, file string) ([]Version, error) {
+	rel, err := h.rel(root, file)
+	if err != nil {
+		return nil, err
+	}
+	linked, sub, err := h.linkedAncestor(root, rel)
+	if err != nil {
+		return nil, err
+	}
+	inf, err := h.info(root, linked)
+	if err != nil {
+		return nil, err
+	}
+	var out []Version
+	for _, s := range inf.Snapshots {
+		fi, err := os.Stat(filepath.Join(h.dirPath(root, linked), "snapshots", string(s.ID), sub))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, Version{Snapshot: s.ID, Time: s.Time, Size: fi.Size(), ModTime: fi.ModTime()})
+	}
+	return out, nil
+}
+
+// Snapshots lists the snapshots of rel's nearest linked directory from its
+// info.json, newest first.
+func (h mountHistory) Snapshots(root, rel string) ([]SnapshotInfo, error) {
+	r, err := h.rel(root, rel)
+	if err != nil {
+		return nil, err
+	}
+	linked, _, err := h.linkedAncestor(root, r)
+	if err != nil {
+		return nil, err
+	}
+	inf, err := h.info(root, linked)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SnapshotInfo, 0, len(inf.Snapshots))
+	for _, s := range inf.Snapshots {
+		out = append(out, SnapshotInfo{ID: s.ID, Alias: s.Alias, Time: s.Time, Host: s.Host})
+	}
+	slices.SortFunc(out, func(a, b SnapshotInfo) int { return b.Time.Compare(a.Time) })
+	return out, nil
+}
+
+// LinkedDirs lists the paths, relative to root, of root's linked directories.
+func (h mountHistory) LinkedDirs(root string) ([]string, error) {
+	des, err := os.ReadDir(filepath.Join(h.cfg.HistoryMount, "roots", root, "dirs"))
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, de := range des {
+		data, err := os.ReadFile(filepath.Join(h.cfg.HistoryMount, "roots", root, "dirs", de.Name(), "info.json"))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		var inf mountInfo
+		if err := json.Unmarshal(data, &inf); err != nil {
+			return nil, fmt.Errorf("parse info.json for %s/%s: %w", root, de.Name(), err)
+		}
+		if len(inf.Rel) > 0 {
+			out = append(out, string(inf.Rel))
+		}
+	}
+	slices.Sort(out)
+	return out, nil
+}
+
+// rel returns p as a slash-separated path relative to root's local path, ""
+// for the root itself. p may be absolute or already relative to the root.
+func (h mountHistory) rel(root, p string) (string, error) {
+	if filepath.IsAbs(p) {
+		local := ""
+		for _, r := range h.cfg.Roots {
+			if r.ID == root {
+				local = r.LocalPath
+			}
+		}
+		if local == "" {
+			return "", fmt.Errorf("unknown root %q", root)
+		}
+		r, err := filepath.Rel(local, p)
+		if err != nil {
+			return "", err
+		}
+		p = r
+	}
+	if !filepath.IsLocal(p) && p != "." {
+		return "", fmt.Errorf("path %q is not inside root %q", p, root)
+	}
+	p = filepath.ToSlash(filepath.Clean(p))
+	if p == "." {
+		return "", nil
+	}
+	return p, nil
+}
+
+// linkedAncestor splits rel into the nearest directory at or above it that
+// has a history entry and the path below that directory. The mount has
+// entries only for linked directories, so an unlinked subdirectory is read
+// through its linked ancestor's snapshot trees. It returns a mapping_absent
+// error when no directory at or above rel is linked.
+func (h mountHistory) linkedAncestor(root, rel string) (linked, sub string, err error) {
+	for dir := rel; ; dir = path.Dir(dir) {
+		if dir == "." {
+			dir = ""
+		}
+		if _, err := os.Stat(filepath.Join(h.dirPath(root, dir), "info.json")); err == nil {
+			return dir, filepath.FromSlash(strings.TrimPrefix(strings.TrimPrefix(rel, dir), "/")), nil
+		}
+		if dir == "" {
+			return "", "", errcode.New(errcode.MappingAbsent, "web history",
+				fmt.Errorf("no linked directory at or above %q in root %q; run snapback link <dir>", rel, root))
+		}
+	}
+}
+
+func (h mountHistory) dirPath(root, rel string) string {
+	return filepath.Join(h.cfg.HistoryMount, "roots", root, "dirs", resolver.DirectoryKey(root, rel))
+}
+
+func (h mountHistory) info(root, rel string) (mountInfo, error) {
+	var inf mountInfo
+	data, err := os.ReadFile(filepath.Join(h.dirPath(root, rel), "info.json"))
+	if err != nil {
+		return inf, err
+	}
+	if err := json.Unmarshal(data, &inf); err != nil {
+		return inf, fmt.Errorf("parse info.json for %s/%s: %w", root, rel, err)
+	}
+	return inf, nil
+}
+
+// resticValidator validates every repository in a candidate configuration
+// with the restic provider. Restic runs with --no-lock, so it never writes
+// to the repository.
+type resticValidator struct{}
+
+func (resticValidator) Validate(ctx context.Context, c *config.Config) error {
+	for _, repo := range c.Repositories {
+		opts, err := restic.FromConfig(c, repo.ID)
+		if err != nil {
+			return err
+		}
+		opts.NoLock = true
+		p, err := restic.New(opts)
+		if err != nil {
+			return errcode.New(errcode.InvalidConfig, "web validate", err)
+		}
+		if _, err := p.Validate(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}

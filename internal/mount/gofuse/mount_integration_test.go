@@ -248,3 +248,87 @@ func TestCatalogMountLifecycle(t *testing.T) {
 		t.Errorf("evidence result = %q, want pass", got.Result)
 	}
 }
+
+func TestCatalogServesGeneratedFileAndSwaps(t *testing.T) {
+	skipWithoutFUSE(t)
+
+	info := []byte(`{"state":"ok"}`)
+	spec := projection.Spec{
+		Links: []projection.Link{{Name: "a", Target: "x"}},
+		Files: []projection.File{{Name: "info.json", Data: info}},
+	}
+	gen, err := projection.Build(spec)
+	if err != nil {
+		t.Fatalf("projection.Build(spec) error = %v", err)
+	}
+	mnt := filepath.Join(t.TempDir(), "mnt")
+	if err := os.Mkdir(mnt, 0o755); err != nil {
+		t.Fatalf("Mkdir(%s) error = %v", mnt, err)
+	}
+
+	a := NewAdapter(&recorder{})
+	if err := a.Mount(mnt, gen); err != nil {
+		t.Fatalf("Mount(%s) error = %v", mnt, err)
+	}
+	mounted := true
+	t.Cleanup(func() {
+		if mounted {
+			if err := a.Unmount(); err != nil {
+				t.Errorf("cleanup Unmount() error = %v", err)
+			}
+		}
+	})
+
+	infoPath := filepath.Join(mnt, "info.json")
+	got, err := os.ReadFile(infoPath)
+	if err != nil {
+		t.Fatalf("ReadFile(info.json) error = %v", err)
+	}
+	if string(got) != string(info) {
+		t.Errorf("ReadFile(info.json) = %q, want %q", got, info)
+	}
+	st, err := os.Stat(infoPath)
+	if err != nil {
+		t.Fatalf("Stat(info.json) error = %v", err)
+	}
+	if st.Size() != 14 {
+		t.Errorf("Stat(info.json).Size() = %d, want 14", st.Size())
+	}
+	if st.Mode().Perm() != 0o444 {
+		t.Errorf("Stat(info.json).Mode().Perm() = %o, want 444", st.Mode().Perm())
+	}
+	if err := os.WriteFile(infoPath, []byte("x"), 0o600); !errors.Is(err, syscall.EROFS) {
+		t.Errorf("WriteFile(info.json) error = %v, want EROFS", err)
+	}
+
+	inoBefore := lstatSys(t, filepath.Join(mnt, "a")).Ino
+	spec.Links = append(spec.Links, projection.Link{Name: "b", Target: "y"})
+	next, err := projection.BuildNext(gen, spec)
+	if err != nil {
+		t.Fatalf("projection.BuildNext(gen, spec) error = %v", err)
+	}
+	a.Publish(next)
+
+	deadline := time.Now().Add(2 * EntryTimeout)
+	for {
+		entries, err := os.ReadDir(mnt)
+		if err != nil {
+			t.Fatalf("ReadDir(%s) error = %v", mnt, err)
+		}
+		if slices.ContainsFunc(entries, func(e os.DirEntry) bool { return e.Name() == "b" }) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("ReadDir(%s) has no %q after %v", mnt, "b", 2*EntryTimeout)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if inoAfter := lstatSys(t, filepath.Join(mnt, "a")).Ino; inoAfter != inoBefore {
+		t.Errorf("Lstat(a) inode = %d after Publish, want %d", inoAfter, inoBefore)
+	}
+
+	if err := a.Unmount(); err != nil {
+		t.Fatalf("Unmount() error = %v", err)
+	}
+	mounted = false
+}

@@ -5,6 +5,13 @@ import (
 	"testing"
 )
 
+// Kind values mirror mount.KindDir and mount.KindSymlink; projection may not
+// import mount, so the contract is pinned by value.
+const (
+	kindDir     uint8 = 1
+	kindSymlink uint8 = 2
+)
+
 // fullID is a full 64-hex snapshot ID.
 const fullID = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -49,15 +56,15 @@ func buildFixture(t *testing.T) *Generation {
 }
 
 // lookupPath walks a slash-joined path from RootIno via Lookup.
-func lookupPath(g *Generation, path string) (ino uint64, isDir bool, found bool) {
+func lookupPath(g *Generation, path string) (ino uint64, kind uint8, found bool) {
 	ino = RootIno
 	for _, name := range strings.Split(path, "/") {
-		ino, isDir, found = g.Lookup(ino, name)
+		ino, kind, found = g.Lookup(ino, name)
 		if !found {
-			return 0, false, false
+			return 0, 0, false
 		}
 	}
-	return ino, isDir, true
+	return ino, kind, true
 }
 
 // mustLookupPath is lookupPath that fails the test when the path is missing.

@@ -1,0 +1,10 @@
+{
+  "acc": "acc-12",
+  "commit": "354ace1bbd7fc3b640b45a21aeee4f9cf5397ef8",
+  "fuse3_version": "fusermount3 version: 3.14.0",
+  "gofuse_version": "",
+  "kernel": "6.17.0-1022-azure",
+  "restic_version": "restic 0.19.0 compiled with go1.26.4 on linux/amd64",
+  "skip_reason": "",
+  "status": "pass"
+}

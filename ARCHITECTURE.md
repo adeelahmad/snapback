@@ -1,37 +1,51 @@
 # Architecture
 
-This is a skeleton. [SPEC.md](SPEC.md) is the authoritative design; this file tracks what is built against it.
+[SPEC.md](SPEC.md) is the authoritative design; this file tracks what is built against it.
 
 ## Current state
 
-Only two packages exist today:
+These packages exist today:
 
-- `cmd/snapback` — the CLI entry point.
+- `cmd/snapback` — the CLI entry point and daemon wiring.
 - `internal/version` — build version information.
-
-Everything below is planned and not yet implemented.
+- `internal/cli` — the subcommands behind a shared contract.
+- `internal/config` — configuration types, validation and persistence.
+- `internal/provider` — the `SnapshotProvider` interface; `internal/provider/restic` implements it.
+- `internal/resolver`, `internal/aliases`, `internal/history` — per-directory snapshot selection, timestamp aliases and the history view.
+- `internal/projection` — the immutable in-memory catalog.
+- `internal/mount`, `internal/mount/gofuse` — the FUSE seam and its adapter; `internal/readerpolicy` decides which processes may read the mount; `internal/recovery` cleans up mounts a crashed daemon left behind.
+- `internal/links` — managed `.snapshot` symlinks.
+- `internal/discovery/seed` — targeted path seeding and a watcher for new directories.
+- `internal/shellhook` — shell snippets that report directory changes.
+- `internal/prewarm`, `internal/refresh` — metadata pre-warm and snapshot refresh.
+- `internal/daemon`, `internal/ipc`, `internal/status` — process lifecycle, instance lock, the local JSON control channel and status reporting.
+- `internal/web`, `internal/webui` — the authenticated local HTTP API and web UI with embedded assets.
+- `internal/service` — background service install and control.
+- `internal/doctor` — read-only health checks.
+- `internal/errcode`, `internal/pathutil`, `internal/rawpath` — error codes and path helpers.
+- `internal/compat` — compatibility, fidelity and latency test harnesses.
 
 ## Planned modules
 
-From [SPEC.md](SPEC.md) section 4:
+From [SPEC.md](SPEC.md) section 4. Status reflects the packages above.
 
-| Module | Responsibility |
-| --- | --- |
-| `config` | Parse, validate, migrate and atomically persist configuration. |
-| `provider` | The `SnapshotProvider` interface. |
-| `provider/restic` | Restic implementation: subprocess execution, mount supervision, `backup`, `ls`. |
-| `resolver` | Root and per-directory snapshot selection, tree-path mapping, timestamp aliases. |
-| `projection` | Pure catalog model independent of any FUSE library. |
-| `mount` | OS FUSE adapter for the history catalog. |
-| `links` | Safe creation, registry, repair and removal of managed symlinks. |
-| `discovery/seed` | Targeted path seeding and a watcher for new directories. |
-| `discovery/onaccess` | On-access hooks (fanotify on Linux, Endpoint Security on macOS). |
-| `discovery/explicit` | Shell hook events, `link`/`open` commands, Finder Sync events. |
-| `prewarm` | Metadata pre-warm of the newest selected snapshots. |
-| `daemon` | Process lifecycle, instance lock, local IPC, refresh, health. |
-| `web` | Embedded assets and the authenticated local HTTP API. |
-| `service` | launchd, systemd and OpenRC adapters. |
-| `macos/FinderCompanion` | Swift app and Finder Sync extension. |
+| Module | Responsibility | Status |
+| --- | --- | --- |
+| `config` | Parse, validate, migrate and atomically persist configuration. | Implemented |
+| `provider` | The `SnapshotProvider` interface. | Implemented |
+| `provider/restic` | Restic implementation: subprocess execution, mount supervision, `backup`, `ls`. | Implemented |
+| `resolver` | Root and per-directory snapshot selection, tree-path mapping, timestamp aliases. | Implemented |
+| `projection` | Pure catalog model independent of any FUSE library. | Implemented |
+| `mount` | OS FUSE adapter for the history catalog. | Implemented |
+| `links` | Safe creation, registry, repair and removal of managed symlinks. | Implemented |
+| `discovery/seed` | Targeted path seeding and a watcher for new directories. | Implemented |
+| `discovery/onaccess` | On-access hooks (fanotify on Linux, Endpoint Security on macOS). | Planned |
+| `discovery/explicit` | Shell hook events, `link`/`open` commands, Finder Sync events. | Partial: shell hooks in `internal/shellhook` |
+| `prewarm` | Metadata pre-warm of the newest selected snapshots. | Implemented |
+| `daemon` | Process lifecycle, instance lock, local IPC, refresh, health. | Implemented |
+| `web` | Embedded assets and the authenticated local HTTP API. | Implemented |
+| `service` | launchd, systemd and OpenRC adapters. | Partial: systemd user scope only; launchd and OpenRC are detected and refused (follow-up per SPEC §22.1) |
+| `macos/FinderCompanion` | Swift app and Finder Sync extension. | Planned |
 
 ## Provider seam
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync/atomic"
 
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
@@ -17,17 +18,42 @@ const fsName = "snapback"
 // Adapter mounts a mount.Catalog as a read-only go-fuse filesystem.
 type Adapter struct {
 	obs    mount.Observer
+	gate   mount.Gate
+	cat    atomic.Pointer[mount.Catalog]
 	server *fuse.Server
 }
 
+// Option configures an Adapter.
+type Option func(*Adapter)
+
+// WithGate makes the adapter consult g on lookup and readdir.
+func WithGate(g mount.Gate) Option {
+	return func(a *Adapter) { a.gate = g }
+}
+
 var (
-	_ mount.Adapter = (*Adapter)(nil)
-	_ mount.Catalog = (*projection.Generation)(nil)
+	_ mount.Adapter   = (*Adapter)(nil)
+	_ mount.Publisher = (*Adapter)(nil)
+	_ mount.Catalog   = (*projection.Generation)(nil)
 )
 
 // NewAdapter returns an Adapter that reports catalog reads to obs.
-func NewAdapter(obs mount.Observer) *Adapter {
-	return &Adapter{obs: obs}
+func NewAdapter(obs mount.Observer, opts ...Option) *Adapter {
+	a := &Adapter{obs: obs}
+	for _, opt := range opts {
+		opt(a)
+	}
+	return a
+}
+
+// Publish swaps the catalog the adapter serves.
+func (a *Adapter) Publish(cat mount.Catalog) {
+	a.cat.Store(&cat)
+}
+
+// rootNode returns a root node bound to the adapter's current catalog.
+func (a *Adapter) rootNode() *dirNode {
+	return &dirNode{cat: &a.cat, obs: a.obs, gate: a.gate, ino: mount.RootIno, path: ""}
 }
 
 func mountOptions() fuse.MountOptions {
@@ -44,8 +70,9 @@ func (a *Adapter) Mount(dir string, cat mount.Catalog) error {
 	if err := preflight(dir); err != nil {
 		return err
 	}
+	a.Publish(cat)
 	opts := mountOptions()
-	server, err := fs.Mount(dir, newRoot(cat, a.obs), &fs.Options{MountOptions: opts})
+	server, err := fs.Mount(dir, a.rootNode(), &fs.Options{MountOptions: opts})
 	if err != nil {
 		return fmt.Errorf("mount %s: %w", dir, err)
 	}

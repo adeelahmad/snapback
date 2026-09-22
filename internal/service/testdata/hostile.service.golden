@@ -1,0 +1,16 @@
+# Managed by snapback; do not edit.
+[Unit]
+Description=Snapback .snapshot history
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+KillMode=mixed
+ExecStart="/opt/my apps/snapback" run --config "/home/u/cfg 100%%/$$HOME \"q\" \\x.yaml"
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+
+[Install]
+WantedBy=default.target

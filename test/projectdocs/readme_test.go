@@ -28,10 +28,11 @@ func TestReadmeLeadsWithRestoreStory(t *testing.T) {
 	}
 }
 
-func TestReadmeHasGifTodoMarkerAtTop(t *testing.T) {
-	lead := readmeLead(readDoc(t, "README.md"))
-	if !strings.Contains(lead, "<!-- TODO: restore GIF") {
-		t.Fatalf("README lead (before first ## heading) missing %q", "<!-- TODO: restore GIF")
+var placeholderMarkerRe = regexp.MustCompile(`(?i)TODO|TBD|placeholder|coming soon`)
+
+func TestReadmeHasNoPlaceholderMarkers(t *testing.T) {
+	if m := placeholderMarkerRe.FindAllString(readDoc(t, "README.md"), -1); len(m) > 0 {
+		t.Errorf("README contains placeholder markers %q, want none", m)
 	}
 }
 

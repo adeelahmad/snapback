@@ -95,10 +95,15 @@ func TestLandingHasRequiredSections(t *testing.T) {
 	}
 }
 
-func TestLandingInstallIsComingSoon(t *testing.T) {
+func TestLandingInstallBuildsFromSource(t *testing.T) {
 	section := landingSection(t, readRepoFile(t, landingFile), "## Install")
-	if !strings.Contains(section, "Coming soon") {
-		t.Errorf("`## Install` section = %q, want it to contain %q", section, "Coming soon")
+	for _, want := range []string{"go build ./cmd/snapback", "predates v0.1"} {
+		if !strings.Contains(section, want) {
+			t.Errorf("`## Install` section = %q, want it to contain %q", section, want)
+		}
+	}
+	if strings.Contains(strings.ToLower(section), "coming soon") {
+		t.Errorf("`## Install` section = %q, want no %q placeholder", section, "Coming soon")
 	}
 }
 

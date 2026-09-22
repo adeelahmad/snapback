@@ -164,6 +164,26 @@ func TestReadOnlyErrnoIsEROFS(t *testing.T) {
 	}
 }
 
+func TestAttrFileKind(t *testing.T) {
+	e := mount.Entry{Ino: 7, Kind: mount.KindFile, Size: 14}
+	if got := StableAttr(e).Mode; got != syscall.S_IFREG {
+		t.Errorf("StableAttr(%+v).Mode = %#o, want %#o", e, got, syscall.S_IFREG)
+	}
+	got := Attr(e, testOwner)
+	if want := uint32(syscall.S_IFREG | 0o444); got.Mode != want {
+		t.Errorf("Attr(%+v).Mode = %#o, want %#o", e, got.Mode, want)
+	}
+	if got.Mode&0o222 != 0 {
+		t.Errorf("Attr(%+v).Mode = %#o has write bits", e, got.Mode)
+	}
+	if got.Size != 14 {
+		t.Errorf("Attr(%+v).Size = %d, want 14", e, got.Size)
+	}
+	if FilePerm != 0o444 {
+		t.Errorf("FilePerm = %#o, want %#o", FilePerm, 0o444)
+	}
+}
+
 func TestDaemonOwner(t *testing.T) {
 	got := DaemonOwner()
 	if int(got.Uid) != os.Getuid() || int(got.Gid) != os.Getgid() {

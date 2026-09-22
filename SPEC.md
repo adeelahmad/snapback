@@ -1,3 +1,5 @@
+See SPEC-ADDENDUM-A.md (Rev 2.1) for instances, consistency, ignore files and cache configuration.
+
 # Snapback — Implementation Specification
 
 Revision 2 · 21 September 2026 · Adeel Ahmad · Supersedes "Restic directory history — Codex implementation specification" Rev 1 (20 Sep 2026)

@@ -2,13 +2,15 @@
 // adapters and observers.
 package mount
 
-// Kind is the type of a catalog entry.
-type Kind uint8
+// Kind is the type of a catalog entry. It is an alias of a predeclared type
+// so catalogs can implement Catalog without importing this package.
+type Kind = uint8
 
 // Entry kinds.
 const (
 	KindDir     Kind = 1
 	KindSymlink Kind = 2
+	KindFile    Kind = 3
 )
 
 // Entry is one node in a catalog.
@@ -16,6 +18,7 @@ type Entry struct {
 	Ino  uint64
 	Kind Kind
 	Name string
+	Size uint64
 }
 
 // RootIno is the root directory's inode in every catalog.
@@ -29,6 +32,7 @@ const (
 	OpLookup   Op = 1
 	OpReadDir  Op = 2
 	OpReadlink Op = 3
+	OpRead     Op = 4
 )
 
 // String returns the operation name.
@@ -40,6 +44,8 @@ func (o Op) String() string {
 		return "readdir"
 	case OpReadlink:
 		return "readlink"
+	case OpRead:
+		return "read"
 	default:
 		return "unknown"
 	}
@@ -49,13 +55,15 @@ func (o Op) String() string {
 type Event struct {
 	Op   Op
 	Path string
+	PID  uint32
 }
 
 // Catalog resolves inodes using predeclared types only.
 type Catalog interface {
-	Lookup(parent uint64, name string) (ino uint64, isDir bool, found bool)
+	Lookup(parent uint64, name string) (ino uint64, kind Kind, found bool)
 	ReadDir(dir uint64) (names []string, found bool)
 	Readlink(ino uint64) (target string, found bool)
+	ReadFile(ino uint64) (data []byte, found bool)
 }
 
 // Adapter mounts a Catalog at a directory.
@@ -67,4 +75,14 @@ type Adapter interface {
 // Observer receives observed operations.
 type Observer interface {
 	Observe(ev Event)
+}
+
+// Gate decides whether an observed operation may proceed.
+type Gate interface {
+	Allow(ev Event) bool
+}
+
+// Publisher swaps the catalog an adapter serves.
+type Publisher interface {
+	Publish(cat Catalog)
 }

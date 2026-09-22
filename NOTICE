@@ -5,6 +5,9 @@ This product includes software developed by third parties:
 
 - Go standard library — BSD-3-Clause (https://go.dev/LICENSE)
 - github.com/hanwen/go-fuse/v2 — BSD-3-Clause (https://github.com/hanwen/go-fuse/blob/master/LICENSE)
+- go.etcd.io/bbolt — MIT (https://github.com/etcd-io/bbolt/blob/main/LICENSE)
+- go.yaml.in/yaml/v3 — MIT and Apache-2.0 (https://github.com/yaml/go-yaml/blob/main/LICENSE)
+- Lucide icons (lucide-static v0.460.0) — ISC (https://github.com/lucide-icons/lucide/blob/main/LICENSE)
 - golang.org/x/sys — BSD-3-Clause (https://cs.opensource.google/go/x/sys/+/master:LICENSE)
 - react — MIT (https://github.com/facebook/react/blob/main/LICENSE)
 - react-dom — MIT (https://github.com/facebook/react/blob/main/LICENSE)
