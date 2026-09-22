@@ -1,5 +1,3 @@
-// agentic:shim
-
 package daemon
 
 import (
@@ -16,8 +14,8 @@ import (
 	"github.com/adeelahmad/snapback/internal/status"
 )
 
-// RefreshResult stands in for status.RefreshResult until S3-10 T2b ships it;
-// the scaffolder should turn it into an alias of status.RefreshResult.
+// RefreshResult stands in for the refresh result type until S3-10 T2b swaps
+// it for refresh.Result.
 type RefreshResult struct {
 	Generation    uint64
 	At            time.Time
@@ -88,18 +86,21 @@ type Deps struct {
 type Daemon struct{}
 
 // New returns a Daemon for cfg and deps.
-func New(cfg *config.Config, deps Deps) *Daemon { return &Daemon{} }
+func New(cfg *config.Config, deps Deps) *Daemon {
+	panic("SUB-AGENT-TODO: store cfg and deps; default Clock to time.Now and ShutdownTimeout per Decisions; initial state starting")
+}
 
 // Run starts the daemon and blocks until ctx is done.
-func (d *Daemon) Run(ctx context.Context) error { return nil }
+func (d *Daemon) Run(ctx context.Context) error {
+	panic("SUB-AGENT-TODO: reject nil cfg or empty Roots with invalid_configuration before any side effect; then Lock(stateDir) (trace lock), serve ipc on Listener (trace ipc), Recover, Supervisor.Start, Refresh (failed repos -> degraded, not fatal), Discovery.Start, Prewarm; set ready/degraded; never walk roots; block until ctx done")
+}
 
 // Status returns the daemon status.
-func (d *Daemon) Status() status.Snapshot { return status.Snapshot{State: "starting"} }
+func (d *Daemon) Status() status.Snapshot {
+	panic("SUB-AGENT-TODO: build status.Snapshot from daemon state, Supervisor.States and last RefreshResult: State starting/ready/degraded, per-repo Code (repository_unavailable for failed), Generation, LastRefresh from Clock")
+}
 
 // Run builds a Daemon and runs it.
 func Run(ctx context.Context, cfg *config.Config, deps Deps) error {
 	return New(cfg, deps).Run(ctx)
 }
-
-// Lock takes the single-instance lock in stateDir.
-func Lock(stateDir string) (unlock func(), err error) { return func() {}, nil }
