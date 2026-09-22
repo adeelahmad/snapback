@@ -82,6 +82,9 @@ main() {
 	case "$arch" in
 		arm | mips | mipsle) printf 'warning: %s/%s is an unverified target\n' "$os" "$arch" >&2 ;;
 	esac
+	if [ "$os" = darwin ]; then
+		printf 'warning: the macOS binary is a self-contained executable; its linkage and runtime are not verified, and macOS support is a follow-up\n' >&2
+	fi
 
 	install_dir="${SNAPBACK_INSTALL_DIR:-/usr/local/bin}"
 	if [ -z "${SNAPBACK_INSTALL_DIR:-}" ] && { [ ! -w "$install_dir" ] || ! on_path "$install_dir"; }; then
