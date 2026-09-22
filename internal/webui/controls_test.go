@@ -98,7 +98,7 @@ func TestControlPartialsGoldenRender(t *testing.T) {
 			view: scalar,
 			want: `<div class="field">
 <label class="field__label" for="f-repositories[0].uri">Repository URI</label>
-<input class="field__control" type="text" id="f-repositories[0].uri" name="repositories[0].uri" value="rclone:b2:bucket" aria-describedby="f-repositories[0].uri-help f-repositories[0].uri-error" required>
+<input class="field__control" type="text" id="f-repositories[0].uri" name="repositories[0].uri" value="rclone:b2:bucket" title="Where the restic repository lives." aria-describedby="f-repositories[0].uri-help f-repositories[0].uri-error" required>
 <p class="field__help" id="f-repositories[0].uri-help">Where the restic repository lives.</p>
 <p class="field__error" id="f-repositories[0].uri-error">must not be empty</p>
 </div>`,
@@ -108,7 +108,7 @@ func TestControlPartialsGoldenRender(t *testing.T) {
 			view: controlView{Path: "repositories[0].password", Label: "Password", Help: "Written to a file, never to config.yaml."},
 			want: `<div class="field">
 <label class="field__label" for="f-repositories[0].password">Password</label>
-<input class="field__control" type="password" id="f-repositories[0].password" name="repositories[0].password" autocomplete="new-password" aria-describedby="f-repositories[0].password-help f-repositories[0].password-error">
+<input class="field__control" type="password" id="f-repositories[0].password" name="repositories[0].password" autocomplete="new-password" title="Written to a file, never to config.yaml." aria-describedby="f-repositories[0].password-help f-repositories[0].password-error">
 <p class="field__help" id="f-repositories[0].password-help">Written to a file, never to config.yaml.</p>
 <p class="field__error" id="f-repositories[0].password-error"></p>
 </div>`,
@@ -118,7 +118,7 @@ func TestControlPartialsGoldenRender(t *testing.T) {
 			view: controlView{Path: "catalog.max_entries", Label: "Maximum entries", Help: "Entries kept in the catalog.", Value: "500"},
 			want: `<div class="field">
 <label class="field__label" for="f-catalog.max_entries">Maximum entries</label>
-<input class="field__control" type="number" inputmode="numeric" id="f-catalog.max_entries" name="catalog.max_entries" value="500" aria-describedby="f-catalog.max_entries-help f-catalog.max_entries-error">
+<input class="field__control" type="number" inputmode="numeric" id="f-catalog.max_entries" name="catalog.max_entries" value="500" title="Entries kept in the catalog." aria-describedby="f-catalog.max_entries-help f-catalog.max_entries-error">
 <p class="field__help" id="f-catalog.max_entries-help">Entries kept in the catalog.</p>
 <p class="field__error" id="f-catalog.max_entries-error"></p>
 </div>`,
@@ -128,7 +128,7 @@ func TestControlPartialsGoldenRender(t *testing.T) {
 			view: controlView{Path: "refresh_interval", Label: "Refresh interval", Help: "How often snapshots are re-read.", Value: "15m"},
 			want: `<div class="field">
 <label class="field__label" for="f-refresh_interval">Refresh interval</label>
-<input class="field__control" type="text" pattern="[0-9]+(ns|us|ms|s|m|h)" id="f-refresh_interval" name="refresh_interval" value="15m" aria-describedby="f-refresh_interval-help f-refresh_interval-error">
+<input class="field__control" type="text" pattern="[0-9]+(ns|us|ms|s|m|h)" id="f-refresh_interval" name="refresh_interval" value="15m" title="How often snapshots are re-read." aria-describedby="f-refresh_interval-help f-refresh_interval-error">
 <p class="field__help" id="f-refresh_interval-help">How often snapshots are re-read.</p>
 <p class="field__error" id="f-refresh_interval-error"></p>
 </div>`,
@@ -138,7 +138,7 @@ func TestControlPartialsGoldenRender(t *testing.T) {
 			view: selectView,
 			want: `<div class="field">
 <label class="field__label" for="f-repositories[0].lock_mode">Lock mode</label>
-<select class="field__control" id="f-repositories[0].lock_mode" name="repositories[0].lock_mode" aria-describedby="f-repositories[0].lock_mode-help f-repositories[0].lock_mode-error">
+<select class="field__control" id="f-repositories[0].lock_mode" name="repositories[0].lock_mode" title="How the daemon locks the repository." aria-describedby="f-repositories[0].lock_mode-help f-repositories[0].lock_mode-error">
 <option value="normal">Normal</option>
 <option value="none" selected>None</option>
 </select>
@@ -152,7 +152,7 @@ func TestControlPartialsGoldenRender(t *testing.T) {
 			want: `<div class="field field--toggle">
 <input type="hidden" name="service.enabled" value="false">
 <label class="field__label" for="f-service.enabled">Run as a service</label>
-<input class="field__control field__switch" type="checkbox" id="f-service.enabled" name="service.enabled" value="true" checked aria-describedby="f-service.enabled-help f-service.enabled-error">
+<input class="field__control field__switch" type="checkbox" id="f-service.enabled" name="service.enabled" value="true" checked title="Start the daemon at login." aria-describedby="f-service.enabled-help f-service.enabled-error">
 <span class="field__switch-track" aria-hidden="true"></span>
 <p class="field__help" id="f-service.enabled-help">Start the daemon at login.</p>
 <p class="field__error" id="f-service.enabled-error"></p>
@@ -166,7 +166,7 @@ func TestControlPartialsGoldenRender(t *testing.T) {
 <ul class="field__chips">
 <li class="chip"><input type="hidden" name="reader.deny_processes[0]" value="mds"><span class="chip__text">mds</span><button class="button-secondary chip__remove" type="button" data-js="chip-remove">Remove mds</button></li>
 </ul>
-<input class="field__control" type="text" id="f-reader.deny_processes" name="reader.deny_processes[1]" value="" data-js="chips" aria-describedby="f-reader.deny_processes-help f-reader.deny_processes-error">
+<input class="field__control" type="text" id="f-reader.deny_processes" name="reader.deny_processes[1]" value="" data-js="chips" title="Readers refused by name." aria-describedby="f-reader.deny_processes-help f-reader.deny_processes-error">
 <p class="field__help" id="f-reader.deny_processes-help">Readers refused by name.</p>
 <p class="field__error" id="f-reader.deny_processes-error"></p>
 </div>`,
@@ -178,7 +178,7 @@ func TestControlPartialsGoldenRender(t *testing.T) {
 <legend class="field__label">Roots</legend>
 <div class="field__row">
 <label class="field__label" for="f-roots[0]">Root 1</label>
-<input class="field__control" type="text" id="f-roots[0]" name="roots[0]" value="/home/a" aria-describedby="f-roots-help f-roots-error">
+<input class="field__control" type="text" id="f-roots[0]" name="roots[0]" value="/home/a" title="Directories Snapback serves." aria-describedby="f-roots-help f-roots-error">
 <button class="button-secondary" type="button" data-js="row-remove">Remove Root 1</button>
 </div>
 <button class="button-secondary" type="button" data-js="row-add">Add Roots</button>

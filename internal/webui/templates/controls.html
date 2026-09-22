@@ -1,7 +1,7 @@
 {{define "control-input" -}}
 <div class="field">
 <label class="field__label" for="f-{{.Path}}">{{.Label}}</label>
-<input class="field__control" type="text" id="f-{{.Path}}" name="{{.Path}}" value="{{.Value}}" aria-describedby="f-{{.Path}}-help f-{{.Path}}-error"{{if .Required}} required{{end}}>
+<input class="field__control" type="text" id="f-{{.Path}}" name="{{.Path}}" value="{{.Value}}"{{with .Help}} title="{{.}}" aria-describedby="f-{{$.Path}}-help f-{{$.Path}}-error"{{end}}{{if .Required}} required{{end}}>
 {{with .Help}}<p class="field__help" id="f-{{$.Path}}-help">{{.}}</p>
 {{end}}<p class="field__error" id="f-{{.Path}}-error">{{.Error}}</p>
 </div>
@@ -10,7 +10,7 @@
 {{define "control-password" -}}
 <div class="field">
 <label class="field__label" for="f-{{.Path}}">{{.Label}}</label>
-<input class="field__control" type="password" id="f-{{.Path}}" name="{{.Path}}" autocomplete="new-password" aria-describedby="f-{{.Path}}-help f-{{.Path}}-error"{{if .Required}} required{{end}}>
+<input class="field__control" type="password" id="f-{{.Path}}" name="{{.Path}}" autocomplete="new-password"{{with .Help}} title="{{.}}" aria-describedby="f-{{$.Path}}-help f-{{$.Path}}-error"{{end}}{{if .Required}} required{{end}}>
 {{with .Help}}<p class="field__help" id="f-{{$.Path}}-help">{{.}}</p>
 {{end}}<p class="field__error" id="f-{{.Path}}-error">{{.Error}}</p>
 </div>
@@ -19,7 +19,7 @@
 {{define "control-number" -}}
 <div class="field">
 <label class="field__label" for="f-{{.Path}}">{{.Label}}</label>
-<input class="field__control" type="number" inputmode="numeric" id="f-{{.Path}}" name="{{.Path}}" value="{{.Value}}" aria-describedby="f-{{.Path}}-help f-{{.Path}}-error"{{if .Required}} required{{end}}>
+<input class="field__control" type="number" inputmode="numeric" id="f-{{.Path}}" name="{{.Path}}" value="{{.Value}}"{{with .Help}} title="{{.}}" aria-describedby="f-{{$.Path}}-help f-{{$.Path}}-error"{{end}}{{if .Required}} required{{end}}>
 {{with .Help}}<p class="field__help" id="f-{{$.Path}}-help">{{.}}</p>
 {{end}}<p class="field__error" id="f-{{.Path}}-error">{{.Error}}</p>
 </div>
@@ -28,7 +28,7 @@
 {{define "control-duration" -}}
 <div class="field">
 <label class="field__label" for="f-{{.Path}}">{{.Label}}</label>
-<input class="field__control" type="text" pattern="[0-9]+(ns|us|ms|s|m|h)" id="f-{{.Path}}" name="{{.Path}}" value="{{.Value}}" aria-describedby="f-{{.Path}}-help f-{{.Path}}-error"{{if .Required}} required{{end}}>
+<input class="field__control" type="text" pattern="[0-9]+(ns|us|ms|s|m|h)" id="f-{{.Path}}" name="{{.Path}}" value="{{.Value}}"{{with .Help}} title="{{.}}" aria-describedby="f-{{$.Path}}-help f-{{$.Path}}-error"{{end}}{{if .Required}} required{{end}}>
 {{with .Help}}<p class="field__help" id="f-{{$.Path}}-help">{{.}}</p>
 {{end}}<p class="field__error" id="f-{{.Path}}-error">{{.Error}}</p>
 </div>
@@ -37,7 +37,7 @@
 {{define "control-select" -}}
 <div class="field">
 <label class="field__label" for="f-{{.Path}}">{{.Label}}</label>
-<select class="field__control" id="f-{{.Path}}" name="{{.Path}}" aria-describedby="f-{{.Path}}-help f-{{.Path}}-error"{{if .Required}} required{{end}}>
+<select class="field__control" id="f-{{.Path}}" name="{{.Path}}"{{with .Help}} title="{{.}}" aria-describedby="f-{{$.Path}}-help f-{{$.Path}}-error"{{end}}{{if .Required}} required{{end}}>
 {{range .Options}}<option value="{{.Value}}"{{if eq .Value $.Value}} selected{{end}}>{{.Label}}</option>
 {{end}}</select>
 {{with .Help}}<p class="field__help" id="f-{{$.Path}}-help">{{.}}</p>
@@ -49,7 +49,7 @@
 <div class="field field--toggle">
 <input type="hidden" name="{{.Path}}" value="false">
 <label class="field__label" for="f-{{.Path}}">{{.Label}}</label>
-<input class="field__control field__switch" type="checkbox" id="f-{{.Path}}" name="{{.Path}}" value="true"{{if eq .Value "true"}} checked{{end}} aria-describedby="f-{{.Path}}-help f-{{.Path}}-error">
+<input class="field__control field__switch" type="checkbox" id="f-{{.Path}}" name="{{.Path}}" value="true"{{if eq .Value "true"}} checked{{end}}{{with .Help}} title="{{.}}" aria-describedby="f-{{$.Path}}-help f-{{$.Path}}-error"{{end}}>
 <span class="field__switch-track" aria-hidden="true"></span>
 {{with .Help}}<p class="field__help" id="f-{{$.Path}}-help">{{.}}</p>
 {{end}}<p class="field__error" id="f-{{.Path}}-error">{{.Error}}</p>
@@ -62,7 +62,7 @@
 <ul class="field__chips">
 {{range $i, $o := .Options}}<li class="chip"><input type="hidden" name="{{$.Path}}[{{$i}}]" value="{{$o.Value}}"><span class="chip__text">{{$o.Label}}</span><button class="button-secondary chip__remove" type="button" data-js="chip-remove">Remove {{$o.Label}}</button></li>
 {{end}}</ul>
-<input class="field__control" type="text" id="f-{{.Path}}" name="{{.Path}}[{{len .Options}}]" value="" data-js="chips" aria-describedby="f-{{.Path}}-help f-{{.Path}}-error">
+<input class="field__control" type="text" id="f-{{.Path}}" name="{{.Path}}[{{len .Options}}]" value="" data-js="chips"{{with .Help}} title="{{.}}" aria-describedby="f-{{$.Path}}-help f-{{$.Path}}-error"{{end}}>
 {{with .Help}}<p class="field__help" id="f-{{$.Path}}-help">{{.}}</p>
 {{end}}<p class="field__error" id="f-{{.Path}}-error">{{.Error}}</p>
 </div>
@@ -73,7 +73,7 @@
 <legend class="field__label">{{.Label}}</legend>
 {{range $i, $o := .Options}}<div class="field__row">
 <label class="field__label" for="f-{{$.Path}}[{{$i}}]">{{$o.Label}}</label>
-<input class="field__control" type="text" id="f-{{$.Path}}[{{$i}}]" name="{{$.Path}}[{{$i}}]" value="{{$o.Value}}" aria-describedby="f-{{$.Path}}-help f-{{$.Path}}-error">
+<input class="field__control" type="text" id="f-{{$.Path}}[{{$i}}]" name="{{$.Path}}[{{$i}}]" value="{{$o.Value}}"{{with $.Help}} title="{{.}}" aria-describedby="f-{{$.Path}}-help f-{{$.Path}}-error"{{end}}>
 <button class="button-secondary" type="button" data-js="row-remove">Remove {{$o.Label}}</button>
 </div>
 {{end}}<button class="button-secondary" type="button" data-js="row-add">Add {{.Label}}</button>
