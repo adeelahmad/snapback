@@ -134,7 +134,8 @@ func unmountUnder(dir string) {
 	}
 	slices.SortFunc(points, func(a, b string) int { return len(b) - len(a) })
 	for _, p := range points {
-		if exec.Command("umount", p).Run() != nil {
+		// umount needs root for a user FUSE mount on Linux; fusermount3 does not.
+		if exec.Command("umount", p).Run() != nil && exec.Command("fusermount3", "-u", p).Run() != nil {
 			_ = exec.Command("umount", "-f", p).Run()
 		}
 	}

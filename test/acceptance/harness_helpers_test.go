@@ -275,6 +275,20 @@ func startDaemon(t *testing.T, e env) *daemon {
 		d.err = cmd.Wait()
 		close(d.done)
 	}()
-	t.Cleanup(func() { _ = d.Kill() })
+	// Stop gracefully so the daemon unmounts its restic backend and history
+	// mounts before t.TempDir removes the state directory; a SIGKILL would
+	// orphan the restic mount child and leave a read-only mount behind.
+	t.Cleanup(func() {
+		_ = d.cmd.Process.Signal(syscall.SIGTERM)
+		select {
+		case <-d.done:
+		case <-time.After(daemonStopCap):
+			t.Errorf("daemon did not exit within %s of SIGTERM; killing it", daemonStopCap)
+			_ = d.Kill()
+		}
+	})
 	return d
 }
+
+// daemonStopCap bounds how long cleanup waits for a graceful daemon stop.
+const daemonStopCap = 30 * time.Second
