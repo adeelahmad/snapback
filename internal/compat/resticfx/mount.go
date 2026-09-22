@@ -1,9 +1,7 @@
-// agentic:shim
 package resticfx
 
 import (
 	"context"
-	"errors"
 	"time"
 )
 
@@ -20,22 +18,20 @@ type Mount struct{}
 
 // StartMount starts name with args under a cancel-only context.
 func StartMount(r MountStarter, name string, args []string, mnt string) (*Mount, error) {
-	_, _, _, _ = r, name, args, mnt
-	return &Mount{}, nil
+	panic("SUB-AGENT-TODO: exec.CommandContext(cancel-only ctx, name, args...), Start, reap in a goroutine closing a done chan; return *Mount holding cmd, cancel, mnt, starter")
 }
 
 // WaitReady polls until <mnt>/ids is a directory or ctx is done.
 func (m *Mount) WaitReady(ctx context.Context) error {
-	_ = ctx
-	return errors.New("shim: WaitReady not implemented")
+	panic("SUB-AGENT-TODO: poll os.Stat(<mnt>/ids).IsDir() on a short ticker; return ctx.Err() on ctx done, error if the process exits first")
 }
 
 // Stop interrupts, unmounts and reaps the mount process; idempotent.
 func (m *Mount) Stop() error {
-	return errors.New("shim: Stop not implemented")
+	panic("SUB-AGENT-TODO: sync.Once: send os.Interrupt, wait up to Grace for exit, then Unmount(mnt) once and kill/cancel; wait for reap; return first error")
 }
 
 // Exited reports whether the mount process has been reaped.
 func (m *Mount) Exited() bool {
-	return false
+	panic("SUB-AGENT-TODO: non-blocking select on the reaper's done chan")
 }
