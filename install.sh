@@ -64,6 +64,13 @@ sha256() {
 	fi
 }
 
+on_path() {
+	case ":$PATH:" in
+		*":$1:"*) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
 main() {
 	os=$(detect_os)
 	arch=$(detect_arch)
@@ -77,6 +84,12 @@ main() {
 	esac
 
 	install_dir="${SNAPBACK_INSTALL_DIR:-/usr/local/bin}"
+	if [ -z "${SNAPBACK_INSTALL_DIR:-}" ] && { [ ! -w "$install_dir" ] || ! on_path "$install_dir"; }; then
+		install_dir="$HOME/.local/bin"
+	fi
+	if ! on_path "$install_dir"; then
+		printf 'warning: %s is not on your PATH; add it to use snapback\n' "$install_dir" >&2
+	fi
 
 	if [ "${SNAPBACK_DRY_RUN:-0}" = 1 ]; then
 		printf 'asset: %s\n' "$asset"
