@@ -73,25 +73,12 @@ roots:
 	return e
 }
 
-// snapshotIDs collects the id and snapshot_id strings of every object inside
-// a snapshots array of v.
-func snapshotIDs(v any, inSnaps bool) []string {
-	var ids []string
-	switch x := v.(type) {
-	case map[string]any:
-		for k, val := range x {
-			if s, ok := val.(string); ok && inSnaps && (k == "id" || k == "snapshot_id") {
-				ids = append(ids, s)
-				continue
-			}
-			ids = append(ids, snapshotIDs(val, inSnaps || k == "snapshots")...)
-		}
-	case []any:
-		for _, val := range x {
-			ids = append(ids, snapshotIDs(val, inSnaps)...)
-		}
-	}
-	return ids
+// acc07Info is the part of <dir>/.snapshot/info.json that Acc 7 reads.
+type acc07Info struct {
+	Snapshots []struct {
+		ID    string `json:"id"`
+		Alias string `json:"alias"`
+	} `json:"snapshots"`
 }
 
 func TestAcc07FiltersFullIDsCollisions(t *testing.T) {
@@ -121,23 +108,48 @@ func TestAcc07FiltersFullIDsCollisions(t *testing.T) {
 		t.Errorf("proj/.snapshot aliases = %q, want distinct names", aliases)
 	}
 
-	stdout, stderr, code := runSnapback(t, e, "status", "--json")
-	if code != 0 {
-		t.Fatalf("snapback status --json exit = %d, want 0; stderr: %s", code, stderr)
+	infoPath := filepath.Join(h.proj, ".snapshot", "info.json")
+	raw, err := os.ReadFile(infoPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", infoPath, err)
 	}
-	var doc any
-	if err := json.Unmarshal([]byte(stdout), &doc); err != nil {
-		t.Fatalf("snapback status --json is not JSON: %v; stdout: %s", err, stdout)
+	var doc acc07Info
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("%s is not JSON: %v; content: %s", infoPath, err, raw)
 	}
-	ids := snapshotIDs(doc, false)
-	for _, want := range []string{s1, s2} {
-		if !slices.Contains(ids, want) {
-			t.Errorf("status --json snapshot ids = %q, want full id %s", ids, want)
-		}
+	var ids, infoAliases []string
+	for _, s := range doc.Snapshots {
+		ids = append(ids, s.ID)
+		infoAliases = append(infoAliases, s.Alias)
+	}
+	slices.Sort(ids)
+	want := []string{s1, s2}
+	slices.Sort(want)
+	if !slices.Equal(ids, want) {
+		t.Errorf("info.json snapshot ids = %q, want exactly the full ids %q", ids, want)
 	}
 	for _, id := range ids {
 		if !fullID.MatchString(id) {
-			t.Errorf("status --json snapshot id %q, want 64 hex chars", id)
+			t.Errorf("info.json snapshot id %q, want 64 hex chars", id)
 		}
+	}
+	slices.Sort(infoAliases)
+	sortedAliases := slices.Sorted(slices.Values(aliases))
+	if !slices.Equal(infoAliases, sortedAliases) {
+		t.Errorf("info.json aliases = %q, want the listed aliases %q", infoAliases, sortedAliases)
+	}
+
+	snapsDir := filepath.Join(h.proj, ".snapshot", "snapshots")
+	entries, err := os.ReadDir(snapsDir)
+	if err != nil {
+		t.Fatalf("read %s: %v", snapsDir, err)
+	}
+	var dirIDs []string
+	for _, en := range entries {
+		dirIDs = append(dirIDs, en.Name())
+	}
+	slices.Sort(dirIDs)
+	if !slices.Equal(dirIDs, want) {
+		t.Errorf("%s entries = %q, want exactly the full ids %q", snapsDir, dirIDs, want)
 	}
 }
