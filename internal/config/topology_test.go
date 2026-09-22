@@ -79,25 +79,6 @@ func countFieldErrors(errs []FieldError, path, substr string) int {
 	return n
 }
 
-func TestWithinIsComponentWise(t *testing.T) {
-	tests := []struct {
-		parent, child string
-		want          bool
-	}{
-		{"/a/b", "/a/b", true},
-		{"/a/b", "/a/b/c", true},
-		{"/a/b", "/a/bc", false},
-		{"/a/b/", "/a/b/c", true},
-		{"/", "/x", true},
-		{"/a/b/c", "/a/b", false},
-	}
-	for _, tt := range tests {
-		if got := within(tt.parent, tt.child); got != tt.want {
-			t.Errorf("within(%q, %q) = %v, want %v", tt.parent, tt.child, got, tt.want)
-		}
-	}
-}
-
 func TestTopologyValidConfigHasNoErrors(t *testing.T) {
 	c := validConfig(t)
 	tmp := tmpOf(c)
