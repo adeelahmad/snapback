@@ -2,7 +2,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Header, Hero, HowItWorks } from './zz_shim_t4';
+import { Header } from './sections/Header';
+import { Hero } from './sections/Hero';
+import { HowItWorks } from './sections/HowItWorks';
 
 const installCommand = 'curl -fsSL https://snapback.run/install.sh | sh';
 const repoURL = 'https://github.com/adeelahmad/snapback';
