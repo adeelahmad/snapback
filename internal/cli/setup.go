@@ -35,6 +35,7 @@ type setupOpts struct {
 	dryRun       bool
 	force        bool
 	noPrompt     bool
+	mount        string
 	roots        []string
 }
 
@@ -72,6 +73,7 @@ func parseSetup(env Env, args []string) (setupOpts, bool, error) {
 	fs.BoolVar(&o.dryRun, "dry-run", false, "report the configuration without writing it")
 	fs.BoolVar(&o.force, "force", false, "overwrite an existing configuration")
 	fs.BoolVar(&o.noPrompt, "no-prompt", false, "do not ask any question, keep every default")
+	fs.StringVar(&o.mount, "mount", "", "")
 	help, err := ParseWithUsage(fs, args)
 	if help || err != nil {
 		return o, help, err
