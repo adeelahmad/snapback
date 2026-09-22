@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -110,6 +111,11 @@ func (v *validator) top(c *Config) {
 	}
 	if c.Timestamps != "utc" && c.Timestamps != "local" {
 		v.add("timestamps", "must be utc or local")
+	}
+	// A relative XDG_STATE_HOME would be dropped by ApplyDefaults in favour of
+	// the HOME fallback, so name it rather than leaving the user guessing.
+	if xs := os.Getenv("XDG_STATE_HOME"); xs != "" && !filepath.IsAbs(xs) {
+		v.add("state_dir", "XDG_STATE_HOME must be an absolute path")
 	}
 	v.absPath("state_dir", c.StateDir)
 	v.absPath("history_mount", c.HistoryMount)
