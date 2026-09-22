@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"maps"
 	"net"
-	"os"
 	"path/filepath"
 	"slices"
 	"time"
@@ -37,6 +36,11 @@ const (
 // daemonBuilder builds the production daemon.Deps from cfg. It opens the
 // links registry but mounts and starts nothing; the daemon's Run does that.
 func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daemon.Deps, error) {
+	m, err := cfg.Files.Modes()
+	if err != nil {
+		return daemon.Deps{}, errcode.New(errcode.InvalidConfig, daemonOp, err)
+	}
+
 	provs := make(map[string]*restic.Provider, len(cfg.Repositories))
 	mounters := make(map[string]provider.Mounter, len(cfg.Repositories))
 	listers := make(map[string]provider.Lister, len(cfg.Repositories))
@@ -50,10 +54,10 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 		listers[r.ID] = p
 	}
 
-	if err := os.MkdirAll(cfg.StateDir, 0o700); err != nil {
+	if err := fsmode.MkdirAll(cfg.StateDir, m); err != nil {
 		return daemon.Deps{}, errcode.New(errcode.PermissionDenied, daemonOp, fmt.Errorf("create state dir: %w", err))
 	}
-	reg, err := links.OpenRegistry(filepath.Join(cfg.StateDir, registryFile))
+	reg, err := links.OpenRegistryWithOptions(filepath.Join(cfg.StateDir, registryFile), links.RegistryOptions{Modes: m})
 	if err != nil {
 		return daemon.Deps{}, errcode.New(errcode.PermissionDenied, daemonOp, err)
 	}
@@ -71,6 +75,7 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 	}, readerpolicy.ProcName, time.Now)
 	view := &historyView{
 		dir:     cfg.HistoryMount,
+		modes:   m,
 		adapter: gofuse.NewAdapter(noObserver{}, gofuse.WithGate(policyGate{policy})),
 	}
 
@@ -80,18 +85,23 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 		Aliases:            aliasOptions(cfg),
 		PrewarmSnapshots:   cfg.Catalog.PrewarmSnapshots,
 		PrewarmConcurrency: cfg.Catalog.PrewarmConcurrency,
+		Modes:              m,
 		Now:                time.Now,
 	}, listers, daemon.NewReadyPublisher(view), multiPrewarmer(provs))
+	if err := ref.EnsureCacheDir(); err != nil {
+		_ = reg.Close()
+		return daemon.Deps{}, errcode.New(errcode.PermissionDenied, daemonOp, err)
+	}
 
 	return daemon.Deps{
 		Supervisor: history.NewSupervisor(mounters, cfg.BackendMountDir, history.Backoff{
 			Initial: mountBackoffInitial,
 			Max:     mountBackoffMax,
-		}),
+		}).WithModes(m),
 		History:     view,
 		Refresher:   refresher{ref: ref, view: view, repos: slices.Sorted(maps.Keys(provs))},
 		Linker:      engine,
-		MountLinker: mountLinker{eng: engine, mode: fsmode.Modes{}.OrDefault().Dir},
+		MountLinker: mountLinker{eng: engine, mode: m.Dir},
 		Recoverer: recoverer{
 			owned:   []string{cfg.HistoryMount, cfg.BackendMountDir},
 			pidFile: filepath.Join(cfg.StateDir, "daemon.pid"),

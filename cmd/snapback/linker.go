@@ -14,6 +14,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/daemon"
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/fsmode"
 	"github.com/adeelahmad/snapback/internal/ipc"
 	"github.com/adeelahmad/snapback/internal/links"
 	"github.com/adeelahmad/snapback/internal/rawpath"
@@ -62,7 +63,11 @@ func (l *lazyLinker) engine() (*links.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(cfg.StateDir, 0o700); err != nil {
+	m, err := cfg.Files.Modes()
+	if err != nil {
+		return nil, err
+	}
+	if err := fsmode.MkdirAll(cfg.StateDir, m); err != nil {
 		return nil, err
 	}
 	reg, err := openRegistry(filepath.Join(cfg.StateDir, "links.db"))

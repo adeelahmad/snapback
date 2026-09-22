@@ -14,6 +14,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/daemon"
 	"github.com/adeelahmad/snapback/internal/discovery/seed"
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/fsmode"
 	"github.com/adeelahmad/snapback/internal/links"
 	"github.com/adeelahmad/snapback/internal/mount"
 	"github.com/adeelahmad/snapback/internal/mount/gofuse"
@@ -30,6 +31,7 @@ const mountinfoPath = "/proc/self/mountinfo"
 // building it mounts nothing.
 type historyView struct {
 	dir     string
+	modes   fsmode.Modes
 	adapter *gofuse.Adapter
 
 	mu      sync.Mutex
@@ -45,7 +47,7 @@ func (h *historyView) Publish(cat mount.Catalog) {
 		h.adapter.Publish(cat)
 		return
 	}
-	if err := os.MkdirAll(h.dir, 0o700); err != nil {
+	if err := fsmode.MkdirAll(h.dir, h.modes); err != nil {
 		h.err = err
 		return
 	}

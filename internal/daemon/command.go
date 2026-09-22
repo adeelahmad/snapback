@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/fsmode"
 	"github.com/adeelahmad/snapback/internal/ipc"
 	"github.com/adeelahmad/snapback/internal/logging"
 	"github.com/adeelahmad/snapback/internal/status"
@@ -89,7 +89,7 @@ func Command(build Builder) cli.Command {
 			if err != nil {
 				return cli.WriteError(env, "run", false, err)
 			}
-			if err := os.MkdirAll(cfg.StateDir, 0o700); err != nil {
+			if err := fsmode.MkdirAll(cfg.StateDir, modes); err != nil {
 				return cli.WriteError(env, "run", false, errcode.New(errcode.PermissionDenied, "create state dir", err))
 			}
 			unlock, err := lockFunc(cfg.StateDir)
