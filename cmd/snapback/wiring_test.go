@@ -168,10 +168,11 @@ func TestIPCDaemonHistoryAvailable(t *testing.T) {
 				return statusResp(t, status.Snapshot{State: tc.state})
 			}}
 			sock := startResponder(t, r)
+			dial := dialDaemon(sock)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
-			d, err := dialDaemon(sock)(ctx)
+			d, err := dial(ctx)
 			if err != nil {
 				t.Fatalf("dialDaemon(%q)(ctx) error = %v, want nil", sock, err)
 			}
@@ -207,9 +208,10 @@ func TestIPCDaemonSnapSubmittedAndVisible(t *testing.T) {
 		return statusResp(t, status.Snapshot{State: "ready", Pending: []provider.SnapshotID{}})
 	}}
 	sock := startResponder(t, r)
+	dial := dialDaemon(sock)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	d, err := dialDaemon(sock)(ctx)
+	d, err := dial(ctx)
 	if err != nil {
 		t.Fatalf("dialDaemon(%q)(ctx) error = %v, want nil", sock, err)
 	}
