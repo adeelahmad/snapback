@@ -80,6 +80,10 @@ func (s *Server) handleAPIHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	entries, err := s.opts.History.List(r.Context(), root, dir, provider.SnapshotID(q.Get("snapshot")))
+	if errcode.Of(err) == errcode.MappingAbsent {
+		writeError(w, http.StatusNotFound, errcode.MappingAbsent, err)
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, errcode.Of(err), err)
 		return
@@ -102,6 +106,10 @@ func (s *Server) handleAPIVersions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	versions, err := s.opts.History.Versions(r.Context(), root, file)
+	if errcode.Of(err) == errcode.MappingAbsent {
+		writeError(w, http.StatusNotFound, errcode.MappingAbsent, err)
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, errcode.Of(err), err)
 		return

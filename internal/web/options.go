@@ -87,7 +87,10 @@ func (h mountHistory) List(ctx context.Context, root, dir string, id provider.Sn
 		}
 		snap = filepath.Join("snapshots", string(id))
 	}
-	linked, sub := h.linkedAncestor(root, rel)
+	linked, sub, err := h.linkedAncestor(root, rel)
+	if err != nil {
+		return nil, err
+	}
 	des, err := os.ReadDir(filepath.Join(h.dirPath(root, linked), snap, sub))
 	if err != nil {
 		return nil, err
@@ -108,17 +111,17 @@ func (h mountHistory) Versions(ctx context.Context, root, file string) ([]Versio
 	if err != nil {
 		return nil, err
 	}
-	parent, name := filepath.Dir(rel), filepath.Base(rel)
-	if parent == "." {
-		parent = ""
+	linked, sub, err := h.linkedAncestor(root, rel)
+	if err != nil {
+		return nil, err
 	}
-	inf, err := h.info(root, parent)
+	inf, err := h.info(root, linked)
 	if err != nil {
 		return nil, err
 	}
 	var out []Version
 	for _, s := range inf.Snapshots {
-		fi, err := os.Stat(filepath.Join(h.dirPath(root, parent), "snapshots", string(s.ID), name))
+		fi, err := os.Stat(filepath.Join(h.dirPath(root, linked), "snapshots", string(s.ID), sub))
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
@@ -162,18 +165,21 @@ func (h mountHistory) rel(root, p string) (string, error) {
 // linkedAncestor splits rel into the nearest directory at or above it that
 // has a history entry and the path below that directory. The mount has
 // entries only for linked directories, so an unlinked subdirectory is read
-// through its linked ancestor's snapshot trees.
-func (h mountHistory) linkedAncestor(root, rel string) (linked, sub string) {
-	for dir := rel; dir != ""; {
-		if _, err := os.Stat(filepath.Join(h.dirPath(root, dir), "info.json")); err == nil {
-			return dir, filepath.FromSlash(strings.TrimPrefix(strings.TrimPrefix(rel, dir), "/"))
-		}
-		dir = path.Dir(dir)
+// through its linked ancestor's snapshot trees. It returns a mapping_absent
+// error when no directory at or above rel is linked.
+func (h mountHistory) linkedAncestor(root, rel string) (linked, sub string, err error) {
+	for dir := rel; ; dir = path.Dir(dir) {
 		if dir == "." {
 			dir = ""
 		}
+		if _, err := os.Stat(filepath.Join(h.dirPath(root, dir), "info.json")); err == nil {
+			return dir, filepath.FromSlash(strings.TrimPrefix(strings.TrimPrefix(rel, dir), "/")), nil
+		}
+		if dir == "" {
+			return "", "", errcode.New(errcode.MappingAbsent, "web history",
+				fmt.Errorf("no linked directory at or above %q in root %q; run snapback link <dir>", rel, root))
+		}
 	}
-	return "", filepath.FromSlash(rel)
 }
 
 func (h mountHistory) dirPath(root, rel string) string {
