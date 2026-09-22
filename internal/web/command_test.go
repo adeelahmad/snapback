@@ -13,6 +13,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/adeelahmad/snapback/internal/cli"
 )
 
 // runTimeout bounds one command run so a broken command cannot hang the test.
@@ -85,7 +87,7 @@ func forceGOOS(t *testing.T, v string) {
 
 // cmdRun is one command invocation with its own config and state dir.
 type cmdRun struct {
-	env            cliEnv
+	env            cli.Env
 	stateDir       string
 	stdout, stderr *syncBuffer
 }
@@ -113,7 +115,7 @@ func newCmdRun(t *testing.T, vars map[string]string) *cmdRun {
 		t.Fatalf("os.WriteFile(config) error = %v", err)
 	}
 	r := &cmdRun{stateDir: filepath.Join(tmp, "state"), stdout: &syncBuffer{}, stderr: &syncBuffer{}}
-	r.env = cliEnv{
+	r.env = cli.Env{
 		Stdout:     r.stdout,
 		Stderr:     r.stderr,
 		Getenv:     func(k string) string { return vars[k] },
@@ -124,7 +126,7 @@ func newCmdRun(t *testing.T, vars map[string]string) *cmdRun {
 
 // run executes cmd with args. Once web.url appears it calls during (if not
 // nil) with the published URL while the server is up, then cancels ctx.
-func (r *cmdRun) run(cmd cliCommand, args []string, during func(url string)) int {
+func (r *cmdRun) run(cmd cli.Command, args []string, during func(url string)) int {
 	ctx, cancel := context.WithTimeout(context.Background(), runTimeout)
 	defer cancel()
 	done := make(chan struct{})
