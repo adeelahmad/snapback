@@ -1,0 +1,30 @@
+{{define "content"}}
+<h1>Setup</h1>
+{{if .Errors}}
+<div class="errors" role="alert">
+<ul>
+{{range .Errors}}<li>{{.}}</li>
+{{end}}</ul>
+</div>
+{{end}}
+<form method="post" action="/setup">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+<label for="restic-path">Restic binary</label>
+<select id="restic-path" name="restic_path">
+{{range .ResticPaths}}<option value="{{.}}">{{.}}</option>
+{{end}}</select>
+<label for="rclone-path">Rclone binary</label>
+<select id="rclone-path" name="rclone_path">
+<option value="">None</option>
+{{range .RclonePaths}}<option value="{{.}}">{{.}}</option>
+{{end}}</select>
+<label for="repo-uri">Repository</label>
+<input type="text" id="repo-uri" name="repo_uri" value="{{.RepoURI}}" required>
+<label for="credential-file">Password file</label>
+<input type="text" id="credential-file" name="credential_file" value="{{.CredentialFile}}">
+<label for="roots">Roots, one per line</label>
+<textarea id="roots" name="roots" rows="4">{{range .Roots}}{{.}}
+{{end}}</textarea>
+<button type="submit">Save setup</button>
+</form>
+{{end}}

@@ -1,0 +1,39 @@
+{{define "content"}}
+<h1>Configuration</h1>
+{{if .Saved}}
+<p class="notice" role="status">Saved.</p>
+{{end}}
+{{if .Errors}}
+<div class="errors" role="alert">
+<ul>
+{{range .Errors}}<li>{{.}}</li>
+{{end}}</ul>
+</div>
+{{end}}
+<form method="post" action="/config">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+<input type="hidden" name="revision" value="{{.Revision}}">
+<label for="roots">Roots, one per line</label>
+<textarea id="roots" name="roots" rows="4">{{range .Roots}}{{.}}
+{{end}}</textarea>
+<label for="filters">Filters, one per line</label>
+<textarea id="filters" name="filters" rows="3">{{range .Filters}}{{.}}
+{{end}}</textarea>
+<label for="exclusions">Exclusions, one per line</label>
+<textarea id="exclusions" name="exclusions" rows="3">{{range .Exclusions}}{{.}}
+{{end}}</textarea>
+<label for="seed-paths">Seed paths, one per line</label>
+<textarea id="seed-paths" name="seed_paths" rows="3">{{range .SeedPaths}}{{.}}
+{{end}}</textarea>
+<label for="discovery-mode">Discovery mode</label>
+<select id="discovery-mode" name="discovery_mode">
+<option value="seeded"{{if eq .DiscoveryMode "seeded"}} selected{{end}}>Targeted seeding</option>
+<option value="onaccess"{{if eq .DiscoveryMode "onaccess"}} selected{{end}}>On-access (experimental)</option>
+</select>
+<label for="cache-dir">Cache directory</label>
+<input type="text" id="cache-dir" name="cache_dir" value="{{.CacheDir}}">
+<label for="refresh-interval">Refresh interval</label>
+<input type="text" id="refresh-interval" name="refresh_interval" value="{{.RefreshInterval}}">
+<button type="submit">Save configuration</button>
+</form>
+{{end}}
