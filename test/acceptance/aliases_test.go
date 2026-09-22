@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"syscall"
@@ -186,9 +187,14 @@ func listNames(dir string) ([]string, error) {
 	return names, nil
 }
 
-// aliasesOnly drops the latest alias, leaving one entry per snapshot.
+// timestampAlias matches a timestamp alias name (SPEC: YYYY-MM-DD_HHMMZ; seconds and an ID
+// suffix on a collision; a numeric offset for local time).
+var timestampAlias = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}_\d{4}(\d{2})?(Z|[+-]\d{4})(-[0-9a-f]+)?$`)
+
+// aliasesOnly keeps the timestamp aliases, one entry per snapshot, dropping
+// latest, by-date, snapshots, info.json and any other catalog entry.
 func aliasesOnly(names []string) []string {
-	return slices.DeleteFunc(slices.Clone(names), func(n string) bool { return n == "latest" })
+	return slices.DeleteFunc(slices.Clone(names), func(n string) bool { return !timestampAlias.MatchString(n) })
 }
 
 func resticLsNode(t *testing.T, fx fixture, id, path string) histNode {
@@ -224,6 +230,9 @@ func TestAcc03AliasBytesMetadataReadOnly(t *testing.T) {
 	aliases := aliasesOnly(names)
 	if len(aliases) != 2 {
 		t.Fatalf("proj/.snapshot aliases = %q, want one per snapshot (2)", aliases)
+	}
+	if !slices.Contains(names, "latest") {
+		t.Errorf("list proj/.snapshot = %q, want latest present", names)
 	}
 	// Timestamp aliases sort chronologically, so the first is S1.
 	file := filepath.Join(h.proj, ".snapshot", aliases[0], "a.txt")

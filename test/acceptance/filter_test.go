@@ -44,7 +44,6 @@ repositories:
     restic_binary: %[3]s
     password_file: %[4]s
     cache_dir: %[1]s/cache
-    no_cache: true
 roots:
   - id: work
     local_path: %[5]s
