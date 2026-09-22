@@ -114,9 +114,9 @@ func TestLandingStatesPreRelease(t *testing.T) {
 	}
 }
 
-func TestLandingVersioningDeferred(t *testing.T) {
+func TestLandingVersioningFromMaster(t *testing.T) {
 	section := strings.ToLower(landingSection(t, readRepoFile(t, landingFile), "## Versions"))
-	for _, want := range []string{"not yet", "per release"} {
+	for _, want := range []string{"master", "not published"} {
 		if !strings.Contains(section, want) {
 			t.Errorf("`## Versions` section = %q, want it to contain %q", section, want)
 		}
