@@ -4,10 +4,10 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 26
+- **Tick:** 27
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 EXECUTION — wave 1 merged (S2-01, S2-02, S2-03 on stage-1 @ e893fea); S2-05 T1-T2 merged; wave 2: S2-04 (T1 scaffold), S2-08 (T1-T3 RED) in flight
-- **Last gate:** GREEN on stage-1 @ e893fea (full standards matrix, cov 88.6%); master @ f0f0d5b green on GitHub
+- **Last gate:** GREEN on stage-1 @ bc2a030 (full standards matrix, cov 88.2%); master @ f0f0d5b green on GitHub
 - **Human gate pending:** none (human chose push+merge to master at 01:37Z)
 
 ## Stage table (README §22)
@@ -395,6 +395,11 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 26 | S2-08/T1-T3 scaffold | scaffolder | passed — 11 symbols stubbed once, shims removed, NoThreshold guard PASS; combined with T4 RED → chain2/s2-08 891548e | — |
 | 26 | S2-04/T2 RED + T3 RED | red-worker ×2 | passed — combined: 10 FAIL by assertion; TestProjectionGenerationSatisfiesMountCatalog PASS-ON-RED (cross-story contract already satisfied by merged S2-02 — override on record, accepted); constructor chosen NewAdapter(obs mount.Observer); chain2/s2-04 → a693b36 | — |
 | 26 | S2-03/fix-hang GREEN, S2-08/T1,T2,T3 GREEN, S2-04/T2+T3 scaffold, S2-08/T4 scaffold | various | spawned 02:57Z (8 running incl. 2 structural) | — |
+| 27 | S2-08/T1,T2,T3 GREEN | green-worker ×3 | passed — combined c48ed37: 15 PASS -race (T1-T3 + guard), T4 4 FAIL as expected; lint 0 | — |
+| 27 | S2-08/T4 scaffold | scaffolder | passed — cleanup.go stubs; Runner = Run(ctx,name,args); chain2/s2-08 → 6c19b46 | — |
+| 27 | S2-03/fix-hang GREEN | green-worker | passed — WaitReady returns wrapped exit error when process dies before ids (ids checked first); 6/6 mount tests PASS -race; full matrix green; chain2/s2-03 → 1ff6f0a | — |
+| 27 | MERGE S2-03/fix-hang → stage-1 | orchestrator | bc2a030; full gate GREEN (cov 88.2%) | — |
+| 27 | S2-08/T5 RED, S2-08/T4 GREEN | red/green | spawned 02:59Z | — |
 
 ## Plugin issues found
 
