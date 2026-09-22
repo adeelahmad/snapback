@@ -127,8 +127,8 @@ func TestAcc17SystemdUserUnitVisibleAndClean(t *testing.T) {
 		_ = systemctlUser(t, e, "daemon-reload")
 	})
 
-	if _, stderr, code := runSnapback(t, e, "install", "service", "--user"); code != 0 {
-		t.Fatalf("snapback install service --user exit = %d, want 0; stderr: %s", code, stderr)
+	if _, stderr, code := runSnapback(t, e, "install", "service", "--scope", "user"); code != 0 {
+		t.Fatalf("snapback install service --scope user exit = %d, want 0; stderr: %s", code, stderr)
 	}
 	if err := systemctlUser(t, e, "start", "snapback"); err != nil {
 		t.Errorf("systemctl --user start snapback: %v, want nil", err)
