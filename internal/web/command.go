@@ -2,8 +2,6 @@ package web
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -18,7 +16,6 @@ import (
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/ipc"
-	"github.com/adeelahmad/snapback/internal/status"
 	"github.com/adeelahmad/snapback/internal/webui"
 )
 
@@ -174,21 +171,9 @@ func (b fileBackend) Status() any {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), statusTimeout)
 	defer cancel()
-	c, err := ipc.Dial(ctx, ipc.SocketPath(os.Getenv, cfg.StateDir))
+	snap, err := ipc.QueryStatus(ctx, ipc.SocketPath(os.Getenv, cfg.StateDir))
 	if err != nil {
 		return err
-	}
-	defer func() { _ = c.Close() }()
-	resp, err := c.Call(ctx, ipc.Request{V: 1, Op: ipc.OpStatus})
-	if err != nil {
-		return errcode.New(errcode.PrereqMissing, "daemon status", err)
-	}
-	if !resp.OK {
-		return errcode.New(resp.Code, "daemon status", errors.New(resp.Error))
-	}
-	var snap status.Snapshot
-	if err := json.Unmarshal(resp.Data, &snap); err != nil {
-		return fmt.Errorf("decode daemon status: %w", err)
 	}
 	return snap
 }

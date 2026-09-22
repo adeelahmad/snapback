@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/webui"
 )
@@ -61,7 +62,12 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	root, id := q.Get("root"), provider.SnapshotID(q.Get("snapshot"))
 	if root != "" && id != "" {
-		entries, err := s.opts.History.List(r.Context(), root, q.Get("path"), id)
+		dir, err := s.resolve(root, q.Get("path"))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, errcode.InvalidConfig, err)
+			return
+		}
+		entries, err := s.opts.History.List(r.Context(), root, dir, id)
 		if err != nil {
 			http.Error(w, "list failed", http.StatusInternalServerError)
 			return
