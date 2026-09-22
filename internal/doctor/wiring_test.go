@@ -12,6 +12,8 @@ import (
 
 const placeholderText = "not available yet"
 
+var placeholderTexts = []string{placeholderText, "not implemented yet"}
+
 // TestProductionProbesNotPlaceholders checks that the probes Command uses
 // reach the real system: with no restic on PATH and no daemon socket, each
 // probe reports prerequisite_missing instead of a placeholder.
@@ -56,6 +58,21 @@ func TestProductionProbesNotPlaceholders(t *testing.T) {
 			t.Errorf("DialStatus() error = %q, want no placeholder text", err)
 		}
 	})
+
+	t.Run("MountTest", func(t *testing.T) {
+		err := p.MountTest(ctx)
+		if err == nil {
+			t.Fatalf("MountTest() with empty PATH = nil error, want %s", errcode.PrereqMissing)
+		}
+		if got, want := errcode.Of(err), errcode.PrereqMissing; got != want {
+			t.Errorf("errcode.Of(MountTest()) = %q, want %q (err: %v)", got, want, err)
+		}
+		for _, text := range placeholderTexts {
+			if strings.Contains(err.Error(), text) {
+				t.Errorf("MountTest() error = %q, want no %q placeholder text", err, text)
+			}
+		}
+	})
 }
 
 // TestNoPlaceholderText guards that no production file in the package still
@@ -74,8 +91,10 @@ func TestNoPlaceholderText(t *testing.T) {
 		if err != nil {
 			t.Fatalf("os.ReadFile(%q) = %v", name, err)
 		}
-		if strings.Contains(string(b), placeholderText) {
-			t.Errorf("%s contains %q, want the probe wired to the real system", name, placeholderText)
+		for _, text := range placeholderTexts {
+			if strings.Contains(string(b), text) {
+				t.Errorf("%s contains %q, want the probe wired to the real system", name, text)
+			}
 		}
 	}
 }
