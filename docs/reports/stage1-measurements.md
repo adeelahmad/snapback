@@ -4,8 +4,8 @@ This report collects the Stage 1 measurements for Snapback. Every figure is
 copied from the evidence files under `docs/reports/stage1/`. The darwin files
 come from a local macOS host; the linux files come from the `fuse-linux` CI
 job (run 35683903691); `latency.json` comes from a run against an
-rclone Google Drive remote. The report records results. It does not make the
-latency go/no-go decision; that decision is left to a human.
+rclone Google Drive remote. The report records results. The latency call is
+left to a human; see Open items.
 
 ## Pinned versions
 
@@ -98,7 +98,19 @@ Not tested here, Linux (ubuntu-latest CI, fuse3), `vscode search`: VS Code searc
 
 ## Requirement matrix
 
-Not filled yet.
+Each row is one SPEC §22 row 1 item. The status is backed by the evidence
+files above where one exists.
+
+| Item | Status | Reason |
+| --- | --- | --- |
+| Pin dependencies | implemented and tested | go.mod pins go-fuse and the Go toolchain; the Pinned versions table is checked against go.mod and the evidence files |
+| Disposable Restic repo | implemented and tested | `internal/compat/resticfx` creates and removes a throwaway repository; its unit tests and the path-template and fidelity runs use it; no separate evidence file records it |
+| Verify --path-template ids/%I | implemented and tested | pathtemplate-darwin.json and pathtemplate-linux.json record pass |
+| Tiny directory/symlink FUSE catalog on Linux | implemented and tested | catalog-linux.json records pass |
+| Tiny directory/symlink FUSE catalog on macOS | implemented and tested | catalog-darwin.json records pass |
+| Metadata-fidelity check | implemented and tested | fidelity-darwin.json and fidelity-linux.json record pass; ctime and birth time are recorded, not claimed |
+| rclone/Google Drive latency measurements | implemented and tested | latency.json records four measurements and remote_deleted true |
+| Crawler test | implemented and tested | crawler-darwin.json and crawler-linux.json record tested rows; VS Code search is not tested here on either platform (needs a GUI session) |
 
 ## Missing evidence
 
@@ -109,4 +121,8 @@ None. All nine expected evidence files are present under `docs/reports/stage1/`:
 
 ## Open items
 
-Not filled yet.
+Latency go/no-go: PENDING — human decision
+
+- Proceed to Stage 2 with the current latency numbers.
+- Add a deeper pre-warm of the snapshot catalog before Stage 2.
+- Pull the §23 local hot-cache repository forward into an earlier stage.
