@@ -35,3 +35,6 @@ dist/
 
 .agentic
 .claude
+
+# Local build output
+/bin/
