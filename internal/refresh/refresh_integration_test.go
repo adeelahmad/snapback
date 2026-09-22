@@ -27,12 +27,15 @@ import (
 )
 
 const (
-	itRepoID   = "repo1"
-	itRootID   = "root1"
-	itKey      = "k1"
-	itFile     = "f.txt"
-	itPoll     = 100 * time.Millisecond
-	itPollCap  = 30 * time.Second
+	itRepoID = "repo1"
+	itRootID = "root1"
+	itKey    = "k1"
+	itFile   = "f.txt"
+	itPoll   = 100 * time.Millisecond
+	// itPollCap allows for restic's own snapshot-list reload window (at most
+	// 60s, per restic v0.19.0 internal/fuse/snapshots_dirstruct.go
+	// minSnapshotsReloadTime) plus one refresh cycle margin.
+	itPollCap  = 90 * time.Second
 	itReadyCap = 60 * time.Second
 	itStopCap  = 30 * time.Second
 )
