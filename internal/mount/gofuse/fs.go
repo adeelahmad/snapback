@@ -125,41 +125,41 @@ var (
 )
 
 func (d *dirNode) Mkdir(ctx context.Context, name string, mode uint32, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	panic("SUB-AGENT-TODO: tasks.md T2 - return attr.go EROFS errno, create no inode, fire no Observer event")
+	return nil, ReadOnlyErrno()
 }
 
 func (d *dirNode) Create(ctx context.Context, name string, flags uint32, mode uint32, out *fuse.EntryOut) (*fs.Inode, fs.FileHandle, uint32, syscall.Errno) {
-	panic("SUB-AGENT-TODO: tasks.md T2 - return attr.go EROFS errno, create no inode, fire no Observer event")
+	return nil, nil, 0, ReadOnlyErrno()
 }
 
 func (d *dirNode) Unlink(ctx context.Context, name string) syscall.Errno {
-	panic("SUB-AGENT-TODO: tasks.md T2 - return attr.go EROFS errno, create no inode, fire no Observer event")
+	return ReadOnlyErrno()
 }
 
 func (d *dirNode) Rmdir(ctx context.Context, name string) syscall.Errno {
-	panic("SUB-AGENT-TODO: tasks.md T2 - return attr.go EROFS errno, create no inode, fire no Observer event")
+	return ReadOnlyErrno()
 }
 
 func (d *dirNode) Rename(ctx context.Context, name string, newParent fs.InodeEmbedder, newName string, flags uint32) syscall.Errno {
-	panic("SUB-AGENT-TODO: tasks.md T2 - return attr.go EROFS errno, create no inode, fire no Observer event")
+	return ReadOnlyErrno()
 }
 
 func (d *dirNode) Symlink(ctx context.Context, target, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	panic("SUB-AGENT-TODO: tasks.md T2 - return attr.go EROFS errno, create no inode, fire no Observer event")
+	return nil, ReadOnlyErrno()
 }
 
 func (d *dirNode) Link(ctx context.Context, target fs.InodeEmbedder, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	panic("SUB-AGENT-TODO: tasks.md T2 - return attr.go EROFS errno, create no inode, fire no Observer event")
+	return nil, ReadOnlyErrno()
 }
 
 func (d *dirNode) Setattr(ctx context.Context, f fs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
-	panic("SUB-AGENT-TODO: tasks.md T2 - return attr.go EROFS errno, create no inode, fire no Observer event")
+	return ReadOnlyErrno()
 }
 
 func (d *dirNode) Write(ctx context.Context, f fs.FileHandle, data []byte, off int64) (uint32, syscall.Errno) {
-	panic("SUB-AGENT-TODO: tasks.md T2 - return attr.go EROFS errno, create no inode, fire no Observer event")
+	return 0, ReadOnlyErrno()
 }
 
 func (s *symlinkNode) Setattr(ctx context.Context, f fs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
-	panic("SUB-AGENT-TODO: tasks.md T2 - return attr.go EROFS errno, create no inode, fire no Observer event")
+	return ReadOnlyErrno()
 }
