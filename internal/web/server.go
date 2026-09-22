@@ -127,6 +127,7 @@ func (s *Server) routes() http.Handler {
 		mux.Handle("POST /config", s.requireSession(http.HandlerFunc(s.handleConfigSave)))
 		mux.Handle("GET /history", s.requireSession(http.HandlerFunc(s.handleHistory)))
 		mux.Handle("GET /integrations", s.requireSession(http.HandlerFunc(s.handleIntegrations)))
+		mux.Handle("GET /instances", s.requireSession(http.HandlerFunc(s.handleInstances)))
 	}
 	mux.Handle("GET /api/detect", s.requireSession(http.HandlerFunc(s.handleAPIDetect)))
 	mux.Handle("GET /api/status", s.requireSession(http.HandlerFunc(s.handleAPIStatus)))

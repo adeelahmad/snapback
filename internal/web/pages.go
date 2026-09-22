@@ -191,6 +191,11 @@ func (s *Server) handleIntegrations(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "integrations", webui.IntegrationsView{Chrome: s.chrome(r, "integrations", "Integrations")})
 }
 
+// handleInstances renders the backup instances as one card per repository.
+func (s *Server) handleInstances(w http.ResponseWriter, _ *http.Request) {
+	http.Error(w, "not implemented", http.StatusNotImplemented)
+}
+
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	v := webui.ConfigView{Chrome: s.chrome(r, "config", "Config"), Saved: r.URL.Query().Get("saved") == "1"}
 	if s.opts.Backend != nil {
