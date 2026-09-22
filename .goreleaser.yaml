@@ -24,10 +24,26 @@ builds:
     gomips:
       - softfloat
 
+universal_binaries:
+  - id: snapback_universal
+    ids:
+      - snapback
+    replace: false
+    name_template: snapback
+
 archives:
   - id: snapback
+    ids:
+      - snapback
     formats: [tar.gz]
     name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if or (eq .Arch "arm") (eq .Arch "mips") (eq .Arch "mipsle") }}_unverified{{ end }}'
+    files:
+      - none*
+  - id: snapback_universal
+    ids:
+      - snapback_universal
+    formats: [tar.gz]
+    name_template: '{{ .ProjectName }}_{{ .Os }}_universal'
     files:
       - none*
 
