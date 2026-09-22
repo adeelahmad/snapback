@@ -77,7 +77,7 @@ func TestParseExampleGolden(t *testing.T) {
 		StateDir:        tmp + "/state",
 		HistoryMount:    tmp + "/state/mounts/history",
 		BackendMountDir: tmp + "/state/mounts/repositories",
-		Web:             Web{Enabled: true, Listen: "127.0.0.1:0", OpenBrowser: false, AssetsDir: ""},
+		Web:             Web{Enabled: true, Listen: "127.0.0.1:0", Bind: "127.0.0.1:0", OpenBrowser: false, AssetsDir: ""},
 		Catalog: Catalog{
 			RefreshInterval:      60 * time.Second,
 			PrewarmSnapshots:     2,

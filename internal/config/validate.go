@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -126,6 +127,14 @@ func (v *validator) top(c *Config) {
 	}
 	if err != nil || (host != "127.0.0.1" && host != "::1" && host != "localhost") {
 		v.add("web.listen", "must be host:port on 127.0.0.1, ::1 or localhost")
+	}
+	for i, origin := range c.Web.AllowedOrigins {
+		if u, err := url.Parse(origin); err != nil ||
+			(u.Scheme != "http" && u.Scheme != "https") || u.Host == "" ||
+			u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+			v.add(fmt.Sprintf("web.allowed_origins[%d]", i),
+				"must be a scheme://host[:port] origin on http or https with no path, query or fragment")
+		}
 	}
 	keep := c.Views.RsnapshotKeep
 	v.atLeast("views.rsnapshot_keep.hourly", keep.Hourly, 0)

@@ -47,6 +47,9 @@ func ApplyDefaults(c *Config) {
 			c.StateDir = filepath.Join(os.Getenv("HOME"), ".local", "state", "snapback")
 		}
 	}
+	if c.Web.Bind == "" {
+		c.Web.Bind = c.Web.Listen
+	}
 	if c.HistoryMount == "" {
 		c.HistoryMount = filepath.Join(c.StateDir, "mounts", "history")
 	}
