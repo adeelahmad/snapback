@@ -16,7 +16,7 @@
 
 snapback is a restore tool for your backups. It supports Restic today; other backends are on the [roadmap](#roadmap).
 
-snapback puts a read-only `.snapshot` entry inside your directories, backed by the Restic snapshots you already have. The v0.1 acceptance run on Linux (CI, fuse3) exercised this restore, with macOS (macFUSE) as supplementary evidence; the results are in [docs/reports/v0.1-acceptance.md](docs/reports/v0.1-acceptance.md):
+snapback puts a read-only `.snapshot` entry inside your directories, backed by the Restic snapshots you already have. Here is what you get in a directory once `snapback setup` has run:
 
 ```console
 $ ls .snapshot/
@@ -25,7 +25,7 @@ $ ls .snapshot/
 $ cp .snapshot/latest/report.docx .
 ```
 
-That is the whole restore: no app to open, no browser tab, no restore wizard. Your backups, shown as ordinary read-only directories, right where the files live.
+That is the whole restore: no app to open, no browser tab, no restore wizard. Your backups, shown as ordinary read-only directories, right where the files live. The v0.1 acceptance run on Linux (CI, fuse3) exercised this restore, with macOS (macFUSE) as supplementary evidence; the results are in [docs/reports/v0.1-acceptance.md](docs/reports/v0.1-acceptance.md).
 
 ## Why
 
@@ -43,7 +43,7 @@ curl -fsSL https://snapback.run/install.sh | sh
 
 The installer downloads the latest release (v1.4.0) for your operating system and architecture, verifies it against the signed `checksums.txt`, and installs the binary to `/usr/local/bin`, or to `~/.local/bin` when that directory is not writable or not on your `PATH`.
 
-Before running it you need FUSE (`fuse3` on Linux, [macFUSE](https://macfuse.github.io) on macOS), the `restic` CLI and an existing Restic repository; setup, the service and every command are in the [usage guide](docs-site/usage.md).
+You need FUSE (`fuse3` on Linux, [macFUSE](https://macfuse.github.io) on macOS), the `restic` CLI on your `PATH`, and an existing Restic repository holding at least one snapshot of the directory you want to browse.
 
 Or build from source with Go:
 
@@ -52,6 +52,22 @@ go build ./cmd/snapback
 ```
 
 Every binary is built with `CGO_ENABLED=0`, so the Linux builds are statically linked. The `linux/arm`, `linux/mips` and `linux/mipsle` archives carry an `_unverified` suffix: they are cross-compiled but never run on that hardware, and the macOS binaries' linkage and runtime are unverified too. All assets are on the [releases page](https://github.com/adeelahmad/snapback/releases).
+
+## Quick start
+
+```sh
+curl -fsSL https://snapback.run/install.sh | sh
+cd ~/project && snapback setup
+ls .snapshot
+```
+
+`snapback setup` reads the machine instead of asking you to describe it: it takes the repository from `RESTIC_REPOSITORY` and the password file from `RESTIC_PASSWORD_FILE`, takes the directory you ran it in as the backup root, asks the repository for the snapshot host and paths, prints each fact it found and writes the configuration for you. Restoring is then an ordinary copy:
+
+```sh
+cp .snapshot/latest/report.docx .
+```
+
+On macOS, setup writes the configuration only: start the daemon yourself with `snapback run`, which stays in the foreground, because the login service is Linux-only for now. Every flag and command is in the [usage guide](docs-site/usage.md).
 
 ## How it works
 
