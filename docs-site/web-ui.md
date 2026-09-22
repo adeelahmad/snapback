@@ -64,8 +64,10 @@ size and modified time are marked "likely identical". Each version has two actio
 
 The Configuration page edits the roots, filters, exclusions and seed paths (one per line),
 the discovery mode, the cache directory and the refresh interval, filled from the current
-configuration. In this build the **Save configuration** button posts to `/config`, which has
-no save handler, so it does not write anything. Edit the configuration file instead; see
+configuration. The **Save configuration** button posts the form to `/config`, which writes
+the configuration file under the revision the page was loaded with: it redirects back with
+a "Saved." notice, or re-renders the form with your values and the reason it was rejected,
+including when the file changed underneath you. See
 [Configuration](configuration.md) for every key.
 
 ## Setup
@@ -73,9 +75,9 @@ no save handler, so it does not write anything. Edit the configuration file inst
 ![Setup page with fields for the Restic binary, the Rclone binary, the repository, the password file and the roots](img/webui-setup.png)
 
 The Setup page picks the Restic binary and, if one is used, the Rclone binary, then takes the
-repository, the password file and the roots. In this build the **Save setup** button posts
-to `/setup`, which has no save handler, so it does not write anything. Write the
-configuration file as described in [Configuration](configuration.md).
+repository, the password file and the roots. The **Save setup** button posts the form to
+`/setup`, which checks the repository and then writes the configuration file, and sends you
+to the Status page. Every key is described in [Configuration](configuration.md).
 
 ## Security
 

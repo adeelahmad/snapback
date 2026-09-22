@@ -168,7 +168,7 @@ func (s *Server) handleIntegrations(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
-	v := webui.ConfigView{Chrome: s.chrome(r, "config", "Config")}
+	v := webui.ConfigView{Chrome: s.chrome(r, "config", "Config"), Saved: r.URL.Query().Get("saved") == "1"}
 	if s.opts.Backend != nil {
 		cfg, rev, err := s.opts.Backend.Config()
 		if err != nil {
