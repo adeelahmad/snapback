@@ -238,9 +238,23 @@ func buildFixture(t *testing.T) fixture {
 	return fx
 }
 
+// helpListsCommand reports whether the `snapback help` command listing names
+// cmd. It reads the listing instead of running the command, because a
+// command's own --help may load config first and fail for unrelated reasons.
+func helpListsCommand(t *testing.T, e env, cmd string) bool {
+	t.Helper()
+	stdout, stderr, _ := runSnapback(t, e, "help")
+	for _, line := range strings.Split(stdout+"\n"+stderr, "\n") {
+		if fields := strings.Fields(line); len(fields) > 0 && fields[0] == cmd {
+			return true
+		}
+	}
+	return false
+}
+
 func startDaemon(t *testing.T, e env) *daemon {
 	t.Helper()
-	if _, _, code := runSnapback(t, e, "run", "--help"); code != 0 {
+	if !helpListsCommand(t, e, "run") {
 		t.Skip("missing prerequisite: snapback run is not wired in this binary")
 	}
 	cmd := exec.Command(snapbackBin, "run")
