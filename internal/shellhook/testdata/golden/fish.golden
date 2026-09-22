@@ -10,8 +10,7 @@ function __snapback_hook --on-variable PWD
     set dir (string split -r -m1 \n -- $dir)[1]
     if test "$dir" != "$__snapback_last_dir"
         set -g __snapback_last_dir $dir
-        command snapback notify --timeout 200ms --session $fish_pid -- $dir </dev/null >/dev/null 2>&1 &
-        disown $last_pid 2>/dev/null
+        command snapback notify --timeout 200ms --session $fish_pid -- $dir </dev/null >/dev/null 2>&1 & disown $last_pid 2>/dev/null
     end
     return $rc
 end
