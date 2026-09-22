@@ -6,7 +6,7 @@ the config file.
 
 ## Flags
 
-`snapback run` takes all three flags:
+`snapback run` and `snapback web` each take all three flags:
 
 | Flag | What it sets | Accepted values |
 |---|---|---|
@@ -19,8 +19,7 @@ that neither gives falls back to the default. An unknown level or format is refu
 with the accepted words listed: `snapback run --log-level=verbose` exits 2 with a usage error
 before the daemon takes its instance lock, so a typo never leaves a half-started daemon behind.
 
-`snapback web` does not take these flags yet; it is configured through the `logging:` section
-only.
+Every other command is configured through the `logging:` section only.
 
 ## Config keys
 

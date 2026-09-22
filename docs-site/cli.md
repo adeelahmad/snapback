@@ -297,6 +297,9 @@ snapback web
 | `--allow-remote` | allow a bind address that is not loopback; prints a warning |
 | `--assets` | load templates and assets from DIR |
 | `--bind` | listen on ADDRESS instead of the configured address; a non-loopback address is refused without `--allow-remote` |
+| `--log-file` | write logs to this file; overrides `logging.file` |
+| `--log-format` | log format, one of text, json; overrides `logging.format` (default text) |
+| `--log-level` | log level, one of debug, info, warn, error; overrides `logging.level` (default info) |
 | `--open` | open the web UI in a browser |
 | `--with-daemon` | run a snapback daemon for the lifetime of this command |
 
