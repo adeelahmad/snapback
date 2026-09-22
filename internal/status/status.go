@@ -1,18 +1,16 @@
-// agentic:shim
-
-// Package status is a compile shim for S3-10 T2a; the scaffolder replaces it.
 package status
 
 import (
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/history"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/readerpolicy"
 )
 
-// RepoState stands in for history.RepoState until S3-05 lands on the chain.
-type RepoState string
+// RepoState is a repository mount's lifecycle state.
+type RepoState = history.RepoState
 
 // Repo is one repository's status.
 type Repo struct {
@@ -36,7 +34,8 @@ type Snapshot struct {
 	WebURL        string
 }
 
-// Derive is deliberately wrong.
+// Derive computes the overall daemon state and the sorted per-repository
+// status from the daemon's phase and each repository's current state.
 func Derive(phase string, repos map[string]RepoState) (string, []Repo) {
-	return "shim", nil
+	panic("SUB-AGENT-TODO: derive overall state from phase and repos per tasks.md § T2a; degraded on any failed repo or empty ready map; sort Repos by ID")
 }
