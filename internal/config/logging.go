@@ -2,6 +2,7 @@ package config
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/adeelahmad/snapback/internal/logging"
 )
@@ -22,12 +23,12 @@ func checkLogging(c *Config) []FieldError {
 	var errs []FieldError
 	if c.Logging.Level != "" {
 		if _, err := logging.Parse(c.Logging.Level); err != nil {
-			errs = append(errs, FieldError{Path: "logging.level", Msg: "must be one of debug, info, warn, error"})
+			errs = append(errs, FieldError{Path: "logging.level", Msg: "must be one of " + strings.Join(logging.LevelNames(), ", ")})
 		}
 	}
 	if c.Logging.Format != "" {
 		if _, err := logging.ParseFormat(c.Logging.Format); err != nil {
-			errs = append(errs, FieldError{Path: "logging.format", Msg: "must be one of text, json"})
+			errs = append(errs, FieldError{Path: "logging.format", Msg: "must be one of " + strings.Join(logging.FormatNames(), ", ")})
 		}
 	}
 	if f := c.Logging.File; f != "" && (!filepath.IsAbs(f) || filepath.Clean(f) != f) {
