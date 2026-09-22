@@ -117,38 +117,35 @@ func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
 		t.Errorf("repo IN_OPEN count after default crawlers = %d, want 0", got)
 	}
 
-	// M-002: the counter must see a direct .snapshot read, or 0 above proves nothing.
-	// Read file content, not just the listing: only content comes from data/ packs.
-	var read bool
-	err := filepath.WalkDir(filepath.Join(proj, ".snapshot")+"/", func(p string, d os.DirEntry, err error) error {
-		if err != nil || read || !d.Type().IsRegular() {
-			return err
-		}
-		_, err = os.ReadFile(p)
-		read = err == nil
-		return err
-	})
-	if err != nil || !read {
-		t.Errorf("read a file under %s/.snapshot: read = %t, error = %v, want a read (history mount up?)", proj, read, err)
+	// M-002: the counter must see a direct .snapshot read, or 0 above proves
+	// nothing. Name the backed-up file: the first entry of the .snapshot listing
+	// is the synthetic info.json, which the daemon serves without touching a
+	// data/ pack, so walking to "the first regular file" reads no content at all.
+	content := filepath.Join(proj, ".snapshot", "latest", "src", "deep", "a.txt")
+	if got, err := os.ReadFile(content); err != nil || string(got) != "x\n" {
+		t.Errorf("read %s = %q, %v, want \"x\\n\" (history mount up?)", content, got, err)
 	}
 	if got := c.settle(); got == 0 {
 		t.Errorf("repo IN_OPEN count after direct .snapshot read = 0, want > 0")
 	}
 
-	// ripgrep skips hidden directories and honours ignore files by default, so
-	// without these flags it never descends into .snapshot and never trips the
-	// reader policy. rg is in the default deny_processes list.
-	rg := exec.Command("rg", "-L", "--hidden", "--no-ignore", "x", proj)
-	rg.Env = e.environ()
-	_ = rg.Run()
+	// The probe must be a deny-listed process whose name the policy can resolve.
+	// readerpolicy.ProcName reads /proc/<pid>/comm and FUSE reports the calling
+	// THREAD, so a multi-threaded crawler is only denied when its worker threads
+	// keep the process comm; find is single-threaded, so its comm is "find" for
+	// every request it makes. -L follows the .snapshot symlink, which the default
+	// traversal would only lstat, never entering the history mount.
+	probe := exec.Command("find", "-L", filepath.Join(proj, ".snapshot"))
+	probe.Env = e.environ()
+	_ = probe.Run() // denied entries make find exit non-zero; only the event matters
 	stdout, stderr, code := runSnapback(t, e, "status", "--json")
 	if code != 0 {
 		t.Fatalf("snapback status --json exit = %d, want 0 (stderr %q)", code, stderr)
 	}
 	lower := strings.ToLower(stdout)
 	hasEvent := strings.Contains(lower, "throttl") || strings.Contains(lower, "deny")
-	if !hasEvent || !strings.Contains(stdout, `"rg"`) {
-		t.Errorf("status --json = %q, want a throttle/deny event naming \"rg\"", stdout)
+	if !hasEvent || !strings.Contains(stdout, `"find"`) {
+		t.Errorf("status --json = %q, want a throttle/deny event naming \"find\"", stdout)
 	}
 }
 
