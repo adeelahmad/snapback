@@ -154,3 +154,129 @@ func TestFuseJobAssertsResticVersion(t *testing.T) {
 		t.Errorf("restic version step does not check for 0.19.0:\n%s", step)
 	}
 }
+
+var (
+	fuseTestsEnvRe   = regexp.MustCompile(`SNAPBACK_FUSE_TESTS:\s*["']1["']`)
+	evidenceDirEnvRe = regexp.MustCompile(`SNAPBACK_EVIDENCE_DIR:\s*(\S.*)`)
+	devFuseCheckRe   = regexp.MustCompile(`(test -[ce]|\[ -[ce]).*/dev/fuse`)
+	evidenceMkdirRe  = regexp.MustCompile(`mkdir -p.*SNAPBACK_EVIDENCE_DIR`)
+	usesRefRe        = regexp.MustCompile(`(?m)uses:\s*['"]?([^\s'"#]+)`)
+	noFilesFoundRe   = regexp.MustCompile(`if-no-files-found:\s*['"]?([^\s'"#]+)`)
+)
+
+// firstLineIndex returns the index of the first line matching match, or -1.
+func firstLineIndex(lines []string, match func(string) bool) int {
+	for i, line := range lines {
+		if match(line) {
+			return i
+		}
+	}
+	return -1
+}
+
+func isGoTestLine(line string) bool { return strings.Contains(line, "go test ") }
+
+func TestFuseJobSetsFuseTestsEnv(t *testing.T) {
+	block := fuseJobBlock(t)
+	if n := len(fuseTestsEnvRe.FindAllString(block, -1)); n != 1 {
+		t.Errorf("fuse-linux job has %d `SNAPBACK_FUSE_TESTS: \"1\"` entries, want exactly 1:\n%s", n, block)
+	}
+}
+
+func TestFuseJobSetsEvidenceDir(t *testing.T) {
+	block := fuseJobBlock(t)
+	m := evidenceDirEnvRe.FindStringSubmatch(block)
+	if m == nil || strings.TrimSpace(m[1]) == "" {
+		t.Errorf("fuse-linux job does not set a non-empty SNAPBACK_EVIDENCE_DIR:\n%s", block)
+	}
+}
+
+func TestFuseJobChecksDevFuseBeforeTests(t *testing.T) {
+	lines := strings.Split(fuseJobBlock(t), "\n")
+	check := firstLineIndex(lines, devFuseCheckRe.MatchString)
+	mkdir := firstLineIndex(lines, evidenceMkdirRe.MatchString)
+	goTest := firstLineIndex(lines, isGoTestLine)
+	if check < 0 || goTest < 0 {
+		t.Fatalf("fuse-linux job needs a /dev/fuse device check (line %d) and a `go test ` line (line %d)", check, goTest)
+	}
+	if check > goTest {
+		t.Errorf("/dev/fuse check (line %d) must come before `go test ` (line %d)", check, goTest)
+	}
+	if mkdir < 0 || mkdir > goTest {
+		t.Errorf("`mkdir -p` of SNAPBACK_EVIDENCE_DIR (line %d) must come before `go test ` (line %d)", mkdir, goTest)
+	}
+}
+
+func TestFuseJobRunsIntegrationTestsWithRace(t *testing.T) {
+	lines := strings.Split(fuseJobBlock(t), "\n")
+	i := firstLineIndex(lines, isGoTestLine)
+	if i < 0 {
+		t.Fatalf("fuse-linux job has no `go test ` line")
+	}
+	for _, want := range []string{"-race", "-tags=integration", "./..."} {
+		if !strings.Contains(lines[i], want) {
+			t.Errorf("fuse-linux go test line %q is missing %q", strings.TrimSpace(lines[i]), want)
+		}
+	}
+}
+
+func TestFuseJobUploadsEvidenceAlways(t *testing.T) {
+	step := stepContaining(fuseJobBlock(t), "actions/upload-artifact")
+	if step == "" {
+		t.Fatalf("fuse-linux job has no actions/upload-artifact step")
+	}
+	assertContainsAll(t, step, "actions/upload-artifact@v4", "name: stage1-evidence-linux", "if: always()")
+	pathRef := false
+	for _, line := range strings.Split(step, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "path:") && strings.Contains(trimmed, "SNAPBACK_EVIDENCE_DIR") {
+			pathRef = true
+		}
+	}
+	if !pathRef {
+		t.Errorf("upload step has no `path:` referencing SNAPBACK_EVIDENCE_DIR:\n%s", step)
+	}
+	m := noFilesFoundRe.FindStringSubmatch(step)
+	if m == nil {
+		t.Errorf("upload step has no if-no-files-found: key:\n%s", step)
+	} else if m[1] == "ignore" {
+		t.Errorf("upload step sets if-no-files-found: ignore, which hides missing evidence")
+	}
+}
+
+func TestFuseJobNeverSetsRcloneRemote(t *testing.T) {
+	block := fuseJobBlock(t)
+	if strings.Contains(block, "SNAPBACK_RCLONE_REMOTE") {
+		t.Errorf("fuse-linux job references SNAPBACK_RCLONE_REMOTE")
+	}
+	if strings.Contains(readCI(t), "SNAPBACK_RCLONE_REMOTE") {
+		t.Errorf("%s references SNAPBACK_RCLONE_REMOTE", ciWorkflowPath)
+	}
+}
+
+func TestFuseJobNoLatestAndActionsPinned(t *testing.T) {
+	block := fuseJobBlock(t)
+	uses := usesRefRe.FindAllStringSubmatch(block, -1)
+	if len(uses) == 0 {
+		t.Fatalf("fuse-linux job has no uses: entries")
+	}
+	for _, m := range uses {
+		if !pinnedRef.MatchString(m[1]) {
+			t.Errorf("fuse-linux action %q is not pinned to a version tag or 40-hex SHA", m[1])
+		}
+	}
+	for _, bad := range []string{"@latest", "releases/latest"} {
+		if strings.Contains(block, bad) {
+			t.Errorf("fuse-linux job contains %q", bad)
+		}
+	}
+}
+
+func TestFuseJobHasNoSecrets(t *testing.T) {
+	block := fuseJobBlock(t)
+	for _, bad := range []string{"secrets.", "continue-on-error"} {
+		if strings.Contains(block, bad) {
+			t.Errorf("fuse-linux job contains %q", bad)
+		}
+	}
+}
