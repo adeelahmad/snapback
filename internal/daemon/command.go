@@ -13,6 +13,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/ipc"
+	"github.com/adeelahmad/snapback/internal/logging"
 	"github.com/adeelahmad/snapback/internal/status"
 )
 
@@ -50,9 +51,7 @@ func Command(build Builder) cli.Command {
 		Run: func(ctx context.Context, env cli.Env, args []string) int {
 			fs := cli.NewFlagSet(env, runUsage)
 			cfgPath := fs.String("config", env.ConfigPath, "configuration file")
-			// SUB-AGENT-TODO(S5-36/T11): resolve these over cfg.Logging and
-			// build Deps.Log from the result.
-			_ = cli.AddLogFlags(fs)
+			logFlags := cli.AddLogFlags(fs)
 			help, err := cli.ParseWithUsage(fs, args)
 			switch {
 			case help:
@@ -71,6 +70,24 @@ func Command(build Builder) cli.Command {
 			if build == nil {
 				_, _ = fmt.Fprintln(env.Stderr, "snapback run: internal_error: no dependency builder")
 				return 1
+			}
+			opts, err := logFlags.Resolve(cfg.Logging)
+			if err != nil {
+				return cli.WriteError(env, "run", false, err)
+			}
+			modes, err := cfg.Files.Modes()
+			if err != nil {
+				return cli.WriteError(env, "run", false, err)
+			}
+			w, closer, err := logging.Open(opts.File, modes.Dir, modes.File, env.Stderr)
+			if err != nil {
+				return cli.WriteError(env, "run", false, err)
+			}
+			defer func() { _ = closer.Close() }()
+			opts.Writer = w
+			log, err := logging.New(opts, env.Stderr)
+			if err != nil {
+				return cli.WriteError(env, "run", false, err)
 			}
 			if err := os.MkdirAll(cfg.StateDir, 0o700); err != nil {
 				return cli.WriteError(env, "run", false, errcode.New(errcode.PermissionDenied, "create state dir", err))
@@ -96,6 +113,7 @@ func Command(build Builder) cli.Command {
 				return 1
 			}
 			deps.Unlock = unlock
+			deps.Log = log
 			if err := New(cfg, deps).Run(ctx); err != nil {
 				return cli.WriteError(env, "run", false, err)
 			}
