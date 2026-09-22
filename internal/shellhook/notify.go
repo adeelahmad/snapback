@@ -1,10 +1,7 @@
 package shellhook
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
-	"net"
 	"path/filepath"
 	"time"
 
@@ -17,26 +14,14 @@ import (
 func Notify(ctx context.Context, getenv func(string) string, sock, dir, session string, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	var d net.Dialer
-	conn, err := d.DialContext(ctx, "unix", socketPath(getenv, sock))
+	client, err := ipc.Dial(ctx, socketPath(getenv, sock))
 	if err != nil {
 		return nil
 	}
-	defer func() { _ = conn.Close() }()
-	deadline, _ := ctx.Deadline()
-	if err := conn.SetDeadline(deadline); err != nil {
-		return nil
-	}
-	b, err := json.Marshal(ipc.Request{V: 1, Op: ipc.OpDirEvent, Path: rawpath.Path(dir), Session: session})
-	if err != nil {
-		return nil
-	}
-	if _, err := conn.Write(append(b, '\n')); err != nil {
-		return nil
-	}
-	// The reply is read only so the daemon is not cut off mid-request; its
+	defer func() { _ = client.Close() }()
+	// The reply is awaited only so the daemon is not cut off mid-request; its
 	// content, error or absence never matters to the shell prompt.
-	_, _ = bufio.NewReader(conn).ReadBytes('\n')
+	_, _ = client.Call(ctx, ipc.Request{V: 1, Op: ipc.OpDirEvent, Path: rawpath.Path(dir), Session: session})
 	return nil
 }
 
