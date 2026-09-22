@@ -3,9 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
-	"io"
 	"path/filepath"
 	"slices"
 	"time"
@@ -55,11 +53,14 @@ func SnapCommand(d Deps) Command {
 		Name:    "snap",
 		Summary: "take an ad-hoc snapshot of a directory now",
 		Run: func(ctx context.Context, env Env, args []string) int {
-			o, err := parseSnap(args)
-			if err != nil {
+			o, help, err := parseSnap(env, args)
+			switch {
+			case help:
+				return 0
+			case err != nil:
 				return WriteError(env, "snap", o.jsonOut, err)
 			}
-			res, err := takeSnap(ctx, d, env, o)
+			res, link, err := takeSnap(ctx, d, env, o)
 			if err != nil {
 				return WriteError(env, "snap", o.jsonOut, err)
 			}
@@ -67,16 +68,21 @@ func SnapCommand(d Deps) Command {
 				return WriteOK(env, true, res)
 			}
 			_, _ = fmt.Fprintf(env.Stdout, "snapshot %s %s\n", res.ID, res.State)
+			_ = WriteNext(env.Stdout, "ls "+link)
 			return 0
 		},
 	}
 }
 
-// parseSnap parses args, allowing flags before or after the path.
-func parseSnap(args []string) (snapOpts, error) {
+// parseSnap parses args, allowing flags before or after the path, and
+// reports help when the user asked for the usage.
+func parseSnap(env Env, args []string) (snapOpts, bool, error) {
 	var o snapOpts
-	fs := flag.NewFlagSet("snap", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := NewFlagSet(env, Usage{
+		Synopsis: "snap [flags] [DIR]",
+		Args:     "DIR  the directory to snapshot; defaults to the working directory",
+		Example:  "snapback snap --tag release --wait --timeout 5m ~/work/proj",
+	})
 	fs.Var(&o.tags, "tag", "add a tag")
 	fs.StringVar(&o.repo, "repository", "", "repository ID for a path outside the roots")
 	fs.StringVar(&o.prefix, "prefix", "", "tree prefix for a path outside the roots")
@@ -85,8 +91,9 @@ func parseSnap(args []string) (snapOpts, error) {
 	fs.BoolVar(&o.jsonOut, "json", false, "write a JSON envelope")
 	var pos []string
 	for {
-		if err := fs.Parse(args); err != nil {
-			return o, &UsageError{Msg: err.Error()}
+		help, err := ParseWithUsage(fs, args)
+		if help || err != nil {
+			return o, help, err
 		}
 		args = fs.Args()
 		if len(args) == 0 {
@@ -97,37 +104,40 @@ func parseSnap(args []string) (snapOpts, error) {
 	}
 	switch {
 	case len(pos) > 1:
-		return o, &UsageError{Msg: snapUsage}
+		return o, false, &UsageError{Msg: snapUsage}
 	case (o.repo == "") != (o.prefix == ""):
-		return o, &UsageError{Msg: "snap: --repository and --prefix must be given together"}
+		return o, false, &UsageError{Msg: "snap: --repository and --prefix must be given together"}
 	}
 	if len(pos) == 1 {
 		o.path = pos[0]
 	}
-	return o, nil
+	return o, false, nil
 }
 
-func takeSnap(ctx context.Context, d Deps, env Env, o snapOpts) (snapResult, error) {
+// takeSnap takes the snapshot and returns it along with the .snapshot path
+// of the directory it snapped, which names the next step.
+func takeSnap(ctx context.Context, d Deps, env Env, o snapOpts) (snapResult, string, error) {
 	cfg, err := d.LoadConfig(env.ConfigPath)
 	if err != nil {
-		return snapResult{}, err
+		return snapResult{}, "", err
 	}
 	path, err := snapPath(d, o.path)
 	if err != nil {
-		return snapResult{}, err
+		return snapResult{}, "", err
 	}
+	link := filepath.Join(path, cfg.LinkName)
 	repoID, browsable, host, err := snapRepository(cfg, path, o.repo)
 	if err != nil {
-		return snapResult{}, err
+		return snapResult{}, "", err
 	}
 	if host == "" {
 		if host, err = d.Hostname(); err != nil {
-			return snapResult{}, errcode.New(errcode.PrereqMissing, "snap", err)
+			return snapResult{}, "", errcode.New(errcode.PrereqMissing, "snap", err)
 		}
 	}
 	snapper, err := d.NewSnapper(cfg, repoID)
 	if err != nil {
-		return snapResult{}, err
+		return snapResult{}, "", err
 	}
 	id, err := snapper.Snap(ctx, provider.SnapRequest{
 		Path:     path,
@@ -136,11 +146,11 @@ func takeSnap(ctx context.Context, d Deps, env Env, o snapOpts) (snapResult, err
 		Excludes: []string{cfg.LinkName, cfg.StateDir, cfg.HistoryMount, cfg.BackendMountDir},
 	})
 	if err != nil {
-		return snapResult{}, err
+		return snapResult{}, "", err
 	}
 	res := snapResult{ID: string(id), State: "pending", Browsable: browsable}
 	if !browsable {
-		return res, nil
+		return res, link, nil
 	}
 	daemon, err := d.Daemon(ctx)
 	if err == nil {
@@ -148,19 +158,19 @@ func takeSnap(ctx context.Context, d Deps, env Env, o snapOpts) (snapResult, err
 	}
 	if err != nil {
 		if o.wait {
-			return snapResult{}, errcode.New(errcode.PrereqMissing, "snap", fmt.Errorf("daemon unreachable: %w", err))
+			return snapResult{}, "", errcode.New(errcode.PrereqMissing, "snap", fmt.Errorf("daemon unreachable: %w", err))
 		}
 		_, _ = fmt.Fprintf(env.Stderr, "snapback snap: daemon unreachable: %v\nfix: start 'snapback run' so the snapshot becomes browsable\n", err)
-		return res, nil
+		return res, link, nil
 	}
 	if !o.wait {
-		return res, nil
+		return res, link, nil
 	}
 	if err := waitVisible(ctx, d, daemon, id, o.timeout); err != nil {
-		return snapResult{}, err
+		return snapResult{}, "", err
 	}
 	res.State = "ready"
-	return res, nil
+	return res, link, nil
 }
 
 // snapPath returns p made absolute against the working directory, or the
