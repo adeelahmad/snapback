@@ -183,7 +183,7 @@ func TestConfigInvalidAndSocketDown(t *testing.T) {
 		}
 	}
 
-	f.probes.DialStatus = func(context.Context) (string, error) {
+	f.probes.DialStatus = func(context.Context, string) (string, error) {
 		return "", errcode.New(errcode.PrereqMissing, "dial", errors.New("connect: no such file or directory"))
 	}
 	down := mustCheck(t, Run(context.Background(), f.cfg, nil, f.probes), "daemon_socket")

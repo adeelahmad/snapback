@@ -47,7 +47,7 @@ func TestProductionProbesNotPlaceholders(t *testing.T) {
 	})
 
 	t.Run("DialStatus", func(t *testing.T) {
-		_, err := p.DialStatus(ctx)
+		_, err := p.DialStatus(ctx, dir)
 		if err == nil {
 			t.Fatalf("DialStatus() against a missing socket = nil error, want %s", errcode.PrereqMissing)
 		}
