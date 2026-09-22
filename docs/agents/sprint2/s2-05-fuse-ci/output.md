@@ -95,3 +95,25 @@ Added `TestFuseJobUploadFailsOnMissingEvidence` to test/ci/fuse_job_test.go (com
 | `test/ci/fuse_job_test.go::TestFuseJobUploadFailsOnMissingEvidence` | FAIL | fails by assertion: `upload step if-no-files-found = "warn", want "error"` |
 ### Next
 GREEN (wave 4, after S2-03/S2-04/S2-06/S2-07 merge): change `if-no-files-found: warn` to `error` in the fuse-linux "Upload evidence" step of ci.yml.
+
+## S2-05/T3 · attempt 1 · green-worker · 2026-09-22T03:45:00Z
+status: ok
+### Summary
+I made one change on base f552e5d (chain2/s2-05): in the fuse-linux "Upload evidence" step of `.github/workflows/ci.yml`, `if-no-files-found: warn` is now `if-no-files-found: error`. This commit is 1e62a07. No other file changed and no test was edited. Because S2-03/04/06/07 are merged, the linux job now writes the evidence JSON. If that evidence is missing, the job now fails instead of passing with a warning.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/ci/fuse_job_test.go::TestFuseJobUploadFailsOnMissingEvidence` | PASS | green |
+| `test/ci/...` (all 39 tests) | PASS | go test -race |
+| gofmt / goimports | PASS | no output |
+| CGO_ENABLED=0 go build ./... | PASS | |
+| go vet ./... | PASS | |
+| golangci-lint run | PASS | 0 issues |
+| go test -race ./... + coverage | PASS | total 82.1% (>=80%) |
+| govulncheck ./... | PASS | no called vulnerabilities |
+| actionlint | PASS | clean |
+| shellcheck -s sh install.sh | PASS | |
+| mkdocs build --strict | PASS | |
+| goreleaser check | PASS | 1 config validated |
+### Next
+Structural review of S2-05, then final gate.

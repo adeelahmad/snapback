@@ -4,10 +4,10 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 36
+- **Tick:** 37
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 EXECUTION — S2-01..S2-04, S2-06, S2-07, S2-08, C1, C2 merged (stage-1 b2572b2); S2-05 T3 + S2-09 in flight; C3 site + C4 launch in flight
-- **Last gate:** GREEN on stage-1 @ b2572b2 (full matrix + integration suite locally); PR #1 CI green except commitlint (known, fix before promotion)
+- **Last gate:** GREEN on stage-1 @ df2d91f (full standards matrix)
 - **Human gate pending:** latency go/no-go (numbers recorded tick 35)
 
 ## Stage table (README §22)
@@ -455,6 +455,13 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 36 | HUMAN launch kit | human | supplied README/REPO-SETUP/github-kit.tar.gz; kit README over-claims (non-existent subcommands, "overlay works", snapback-dev/main, /install) → adopted shape + brand only, content kept true | story S2-13 (C4) |
 | 36 | REPO SETTINGS (auto-approve) | orchestrator | description (honest, "Early development."), homepage https://snapback.run, 12 topics, Discussions on, Pages https_enforced=true (cert approved; CNAME snapback.run already set) | social preview upload = manual (no API) |
 | 36 | S2-05/T3 GREEN, S2-09/T1 RED, S2-12/T1 GREEN, S2-13/T1 RED | various | spawned 03:38Z | — |
+| 37 | S2-05/T3 GREEN | green-worker | passed — upload if-no-files-found: error; full matrix green | — |
+| 37 | MERGE S2-05 + linux evidence → stage-1 | orchestrator | 83d482d + 86833b4 (4 *-linux.json from CI run 35683903691, no secrets/paths); full gate GREEN | all 9 evidence files present |
+| 37 | S2-09 T1 RED/GREEN, T2 RED/GREEN | red/green | passed — report skeleton + inventory; pinned versions (go-fuse v2.11.0, restic 0.19.0, rclone v1.75.0, go1.27.1); chain2/s2-09 → bcf052b | — |
+| 37 | S2-13 (C4 launch) RED/GREEN | red/green | passed — README in kit shape but true (only `snapback version` works; design goal labelled), badges on adeelahmad/snapback, docs/brand 12 files, YAML issue forms, old .md templates removed; full matrix green | — |
+| 37 | MERGE S2-13 → stage-1 | orchestrator | df2d91f; full gate GREEN | — |
+| 37 | C3 T2/T3/T4/T6/T8 RED; T2 GREEN; T8 GREEN | red/green | passed — tokens generated from design system (contrast: accent-text/canvas 4.83, line-strong/canvas 3.49); site CI job; chain2/c3-site → 8335795 | T2 shim was test-support code → orchestrator exception let GREEN replace it |
+| 37 | C3 T3 GREEN, C3 T4 scaffold, C3 T7 RED (side chain from stage-1), S2-09 T3 RED | various | spawned 03:49Z | — |
 
 ## Plugin issues found
 

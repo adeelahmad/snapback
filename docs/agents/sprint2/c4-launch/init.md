@@ -22,3 +22,15 @@ Update any existing README test that conflicts (note each in output.md).
 
 ### Scope
 May: test files only (test/**). May Not: README.md, .github/, docs/brand/, anything else.
+
+## S2-13/T1 · attempt 1 · green-worker · 2026-09-22T03:42:46Z
+
+### Mandate
+Make every S2-13 test (test/projectdocs, test/brand, test/community) pass with a README and repo files built from the human's kit at `/private/tmp/claude-501/-Users-adeelahmad-work-snapback/3a548722-26e5-4d22-8251-dbadece5e939/scratchpad/kit/github/`, keeping content TRUE:
+- README.md: kit shape (picture banner → badges → `# snapback` → bold pitch → console example labelled as the design goal → Why → Install → How it works → What it doesn't do → Status → Documentation → License), brand voice (lowercase snapback, sentence case, no emoji, no "!"). Badges only for real targets: release/ci (ci.yml, branch=master)/license/docs on `adeelahmad/snapback`. Keep: exact install line `curl -fsSL https://snapback.run/install.sh | sh`, docs link `https://snapback.run/`, the httm credit section, the GIF TODO marker, "as easy as it was in 2008", "pre-release" + "early" + "not yet usable for restores" + a link to the Stage 1 evidence (docs/reports/stage1/) in Status. Only `snapback version` exists — no other subcommand as working; no "overlay", no "static", no snapback-dev, no Homebrew/apt/Go Report Card. "How it works" describes the DESIGN (planned read-only .snapshot view, SPEC.md) with future tense.
+- docs/brand/: copy the kit's brand files (all needed by tests).
+- .github/ISSUE_TEMPLATE/: kit bug.yml/feature.yml/config.yml adapted (owner adeelahmad, discussions link, bug form asks for `snapback version` output, not --version); delete the retired .md templates.
+Do not edit tests. Run GOTOOLCHAIN=auto go test ./test/... and the full standards matrix (mkdocs --strict too).
+
+### Scope
+May: README.md, docs/brand/**, .github/ISSUE_TEMPLATE/**. May Not: tests, other files.

@@ -35,6 +35,6 @@ Package `test/ci` (`package ci_test`), stdlib only, text-based checks over `.git
 
 ## T3 — Evidence upload fails on missing files (final wave)
 
-- [ ] `test/ci/fuse_job_test.go::TestFuseJobUploadFailsOnMissingEvidence` — input: fuse-linux block; action: `stepContaining(block, "actions/upload-artifact")`; assertion: the step is non-empty (M-002) and its `if-no-files-found:` value is exactly `error` (fails by assertion while T2's `warn` is in place).
+- [x] `test/ci/fuse_job_test.go::TestFuseJobUploadFailsOnMissingEvidence` — input: fuse-linux block; action: `stepContaining(block, "actions/upload-artifact")`; assertion: the step is non-empty (M-002) and its `if-no-files-found:` value is exactly `error` (fails by assertion while T2's `warn` is in place).
 
 Test count: 17 (T1 8, T2 8, T3 1).
