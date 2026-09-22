@@ -26,7 +26,7 @@ var (
 )
 
 // NewAdapter returns an Adapter that reports catalog reads to obs.
-func NewAdapter(obs mount.Observer) *Adapter {
+func NewAdapter(obs mount.Observer, opts ...Option) *Adapter {
 	return &Adapter{obs: obs}
 }
 
