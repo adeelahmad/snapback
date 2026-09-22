@@ -81,6 +81,20 @@ on_path() {
 	esac
 }
 
+path_hint() {
+	if on_path "$1"; then
+		return 0
+	fi
+	printf 'warning: %s is not on your PATH; add it to your PATH:\n' "$1" >&2
+	shell="${SNAPBACK_SHELL:-${SHELL:-}}"
+	case "${shell##*/}" in
+		bash) printf '  export PATH="%s:%s"  # add this line to ~/.bashrc\n' "$1" "\$PATH" >&2 ;;
+		zsh) printf '  export PATH="%s:%s"  # add this line to ~/.zshrc\n' "$1" "\$PATH" >&2 ;;
+		fish) printf '  fish_add_path %s\n' "$1" >&2 ;;
+		*) printf '  export PATH="%s:%s"\n' "$1" "\$PATH" >&2 ;;
+	esac
+}
+
 usage() {
 	printf '%s\n' \
 		'Usage: install.sh [options]' \
@@ -157,10 +171,6 @@ main() {
 	if [ -z "${SNAPBACK_INSTALL_DIR:-}" ] && { [ ! -w "$install_dir" ] || ! on_path "$install_dir"; }; then
 		install_dir="$HOME/.local/bin"
 	fi
-	if ! on_path "$install_dir"; then
-		printf 'warning: %s is not on your PATH; add it to use snapback\n' "$install_dir" >&2
-	fi
-
 	printf 'installing snapback %s for %s/%s to %s\n' "${version:-latest}" "$os" "$arch" "$install_dir"
 	printf 'set SNAPBACK_INSTALL_DIR or pass --dir to change the location\n'
 
@@ -170,6 +180,7 @@ main() {
 		printf 'checksums: %s/checksums.txt\n' "$SNAPBACK_BASE_URL"
 		printf 'install dir: %s\n' "$install_dir"
 		next_steps "$os"
+		path_hint "$install_dir"
 		exit 0
 	fi
 
@@ -187,6 +198,7 @@ main() {
 	chmod 755 "$install_dir/snapback"
 	printf 'installed snapback to %s\n' "$install_dir/snapback"
 	next_steps "$os"
+	path_hint "$install_dir"
 }
 
 main "$@"
