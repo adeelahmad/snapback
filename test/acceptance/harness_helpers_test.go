@@ -120,8 +120,31 @@ func skip(t testing.TB, reason string) {
 	t.Skip(reason)
 }
 
+// accNames maps a test name to the acc name recordEvidence used for it, so a
+// captured daemon log can be filed under the same name.
+var accNames sync.Map
+
+// accNameFor returns the acc name recorded for t or its nearest parent, and
+// falls back to t's own name lower-cased.
+func accNameFor(t *testing.T) string {
+	for name := t.Name(); ; {
+		if v, ok := accNames.Load(name); ok {
+			if acc, ok := v.(string); ok {
+				return acc
+			}
+		}
+		i := strings.LastIndex(name, "/")
+		if i < 0 {
+			break
+		}
+		name = name[:i]
+	}
+	return strings.ToLower(strings.ReplaceAll(t.Name(), "/", "-"))
+}
+
 func recordEvidence(t *testing.T, acc string) {
 	t.Helper()
+	accNames.Store(t.Name(), acc)
 	dir := os.Getenv("SNAPBACK_EVIDENCE_DIR")
 	if dir == "" {
 		return
@@ -265,9 +288,17 @@ func startDaemon(t *testing.T, e env) *daemon {
 	if !helpListsCommand(t, e, "run") {
 		t.Skip("missing prerequisite: snapback run is not wired in this binary")
 	}
+	// Hand the child the log file itself, so its writes land on disk as it
+	// makes them and a killed daemon still leaves what it wrote.
+	logFile, err := os.CreateTemp(t.TempDir(), "daemon-*.log")
+	if err != nil {
+		t.Fatalf("create daemon log: %v", err)
+	}
 	cmd := exec.Command(snapbackBin, "run")
 	cmd.Env = e.environ()
+	cmd.Stdout, cmd.Stderr = logFile, logFile
 	if err := cmd.Start(); err != nil {
+		_ = logFile.Close()
 		t.Fatalf("start snapback run: %v", err)
 	}
 	d := &daemon{cmd: cmd, done: make(chan struct{})}
@@ -286,9 +317,53 @@ func startDaemon(t *testing.T, e env) *daemon {
 			t.Errorf("daemon did not exit within %s of SIGTERM; killing it", daemonStopCap)
 			_ = d.Kill()
 		}
+		_ = logFile.Close()
+		if t.Failed() {
+			reportDaemonLog(t, logFile.Name())
+		}
 	})
 	return d
 }
 
 // daemonStopCap bounds how long cleanup waits for a graceful daemon stop.
 const daemonStopCap = 30 * time.Second
+
+// daemonLogTail bounds how many trailing lines of a daemon log reach t.Log.
+const daemonLogTail = 200
+
+// reportDaemonLog logs the tail of a failed test's daemon output and, when
+// SNAPBACK_EVIDENCE_DIR is set, also copies the whole capture to
+// <dir>/<acc>-daemon.log.
+func reportDaemonLog(t *testing.T, path string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Logf("read daemon log: %v", err)
+		return
+	}
+	if len(data) == 0 {
+		t.Log("daemon wrote no output")
+		return
+	}
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	if len(lines) > daemonLogTail {
+		lines = lines[len(lines)-daemonLogTail:]
+	}
+	t.Logf("daemon output (last %d lines):\n%s", len(lines), strings.Join(lines, "\n"))
+
+	dir := os.Getenv("SNAPBACK_EVIDENCE_DIR")
+	if dir == "" {
+		return
+	}
+	// Append, because one test may start several daemons in turn.
+	dst := filepath.Join(dir, accNameFor(t)+"-daemon.log")
+	f, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
+	if err != nil {
+		t.Logf("open %s: %v", dst, err)
+		return
+	}
+	defer func() { _ = f.Close() }()
+	if _, err := f.Write(data); err != nil {
+		t.Logf("write %s: %v", dst, err)
+	}
+}
