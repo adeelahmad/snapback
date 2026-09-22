@@ -1,45 +1,27 @@
 package mount
 
 import (
-	"bytes"
-	"encoding/json"
 	"log/slog"
 	"slices"
-	"strings"
 	"testing"
+
+	"github.com/adeelahmad/snapback/internal/logging/logtest"
 )
 
 // logCatalogMsg is the message every catalog read record carries.
 const logCatalogMsg = "catalog"
 
-func newLogCatalog(t *testing.T, level slog.Level) (LogCatalog, *bytes.Buffer) {
+func newLogCatalog(t *testing.T, level slog.Level) (LogCatalog, *logtest.Log) {
 	t.Helper()
-	var buf bytes.Buffer
-	log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: level}))
-	return LogCatalog{Log: log, Catalog: newFakeCatalog()}, &buf
+	log, lg := logtest.Capture(t, level)
+	return LogCatalog{Log: log, Catalog: newFakeCatalog()}, lg
 }
 
-func decodeRecords(t *testing.T, buf *bytes.Buffer) []map[string]any {
+func onlyRecord(t *testing.T, lg *logtest.Log) map[string]any {
 	t.Helper()
-	var records []map[string]any
-	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		if line == "" {
-			continue
-		}
-		var rec map[string]any
-		if err := json.Unmarshal([]byte(line), &rec); err != nil {
-			t.Fatalf("decode log line %q: %v", line, err)
-		}
-		records = append(records, rec)
-	}
-	return records
-}
-
-func onlyRecord(t *testing.T, buf *bytes.Buffer) map[string]any {
-	t.Helper()
-	records := decodeRecords(t, buf)
+	records := lg.Records()
 	if len(records) != 1 {
-		t.Fatalf("got %d log records, want exactly 1: %q", len(records), buf.String())
+		t.Fatalf("got %d log records, want exactly 1: %q", len(records), lg.Text())
 	}
 	rec := records[0]
 	if got := rec["level"]; got != "DEBUG" {
@@ -64,14 +46,14 @@ func wantAttr(t *testing.T, rec map[string]any, key string, want any) {
 }
 
 func TestLogCatalogLookupHit(t *testing.T) {
-	cat, buf := newLogCatalog(t, slog.LevelDebug)
+	cat, lg := newLogCatalog(t, slog.LevelDebug)
 
 	ino, kind, found := cat.Lookup(RootIno, "docs")
 
 	if ino != 2 || kind != KindDir || !found {
 		t.Errorf("Lookup = (%d, %d, %v), want (2, %d, true)", ino, kind, found, KindDir)
 	}
-	rec := onlyRecord(t, buf)
+	rec := onlyRecord(t, lg)
 	wantAttr(t, rec, "op", "lookup")
 	wantAttr(t, rec, "parent", float64(RootIno))
 	wantAttr(t, rec, "name", "docs")
@@ -79,14 +61,14 @@ func TestLogCatalogLookupHit(t *testing.T) {
 }
 
 func TestLogCatalogLookupMiss(t *testing.T) {
-	cat, buf := newLogCatalog(t, slog.LevelDebug)
+	cat, lg := newLogCatalog(t, slog.LevelDebug)
 
 	ino, kind, found := cat.Lookup(RootIno, "absent")
 
 	if ino != 0 || kind != 0 || found {
 		t.Errorf("Lookup = (%d, %d, %v), want (0, 0, false)", ino, kind, found)
 	}
-	rec := onlyRecord(t, buf)
+	rec := onlyRecord(t, lg)
 	wantAttr(t, rec, "op", "lookup")
 	wantAttr(t, rec, "parent", float64(RootIno))
 	wantAttr(t, rec, "name", "absent")
@@ -94,14 +76,14 @@ func TestLogCatalogLookupMiss(t *testing.T) {
 }
 
 func TestLogCatalogReadDirCountsEntries(t *testing.T) {
-	cat, buf := newLogCatalog(t, slog.LevelDebug)
+	cat, lg := newLogCatalog(t, slog.LevelDebug)
 
 	names, found := cat.ReadDir(RootIno)
 
 	if !found || !slices.Equal(names, []string{"docs", "link"}) {
 		t.Errorf("ReadDir = (%v, %v), want ([docs link], true)", names, found)
 	}
-	rec := onlyRecord(t, buf)
+	rec := onlyRecord(t, lg)
 	wantAttr(t, rec, "op", "readdir")
 	wantAttr(t, rec, "ino", float64(RootIno))
 	wantAttr(t, rec, "found", true)
@@ -109,14 +91,14 @@ func TestLogCatalogReadDirCountsEntries(t *testing.T) {
 }
 
 func TestLogCatalogReadDirMiss(t *testing.T) {
-	cat, buf := newLogCatalog(t, slog.LevelDebug)
+	cat, lg := newLogCatalog(t, slog.LevelDebug)
 
 	names, found := cat.ReadDir(99)
 
 	if found || names != nil {
 		t.Errorf("ReadDir = (%v, %v), want (nil, false)", names, found)
 	}
-	rec := onlyRecord(t, buf)
+	rec := onlyRecord(t, lg)
 	wantAttr(t, rec, "op", "readdir")
 	wantAttr(t, rec, "ino", float64(99))
 	wantAttr(t, rec, "found", false)
@@ -124,28 +106,28 @@ func TestLogCatalogReadDirMiss(t *testing.T) {
 }
 
 func TestLogCatalogReadlink(t *testing.T) {
-	cat, buf := newLogCatalog(t, slog.LevelDebug)
+	cat, lg := newLogCatalog(t, slog.LevelDebug)
 
 	target, found := cat.Readlink(3)
 
 	if target != "../x" || !found {
 		t.Errorf("Readlink = (%q, %v), want (\"../x\", true)", target, found)
 	}
-	rec := onlyRecord(t, buf)
+	rec := onlyRecord(t, lg)
 	wantAttr(t, rec, "op", "readlink")
 	wantAttr(t, rec, "ino", float64(3))
 	wantAttr(t, rec, "found", true)
 }
 
 func TestLogCatalogReadFileMiss(t *testing.T) {
-	cat, buf := newLogCatalog(t, slog.LevelDebug)
+	cat, lg := newLogCatalog(t, slog.LevelDebug)
 
 	data, found := cat.ReadFile(2)
 
 	if data != nil || found {
 		t.Errorf("ReadFile = (%q, %v), want (nil, false)", data, found)
 	}
-	rec := onlyRecord(t, buf)
+	rec := onlyRecord(t, lg)
 	wantAttr(t, rec, "op", "read")
 	wantAttr(t, rec, "ino", float64(2))
 	wantAttr(t, rec, "found", false)
@@ -161,15 +143,15 @@ func TestLogCatalogLevels(t *testing.T) {
 		cat.ReadFile(2)
 	}
 
-	debugCat, debugBuf := newLogCatalog(t, slog.LevelDebug)
+	debugCat, debugLog := newLogCatalog(t, slog.LevelDebug)
 	exercise(debugCat)
-	if got := len(decodeRecords(t, debugBuf)); got != 4 {
-		t.Errorf("debug level: got %d records, want 4: %q", got, debugBuf.String())
+	if got := len(debugLog.Records()); got != 4 {
+		t.Errorf("debug level: got %d records, want 4: %q", got, debugLog.Text())
 	}
 
-	infoCat, infoBuf := newLogCatalog(t, slog.LevelInfo)
+	infoCat, infoLog := newLogCatalog(t, slog.LevelInfo)
 	exercise(infoCat)
-	if got := len(decodeRecords(t, infoBuf)); got != 0 {
-		t.Errorf("info level: got %d records, want 0: %q", got, infoBuf.String())
+	if got := len(infoLog.Records()); got != 0 {
+		t.Errorf("info level: got %d records, want 0: %q", got, infoLog.Text())
 	}
 }

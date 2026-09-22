@@ -1,34 +1,11 @@
 package readerpolicy
 
 import (
-	"bytes"
-	"encoding/json"
 	"log/slog"
 	"testing"
+
+	"github.com/adeelahmad/snapback/internal/logging/logtest"
 )
-
-// logRecord is one decoded JSON record emitted by the captured handler.
-type logRecord map[string]any
-
-// captureLog returns a logger that writes JSON records at or above level, and a
-// function decoding everything written so far.
-func captureLog(level slog.Level) (*slog.Logger, func(*testing.T) []logRecord) {
-	var buf bytes.Buffer
-	log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: level}))
-	return log, func(t *testing.T) []logRecord {
-		t.Helper()
-		var recs []logRecord
-		dec := json.NewDecoder(bytes.NewReader(buf.Bytes()))
-		for dec.More() {
-			var r logRecord
-			if err := dec.Decode(&r); err != nil {
-				t.Fatalf("decode log output %q: %v", buf.String(), err)
-			}
-			recs = append(recs, r)
-		}
-		return recs
-	}
-}
 
 // loggedPolicy wraps a Policy over cfg and procs in a LogDecider logging to log.
 func loggedPolicy(cfg Config, procs map[uint32]string, log *slog.Logger) *LogDecider {
@@ -42,7 +19,7 @@ var denyCfg = Config{Deny: []string{"rg"}}
 var denyProcs = map[uint32]string{1: "rg", 3: "zsh"}
 
 // wantAttrs checks rec carries the four decision attributes.
-func wantAttrs(t *testing.T, rec logRecord, decision, reason, process string, pid float64) {
+func wantAttrs(t *testing.T, rec map[string]any, decision, reason, process string, pid float64) {
 	t.Helper()
 	for _, a := range []struct {
 		key  string
@@ -65,14 +42,14 @@ func wantAttrs(t *testing.T, rec logRecord, decision, reason, process string, pi
 }
 
 func TestLogDeciderAllowAtDebugEmitsOneDebugRecord(t *testing.T) {
-	log, records := captureLog(slog.LevelDebug)
+	log, lg := logtest.Capture(t, slog.LevelDebug)
 	p := loggedPolicy(denyCfg, denyProcs, log)
 
 	if got := p.Allow(lookup(3, "/a")); !got {
 		t.Fatalf("Allow(lookup pid 3 %q) = %v, want true", denyProcs[3], got)
 	}
 
-	recs := records(t)
+	recs := lg.Records()
 	if len(recs) != 1 {
 		t.Fatalf("allow at debug emitted %d records, want 1: %v", len(recs), recs)
 	}
@@ -83,14 +60,14 @@ func TestLogDeciderAllowAtDebugEmitsOneDebugRecord(t *testing.T) {
 }
 
 func TestLogDeciderDenyAtDebugEmitsDebugAndInfo(t *testing.T) {
-	log, records := captureLog(slog.LevelDebug)
+	log, lg := logtest.Capture(t, slog.LevelDebug)
 	p := loggedPolicy(denyCfg, denyProcs, log)
 
 	if got := p.Allow(lookup(1, "/a")); got {
 		t.Fatalf("Allow(lookup pid 1 %q) = %v, want false", denyProcs[1], got)
 	}
 
-	recs := records(t)
+	recs := lg.Records()
 	if len(recs) != 2 {
 		t.Fatalf("deny at debug emitted %d records, want 2 (debug + info): %v", len(recs), recs)
 	}
@@ -103,14 +80,14 @@ func TestLogDeciderDenyAtDebugEmitsDebugAndInfo(t *testing.T) {
 }
 
 func TestLogDeciderDenyAtInfoEmitsOnlyTheInfoRecord(t *testing.T) {
-	log, records := captureLog(slog.LevelInfo)
+	log, lg := logtest.Capture(t, slog.LevelInfo)
 	p := loggedPolicy(denyCfg, denyProcs, log)
 
 	if got := p.Allow(lookup(1, "/a")); got {
 		t.Fatalf("Allow(lookup pid 1 %q) = %v, want false", denyProcs[1], got)
 	}
 
-	recs := records(t)
+	recs := lg.Records()
 	if len(recs) != 1 {
 		t.Fatalf("deny at info emitted %d records, want 1: %v", len(recs), recs)
 	}
@@ -121,14 +98,14 @@ func TestLogDeciderDenyAtInfoEmitsOnlyTheInfoRecord(t *testing.T) {
 }
 
 func TestLogDeciderAllowAtInfoEmitsNothing(t *testing.T) {
-	log, records := captureLog(slog.LevelInfo)
+	log, lg := logtest.Capture(t, slog.LevelInfo)
 	p := loggedPolicy(denyCfg, denyProcs, log)
 
 	if got := p.Allow(lookup(3, "/a")); !got {
 		t.Fatalf("Allow(lookup pid 3 %q) = %v, want true", denyProcs[3], got)
 	}
 
-	if recs := records(t); len(recs) != 0 {
+	if recs := lg.Records(); len(recs) != 0 {
 		t.Errorf("allow at info emitted %d records, want 0: %v", len(recs), recs)
 	}
 }
@@ -142,7 +119,7 @@ func TestLogDeciderLeavesDecisionsUnchanged(t *testing.T) {
 		4: "mdworker_shared",
 		5: "rgx",
 	}
-	log, records := captureLog(slog.LevelDebug)
+	log, lg := logtest.Capture(t, slog.LevelDebug)
 	p := loggedPolicy(cfg, procs, log)
 
 	tests := []struct {
@@ -164,7 +141,7 @@ func TestLogDeciderLeavesDecisionsUnchanged(t *testing.T) {
 	}
 
 	// Two allows log one record each; three denies log two each.
-	if recs := records(t); len(recs) != 8 {
+	if recs := lg.Records(); len(recs) != 8 {
 		t.Errorf("table emitted %d records, want 8 (2 allows + 3 denies x 2): %v", len(recs), recs)
 	}
 }
