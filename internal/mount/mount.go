@@ -2,8 +2,9 @@
 // adapters and observers.
 package mount
 
-// Kind is the type of a catalog entry.
-type Kind uint8
+// Kind is the type of a catalog entry. It is an alias of a predeclared type
+// so catalogs can implement Catalog without importing this package.
+type Kind = uint8
 
 // Entry kinds.
 const (
@@ -49,13 +50,15 @@ func (o Op) String() string {
 type Event struct {
 	Op   Op
 	Path string
+	PID  uint32
 }
 
 // Catalog resolves inodes using predeclared types only.
 type Catalog interface {
-	Lookup(parent uint64, name string) (ino uint64, isDir bool, found bool)
+	Lookup(parent uint64, name string) (ino uint64, kind Kind, found bool)
 	ReadDir(dir uint64) (names []string, found bool)
 	Readlink(ino uint64) (target string, found bool)
+	ReadFile(ino uint64) (data []byte, found bool)
 }
 
 // Adapter mounts a Catalog at a directory.

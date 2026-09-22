@@ -58,10 +58,11 @@ func entry(ino uint64, isDir bool, name string) mount.Entry {
 func (d *dirNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
 	path := childPath(d.path, name)
 	d.obs.Observe(mount.Event{Op: mount.OpLookup, Path: path})
-	ino, isDir, found := d.cat.Lookup(d.ino, name)
+	ino, kind, found := d.cat.Lookup(d.ino, name)
 	if !found {
 		return nil, syscall.ENOENT
 	}
+	isDir := kind == mount.KindDir
 	e := entry(ino, isDir, name)
 	*out = EntryOut(e, DaemonOwner())
 	var node fs.InodeEmbedder
@@ -81,8 +82,8 @@ func (d *dirNode) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) {
 	}
 	entries := make([]fuse.DirEntry, 0, len(names))
 	for _, name := range names {
-		ino, isDir, _ := d.cat.Lookup(d.ino, name)
-		entries = append(entries, fuse.DirEntry{Name: name, Ino: ino, Mode: StableAttr(entry(ino, isDir, name)).Mode})
+		ino, kind, _ := d.cat.Lookup(d.ino, name)
+		entries = append(entries, fuse.DirEntry{Name: name, Ino: ino, Mode: StableAttr(entry(ino, kind == mount.KindDir, name)).Mode})
 	}
 	return fs.NewListDirStream(entries), 0
 }

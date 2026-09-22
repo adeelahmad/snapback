@@ -17,27 +17,27 @@ func TestLookup(t *testing.T) {
 		parent uint64
 		name   string
 		found  bool
-		isDir  bool
+		kind   uint8
 	}{
-		{"root dir hit", RootIno, "docs", true, true},
-		{"root symlink hit", RootIno, "rel", true, false},
-		{"root miss", RootIno, "missing", false, false},
-		{"nested hit", docsIno, "readme-link", true, false},
-		{"under symlink parent", relIno, "x", false, false},
-		{"unknown parent", 9999, "docs", false, false},
-		{"dotdot", RootIno, "..", false, false},
-		{"dot", RootIno, ".", false, false},
-		{"full id hit", snapshotsIno, fullID, true, false},
-		{"short prefix miss", snapshotsIno, fullID[:8], false, false},
+		{"root dir hit", RootIno, "docs", true, kindDir},
+		{"root symlink hit", RootIno, "rel", true, kindSymlink},
+		{"root miss", RootIno, "missing", false, 0},
+		{"nested hit", docsIno, "readme-link", true, kindSymlink},
+		{"under symlink parent", relIno, "x", false, 0},
+		{"unknown parent", 9999, "docs", false, 0},
+		{"dotdot", RootIno, "..", false, 0},
+		{"dot", RootIno, ".", false, 0},
+		{"full id hit", snapshotsIno, fullID, true, kindSymlink},
+		{"short prefix miss", snapshotsIno, fullID[:8], false, 0},
 	}
 	for _, tc := range rows {
 		t.Run(tc.label, func(t *testing.T) {
-			ino, isDir, found := g.Lookup(tc.parent, tc.name)
+			ino, kind, found := g.Lookup(tc.parent, tc.name)
 			if found != tc.found {
 				t.Fatalf("Lookup(%d, %q) found = %v, want %v", tc.parent, tc.name, found, tc.found)
 			}
-			if isDir != tc.isDir {
-				t.Errorf("Lookup(%d, %q) isDir = %v, want %v", tc.parent, tc.name, isDir, tc.isDir)
+			if kind != tc.kind {
+				t.Errorf("Lookup(%d, %q) kind = %d, want %d", tc.parent, tc.name, kind, tc.kind)
 			}
 			if tc.found && (ino == 0 || ino == RootIno) {
 				t.Errorf("Lookup(%d, %q) ino = %d, want non-zero and != RootIno", tc.parent, tc.name, ino)
@@ -113,9 +113,9 @@ func TestGenerationsAreIndependent(t *testing.T) {
 
 func TestConcurrentReadsDuringRebuild(t *testing.T) {
 	g1 := buildFixture(t)
-	wantIno, wantDir, wantFound := g1.Lookup(RootIno, "docs")
-	if !wantFound || !wantDir {
-		t.Fatalf("g1.Lookup(RootIno, docs) = (%d, %v, %v), want a found directory", wantIno, wantDir, wantFound)
+	wantIno, wantKind, wantFound := g1.Lookup(RootIno, "docs")
+	if !wantFound || wantKind != kindDir {
+		t.Fatalf("g1.Lookup(RootIno, docs) = (%d, %v, %v), want a found directory", wantIno, wantKind, wantFound)
 	}
 
 	const readers, loops, rebuilds = 8, 100, 20
@@ -126,9 +126,9 @@ func TestConcurrentReadsDuringRebuild(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < loops; i++ {
-				ino, isDir, found := g1.Lookup(RootIno, "docs")
-				if ino != wantIno || isDir != wantDir || found != wantFound {
-					mismatches <- fmt.Sprintf("(%d, %v, %v)", ino, isDir, found)
+				ino, kind, found := g1.Lookup(RootIno, "docs")
+				if ino != wantIno || kind != wantKind || found != wantFound {
+					mismatches <- fmt.Sprintf("(%d, %d, %v)", ino, kind, found)
 				}
 			}
 		}()
@@ -144,6 +144,23 @@ func TestConcurrentReadsDuringRebuild(t *testing.T) {
 	wg.Wait()
 	close(mismatches)
 	for m := range mismatches {
-		t.Errorf("g1.Lookup(RootIno, docs) = %s during rebuild, want (%d, %v, %v)", m, wantIno, wantDir, wantFound)
+		t.Errorf("g1.Lookup(RootIno, docs) = %s during rebuild, want (%d, %d, %v)", m, wantIno, wantKind, wantFound)
+	}
+}
+
+func TestReadFileMissesOnNonFile(t *testing.T) {
+	g := buildFixture(t)
+	for _, tc := range []struct {
+		label string
+		ino   uint64
+	}{
+		{"root", RootIno},
+		{"docs", mustLookupPath(t, g, "docs")},
+		{"rel", mustLookupPath(t, g, "rel")},
+		{"unknown", 9999},
+	} {
+		if data, found := g.ReadFile(tc.ino); data != nil || found {
+			t.Errorf("ReadFile(%d) [%s] = (%q, %v), want (nil, false)", tc.ino, tc.label, data, found)
+		}
 	}
 }
