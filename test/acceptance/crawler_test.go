@@ -135,18 +135,49 @@ func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
 	// keep the process comm; find is single-threaded, so its comm is "find" for
 	// every request it makes. -L follows the .snapshot symlink, which the default
 	// traversal would only lstat, never entering the history mount.
-	probe := exec.Command("find", "-L", filepath.Join(proj, ".snapshot"))
-	probe.Env = e.environ()
-	_ = probe.Run() // denied entries make find exit non-zero; only the event matters
+	findOut, findErr := probeCrawler(t, e, "find", "-L", filepath.Join(proj, ".snapshot"), "-type", "f")
+	t.Logf("evidence: acc12 find -L exit=%v output=%q", findErr, findOut)
+	// find only stats what it walks. rsync is deny-listed too and copies file
+	// content, so it opens the history mount's files even when find does not.
+	rsyncOut, rsyncErr := probeCrawler(t, e, "rsync", "-a",
+		filepath.Join(proj, ".snapshot", "latest")+"/", filepath.Join(e.Root, "dst2")+"/")
+	t.Logf("evidence: acc12 rsync exit=%v output=%q", rsyncErr, rsyncOut)
 	stdout, stderr, code := runSnapback(t, e, "status", "--json")
 	if code != 0 {
 		t.Fatalf("snapback status --json exit = %d, want 0 (stderr %q)", code, stderr)
 	}
+	// statusEnvelope has no throttle field, so decode just that array here.
+	var thr struct {
+		Data struct {
+			Throttle json.RawMessage `json:"throttle"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal([]byte(stdout), &thr)
+	t.Logf("evidence: acc12 status throttle=%s", thr.Data.Throttle)
 	lower := strings.ToLower(stdout)
 	hasEvent := strings.Contains(lower, "throttl") || strings.Contains(lower, "deny")
-	if !hasEvent || !strings.Contains(stdout, `"find"`) {
-		t.Errorf("status --json = %q, want a throttle/deny event naming \"find\"", stdout)
+	named := strings.Contains(stdout, `"find"`) || strings.Contains(stdout, `"rsync"`)
+	if !hasEvent || !named {
+		t.Errorf("status --json = %q, want a throttle/deny event naming \"find\" or \"rsync\" "+
+			"(find exit=%v output=%q; rsync exit=%v output=%q)",
+			stdout, findErr, findOut, rsyncErr, rsyncOut)
 	}
+}
+
+// probeOutputCap bounds how much of a probe's output a log line carries.
+const probeOutputCap = 500
+
+// probeCrawler runs one probe against the history mount and returns its
+// combined output, truncated, plus its exit error, so a failure has evidence.
+func probeCrawler(t *testing.T, e env, argv ...string) (string, error) {
+	t.Helper()
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Env = e.environ()
+	out, err := cmd.CombinedOutput()
+	if len(out) > probeOutputCap {
+		out = out[:probeOutputCap]
+	}
+	return string(out), err
 }
 
 // crawlerSettle is how long the open counter must stay at zero before the
