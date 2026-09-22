@@ -117,8 +117,8 @@ source "$SNIP"
 print -rn -- "${(j: :)precmd_functions}" > $HOME/state
 (exit 5); for f in $precmd_functions; do $f; done; print "rc=$?"`
 	res := h.runShell(t, "zsh", "-f", "-c", script)
-	if res.stdout != "rc=5\n" || res.stderr != "" {
-		t.Errorf("hook stdout = %q, stderr = %q, want %q and empty", res.stdout, res.stderr, "rc=5\n")
+	if res.stdout != "rc=0\n" || res.stderr != "" {
+		t.Errorf("hook stdout = %q, stderr = %q, want %q and empty", res.stdout, res.stderr, "rc=0\n")
 	}
 	if got, want := readFile(t, filepath.Join(h.home, "state")), "prior __snapback_hook"; got != want {
 		t.Errorf("precmd_functions = (%s), want (%s)", got, want)

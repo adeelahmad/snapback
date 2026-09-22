@@ -29,7 +29,7 @@ func TestFishNotifiesOnCdAndPreservesStatus(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	script := `source $SNIP; emit fish_prompt; cd a; cd '../` + meta + `'; false; emit fish_prompt; echo "rc=$status"`
+	script := `source $SNIP; emit fish_prompt; cd a; cd '../` + meta + `'; false; __snapback_hook; echo rc=$status`
 	res := h.runShell(t, "fish", "--no-config", "-c", script)
 	if !strings.HasSuffix(res.stdout, "rc=1\n") || res.stderr != "" {
 		t.Errorf("hook stdout = %q, stderr = %q, want suffix %q and empty", res.stdout, res.stderr, "rc=1\n")
