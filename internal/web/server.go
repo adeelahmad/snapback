@@ -14,6 +14,7 @@ import (
 
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/setup"
 	"github.com/adeelahmad/snapback/internal/webui"
 )
 
@@ -42,6 +43,13 @@ type Options struct {
 	Validator SetupValidator
 	Opener    func(ctx context.Context, dir string) error
 	Daemon    DaemonControl
+
+	// SetupDeps carries the read-only seams machine detection reads the
+	// environment, the PATH, the working directory and the hostname through.
+	SetupDeps setup.Deps
+	// SetupRunner runs the read-only repository probe. A nil runner means the
+	// repository is not probed.
+	SetupRunner setup.Runner
 }
 
 // Server is the local web server.
