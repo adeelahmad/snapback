@@ -29,9 +29,9 @@ func writeBundleFor(env cli.Env, checks []Check, cfg *config.Config, dir string)
 		_, _ = fmt.Fprintln(env.Stderr, err)
 		return 1
 	}
-	// config.Redact masks the secrets S5-24/T2 keeps out of a shared bundle;
-	// the doctor JSON and the daemon log carry no credentials of their own.
-	cfgYAML, err := config.Marshal(config.Redact(cfg))
+	// Every member goes through the one redaction seam: the doctor JSON and
+	// the daemon log can quote the repository URI or a password-file path.
+	cfgYAML, doctorJSON, log, err := redactForBundle(cfg, doctorJSON, daemonLog(cfg))
 	if err != nil {
 		_, _ = fmt.Fprintln(env.Stderr, err)
 		return 1
@@ -42,7 +42,7 @@ func writeBundleFor(env cli.Env, checks []Check, cfg *config.Config, dir string)
 		Commit:         version.Commit,
 		GOOS:           runtime.GOOS,
 		GOARCH:         runtime.GOARCH,
-		DaemonLog:      daemonLog(cfg),
+		DaemonLog:      log,
 		ConfigRedacted: cfgYAML,
 	}
 	path, err := WriteBundle(dir, in, time.Now())
