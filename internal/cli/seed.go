@@ -6,7 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/discovery/seed"
@@ -22,6 +24,7 @@ const (
 type seedOpts struct {
 	path     string
 	maxDepth int
+	depthSet bool
 	dryRun   bool
 	force    bool
 	jsonOut  bool
@@ -66,6 +69,9 @@ func SeedCommand(d Deps) Command {
 			if err != nil {
 				return WriteError(env, "seed", o.jsonOut, err)
 			}
+			for _, f := range rep.Failures {
+				_, _ = fmt.Fprintf(env.Stderr, "snapback seed: %s: %v\n", f.Dir, f.Err)
+			}
 			return WriteOK(env, o.jsonOut, seedResult{Linked: rep.Linked, Existing: rep.Existing, Failed: len(rep.Failures)})
 		},
 	}
@@ -92,6 +98,7 @@ func parseSeed(args []string) (seedOpts, error) {
 		pos = append(pos, args[0])
 		args = args[1:]
 	}
+	fs.Visit(func(f *flag.Flag) { o.depthSet = o.depthSet || f.Name == "max-depth" })
 	if len(pos) > 1 {
 		return o, &UsageError{Msg: seedUsage}
 	}
@@ -112,7 +119,7 @@ func seedPlan(d Deps, env Env, o seedOpts) (seed.Plan, error) {
 		var all seed.Plan
 		for _, r := range cfg.Roots {
 			for _, sp := range r.SeedPaths {
-				p, err := d.PlanPath(r.LocalPath, sp.Path, sp.MaxDepth, seedExcludes(r))
+				p, err := d.PlanPath(r.LocalPath, sp.Path, sp.MaxDepth, seedExcludes(cfg, r))
 				if err != nil {
 					return seed.Plan{}, err
 				}
@@ -130,7 +137,25 @@ func seedPlan(d Deps, env Env, o seedOpts) (seed.Plan, error) {
 	if err != nil {
 		return seed.Plan{}, err
 	}
-	return d.PlanPath(r.LocalPath, path, o.maxDepth, seedExcludes(r))
+	return d.PlanPath(r.LocalPath, path, seedDepth(r, path, o), seedExcludes(cfg, r))
+}
+
+// seedDepth returns --max-depth when given, else the max_depth of the
+// configured seed path of r equal to path, else the default.
+func seedDepth(r config.Root, path string, o seedOpts) int {
+	if o.depthSet {
+		return o.maxDepth
+	}
+	for _, sp := range r.SeedPaths {
+		p := sp.Path
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(r.LocalPath, p)
+		}
+		if filepath.Clean(p) == filepath.Clean(path) {
+			return sp.MaxDepth
+		}
+	}
+	return o.maxDepth
 }
 
 // seedRoot returns the configured root containing path.
@@ -151,7 +176,33 @@ func seedRoot(cfg config.Config, path string) (config.Root, error) {
 	return config.Root{}, errcode.New(errcode.MappingAbsent, "seed", errors.New("root not found"))
 }
 
-// seedExcludes returns the default exclusions plus those configured for r.
-func seedExcludes(r config.Root) []string {
-	return append(slices.Clone(seed.DefaultExcludes), r.ExcludeRelativePaths...)
+// seedExcludes returns the default exclusions, Snapback's own directories
+// and those configured for r.
+func seedExcludes(cfg config.Config, r config.Root) []string {
+	x := append(slices.Clone(seed.DefaultExcludes), r.ExcludeRelativePaths...)
+	return append(x, OwnExcludes(cfg)...)
+}
+
+// OwnExcludes returns the absolute paths no link may be placed in: the state
+// dir, the history mount, the backend mount dir and every local-path
+// repository, each also with its symlinks resolved.
+func OwnExcludes(cfg config.Config) []string {
+	dirs := []string{cfg.StateDir, cfg.HistoryMount, cfg.BackendMountDir}
+	for _, r := range cfg.Repositories {
+		if p := strings.TrimPrefix(r.Repository, "local:"); filepath.IsAbs(p) {
+			dirs = append(dirs, p)
+		}
+	}
+	var out []string
+	for _, d := range dirs {
+		if d == "" {
+			continue
+		}
+		d = filepath.Clean(d)
+		out = append(out, d)
+		if resolved, err := filepath.EvalSymlinks(d); err == nil && resolved != d {
+			out = append(out, resolved)
+		}
+	}
+	return out
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/readerpolicy"
 	"github.com/adeelahmad/snapback/internal/recovery"
+	"github.com/adeelahmad/snapback/internal/refresh"
 	"github.com/adeelahmad/snapback/internal/status"
 )
 
@@ -115,6 +116,10 @@ type Daemon struct {
 	refresh     RefreshResult
 	lastRefresh time.Time
 	recovery    *status.RecoverySummary
+	prewarmSum  status.PrewarmSummary
+	// mountFailed holds the repos whose mount failed; each carries
+	// errcode.MountFailure until it is ready again or a refresh succeeds.
+	mountFailed map[string]bool
 	cancel      context.CancelFunc // stops Run; nil until Run starts
 }
 
@@ -191,15 +196,32 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.mu.Lock()
 	d.recovery = &status.RecoverySummary{Unmounted: rep.Unmounted, Foreign: rep.Foreign}
 	d.mu.Unlock()
+	mountFailed := make(map[string]bool)
 	if err := d.deps.Supervisor.Start(ctx); err != nil {
-		return err
+		if errcode.Of(err) != errcode.MountFailure {
+			return err
+		}
+		if pr, ok := d.deps.Supervisor.(interface{ MountFailures() []string }); ok {
+			for _, id := range pr.MountFailures() {
+				mountFailed[id] = true
+			}
+		} else {
+			markAll(mountFailed, d.deps.Supervisor.States())
+		}
 	}
 	res, err := d.deps.Refresher.Refresh(ctx)
-	if err != nil && errcode.Of(err) != errcode.RepoUnavailable {
-		d.unmountStarted(context.WithoutCancel(ctx))
-		return err
+	switch errcode.Of(err) {
+	case errcode.MountFailure:
+		markAll(mountFailed, d.deps.Supervisor.States())
+	case errcode.RepoUnavailable:
+	default:
+		if err != nil {
+			d.unmountStarted(context.WithoutCancel(ctx))
+			return err
+		}
 	}
 	d.mu.Lock()
+	d.mountFailed = mountFailed
 	d.refresh = res
 	d.lastRefresh = d.deps.Clock()
 	d.mu.Unlock()
@@ -208,14 +230,46 @@ func (d *Daemon) Run(ctx context.Context) error {
 		d.unmountStarted(context.WithoutCancel(ctx))
 		return err
 	}
-	d.deps.Prewarmer.Prewarm(ctx)
+	d.prewarm(ctx)
 
 	d.mu.Lock()
 	d.phase = "ready"
 	d.mu.Unlock()
 
-	<-ctx.Done()
+	d.refreshEvery(ctx, d.cfg.Catalog.RefreshInterval)
 	return d.shutdown(context.WithoutCancel(ctx), l)
+}
+
+// refreshEvery runs a refresh.Loop every interval until ctx is done, so a
+// snapshot that was pending while restic's mount had not yet reloaded gets
+// its links once it becomes visible. A non-positive interval only waits.
+func (d *Daemon) refreshEvery(ctx context.Context, interval time.Duration) {
+	if interval <= 0 {
+		<-ctx.Done()
+		return
+	}
+	_ = refresh.NewLoop(loopTarget{d}, interval, time.After).Run(ctx)
+}
+
+// loopTarget adapts a Daemon to refresh.Target, recording each result for
+// status through runRefresh.
+type loopTarget struct{ d *Daemon }
+
+func (t loopTarget) Refresh(ctx context.Context) (refresh.Result, error) {
+	return refresh.Result{}, t.d.runRefresh(ctx)
+}
+
+func (t loopTarget) Prewarm(ctx context.Context) []provider.PrewarmResult {
+	return t.d.prewarm(ctx)
+}
+
+// prewarm runs one pre-warm pass and records its summary for status.
+func (d *Daemon) prewarm(ctx context.Context) []provider.PrewarmResult {
+	results := d.deps.Prewarmer.Prewarm(ctx)
+	d.mu.Lock()
+	d.prewarmSum = status.SummarizePrewarm(results, len(d.refresh.Pending), d.deps.Clock())
+	d.mu.Unlock()
+	return results
 }
 
 // shutdown stops the daemon in order: stop answering IPC, cancel finite
@@ -267,14 +321,24 @@ func mountErr(ctx context.Context, mount string, err error) error {
 // Status returns the daemon status.
 func (d *Daemon) Status() status.Snapshot {
 	d.mu.Lock()
-	phase, res, last, rec := d.phase, d.refresh, d.lastRefresh, d.recovery
-	d.mu.Unlock()
+	defer d.mu.Unlock()
+	phase, res, last, rec, pre := d.phase, d.refresh, d.lastRefresh, d.recovery, d.prewarmSum
 
 	repos := d.deps.Supervisor.States()
 	for _, id := range res.Failed {
 		repos[id] = history.StateFailed
 	}
 	state, out := status.Derive(phase, repos)
+	for i := range out {
+		if !d.mountFailed[out[i].ID] {
+			continue
+		}
+		if out[i].Code == errcode.RepoUnavailable {
+			out[i].Code = errcode.MountFailure
+		} else if out[i].State == string(history.StateReady) {
+			delete(d.mountFailed, out[i].ID)
+		}
+	}
 	return status.Snapshot{
 		State:         state,
 		Repos:         out,
@@ -282,6 +346,7 @@ func (d *Daemon) Status() status.Snapshot {
 		Generation:    res.Generation,
 		EligibleCount: res.EligibleCount,
 		Warm:          res.Warm,
+		Prewarm:       pre,
 		Pending:       res.Pending,
 		Recovery:      rec,
 	}
@@ -290,4 +355,11 @@ func (d *Daemon) Status() status.Snapshot {
 // Run builds a Daemon and runs it.
 func Run(ctx context.Context, cfg *config.Config, deps Deps) error {
 	return New(cfg, deps).Run(ctx)
+}
+
+// markAll adds every repo in repos to set.
+func markAll(set map[string]bool, repos map[string]history.RepoState) {
+	for id := range repos {
+		set[id] = true
+	}
 }

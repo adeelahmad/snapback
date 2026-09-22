@@ -27,49 +27,19 @@ func (e *Engine) Ensure(ctx context.Context, dir string) (Result, error) {
 	unlock := e.lock(p.key)
 	defer unlock()
 
-	fd, err := openDirChain(e.rootPath(p.rootID), p.rel)
-	if err != nil {
-		return res, fsErr(err)
+	fd, pending, err := e.inspect(ctx, p)
+	if err != nil || !pending {
+		return res, err
 	}
 	defer func() { _ = unix.Close(fd) }()
 
-	name := e.pol.LinkName
-	other, found, err := caseFoldSibling(fd, name)
-	if err != nil {
-		return res, fsErr(err)
-	}
-	if found {
-		return res, errcode.New(errcode.LinkConflict, ensureOp, fmt.Errorf("%q has case-equivalent sibling %q", p.link, other))
-	}
-
-	if _, err := lstatAt(fd, name); err == nil {
-		return res, e.proveOwned(fd, p)
-	} else if !errors.Is(err, unix.ENOENT) {
-		return res, fsErr(err)
-	}
-
-	if err := ctx.Err(); err != nil {
-		return res, err
-	}
-	rec := Record{
-		Key:    p.key,
-		RootID: p.rootID,
-		Rel:    rawpath.Path(p.rel),
-		Dir:    rawpath.Path(filepath.Clean(dir)),
-		Target: p.target,
-		State:  StatePending,
-	}
+	rec := pendingRecord(p, dir)
 	if err := e.reg.Put(rec); err != nil {
 		return res, err
 	}
-	if err := symlinkAt(fd, name, p.target); err != nil {
-		if derr := e.reg.Delete(p.key); derr != nil {
-			return res, errors.Join(fsErr(err), derr)
-		}
-		if errors.Is(err, unix.EEXIST) {
-			return res, e.proveOwned(fd, p)
-		}
-		return res, fsErr(err)
+	created, err := e.link(fd, p)
+	if err != nil || !created {
+		return res, err
 	}
 	rec.State = StateOwned
 	if err := e.reg.Put(rec); err != nil {
@@ -77,6 +47,73 @@ func (e *Engine) Ensure(ctx context.Context, dir string) (Result, error) {
 	}
 	res.Created = true
 	return res, nil
+}
+
+// inspect runs Ensure's pre-checks for p with its key locked. When a new link
+// is needed it reports pending and returns the open directory fd, which the
+// caller closes. Otherwise no fd is left open and err is nil only when the
+// existing entry is an owned link.
+func (e *Engine) inspect(ctx context.Context, p placement) (fd int, pending bool, err error) {
+	fd, err = openDirChain(e.rootPath(p.rootID), p.rel)
+	if err != nil {
+		return -1, false, fsErr(err)
+	}
+	keep := false
+	defer func() {
+		if !keep {
+			_ = unix.Close(fd)
+		}
+	}()
+
+	name := e.pol.LinkName
+	other, found, err := caseFoldSibling(fd, name)
+	if err != nil {
+		return -1, false, fsErr(err)
+	}
+	if found {
+		return -1, false, errcode.New(errcode.LinkConflict, ensureOp, fmt.Errorf("%q has case-equivalent sibling %q", p.link, other))
+	}
+
+	if _, err := lstatAt(fd, name); err == nil {
+		return -1, false, e.proveOwned(fd, p)
+	} else if !errors.Is(err, unix.ENOENT) {
+		return -1, false, fsErr(err)
+	}
+
+	if err := ctx.Err(); err != nil {
+		return -1, false, err
+	}
+	keep = true
+	return fd, true, nil
+}
+
+// pendingRecord returns the pending registry record for p's link in dir.
+func pendingRecord(p placement, dir string) Record {
+	return Record{
+		Key:    p.key,
+		RootID: p.rootID,
+		Rel:    rawpath.Path(p.rel),
+		Dir:    rawpath.Path(filepath.Clean(dir)),
+		Target: p.target,
+		State:  StatePending,
+	}
+}
+
+// link creates p's symlink in fd once its pending record is stored. On
+// failure it deletes that record; if an entry appeared meanwhile, it reports
+// created false and whether that entry is an owned link.
+func (e *Engine) link(fd int, p placement) (created bool, err error) {
+	err = symlinkAt(fd, e.pol.LinkName, p.target)
+	if err == nil {
+		return true, nil
+	}
+	if derr := e.reg.Delete(p.key); derr != nil {
+		return false, errors.Join(fsErr(err), derr)
+	}
+	if errors.Is(err, unix.EEXIST) {
+		return false, e.proveOwned(fd, p)
+	}
+	return false, fsErr(err)
 }
 
 // proveOwned returns nil only when the existing entry is a symlink to the

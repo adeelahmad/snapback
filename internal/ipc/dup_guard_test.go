@@ -17,6 +17,7 @@ func TestSingleStatusDialer(t *testing.T) {
 		"../../cmd/snapback",
 		"../service",
 		"../doctor",
+		"../web",
 	}
 	for _, dir := range dirs {
 		t.Run(dir, func(t *testing.T) {

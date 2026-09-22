@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"slices"
 	"sync"
 	"syscall"
 
@@ -77,10 +78,11 @@ func (h *historyView) Unmount(context.Context) error {
 }
 
 // refresher adapts refresh.Refresher to daemon.Refresher and reports a
-// failed history mount.
+// failed history mount against every repository in repos.
 type refresher struct {
-	ref  *refresh.Refresher
-	view *historyView
+	ref   *refresh.Refresher
+	view  *historyView
+	repos []string
 }
 
 func (r refresher) Refresh(ctx context.Context) (daemon.RefreshResult, error) {
@@ -90,6 +92,7 @@ func (r refresher) Refresh(ctx context.Context) (daemon.RefreshResult, error) {
 		return out, err
 	}
 	if merr := r.view.mountErr(); merr != nil {
+		out.Failed = append(slices.Clone(out.Failed), r.repos...)
 		return out, errcode.New(errcode.MountFailure, "daemon refresh", fmt.Errorf("mount history: %w", merr))
 	}
 	return out, nil

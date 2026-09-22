@@ -32,11 +32,35 @@ type Snapshot struct {
 	EligibleCount map[string]int
 	Links         int
 	Warm          map[provider.SnapshotID]bool
+	Prewarm       PrewarmSummary `json:"prewarm"`
 	Pending       []provider.SnapshotID
 	Discovery     string
 	Throttle      []readerpolicy.ThrottleEvent
 	WebURL        string
 	Recovery      *RecoverySummary `json:"recovery,omitempty"`
+}
+
+// PrewarmSummary counts snapshots by pre-warm state and records when the
+// daemon last pre-warmed.
+type PrewarmSummary struct {
+	Warm        int       `json:"warm"`
+	Cold        int       `json:"cold"`
+	Pending     int       `json:"pending"`
+	LastPrewarm time.Time `json:"last_prewarm"`
+}
+
+// SummarizePrewarm summarizes one pre-warm pass: successful results count
+// as warm and every other result as cold.
+func SummarizePrewarm(results []provider.PrewarmResult, pending int, at time.Time) PrewarmSummary {
+	sum := PrewarmSummary{Pending: pending, LastPrewarm: at}
+	for _, r := range results {
+		if r.Warm && r.Err == nil {
+			sum.Warm++
+		} else {
+			sum.Cold++
+		}
+	}
+	return sum
 }
 
 // RecoverySummary lists the paths the startup crash recovery cleaned up.

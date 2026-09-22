@@ -424,3 +424,37 @@ func TestSnapLockErrorNotRetried(t *testing.T) {
 		t.Errorf("SnapSubmitted = %q, want none", r.submitted)
 	}
 }
+
+// TestSnapUsesRootHost checks that snap records the matched root's
+// snapshots.hostname (SPEC §10), falling back to Deps.Hostname when unset.
+func TestSnapUsesRootHost(t *testing.T) {
+	tests := []struct {
+		name     string
+		rootHost string
+		want     string
+	}{
+		{name: "root hostname set", rootHost: "lin", want: "lin"},
+		{name: "root hostname unset", rootHost: "", want: "mac"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, proj := snapFixture(t)
+			cfg.Roots[0].Snapshots.Hostname = tt.rootHost
+			r := newSnapRig()
+			d := snapDeps(r, cfg)
+			d.Hostname = func() (string, error) { return "mac", nil }
+
+			code, _, stderr := runSnap(d, proj)
+
+			if code != 0 {
+				t.Fatalf("snap %s exit = %d, want 0 (stderr %q)", proj, code, stderr)
+			}
+			if len(r.reqs) != 1 {
+				t.Fatalf("Snap calls = %d, want 1", len(r.reqs))
+			}
+			if got := r.reqs[0].Host; got != tt.want {
+				t.Errorf("SnapRequest.Host with root hostname %q = %q, want %q", tt.rootHost, got, tt.want)
+			}
+		})
+	}
+}

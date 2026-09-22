@@ -10,9 +10,14 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
 )
+
+// rejectDrainTimeout bounds how long a rejected peer may take to send its
+// request line before the rejection is written.
+const rejectDrainTimeout = time.Second
 
 // Handler answers one decoded Request.
 type Handler func(ctx context.Context, req Request) Response
@@ -108,14 +113,19 @@ func serveConn(ctx context.Context, conn net.Conn, h Handler, o ServeOptions) {
 		return w.Flush() == nil
 	}
 
-	uid, err := o.PeerUID(conn)
-	if err != nil || uid != o.UID {
-		reply(errResponse(errcode.PermissionDenied, "peer uid not allowed"))
-		return
-	}
 	// A buffer of MaxRequest plus the newline fills up only when a line is
 	// longer than the cap.
 	r := bufio.NewReaderSize(conn, o.MaxRequest+1)
+	uid, err := o.PeerUID(conn)
+	if err != nil || uid != o.UID {
+		// Consume the request line first: closing before the peer has
+		// written makes its write fail with EPIPE instead of reading the
+		// rejection.
+		_ = conn.SetReadDeadline(time.Now().Add(rejectDrainTimeout))
+		_, _ = r.ReadSlice('\n')
+		reply(errResponse(errcode.PermissionDenied, "peer uid not allowed"))
+		return
+	}
 	for {
 		line, err := r.ReadSlice('\n')
 		if errors.Is(err, bufio.ErrBufferFull) {

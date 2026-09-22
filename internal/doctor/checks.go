@@ -201,10 +201,11 @@ func checkInodes(cfg *config.Config, p Probes) Check {
 }
 
 func checkDaemon(ctx context.Context, cfg *config.Config, p Probes) Check {
+	var stateDir string
 	if cfg != nil {
-		ctx = withStateDir(ctx, cfg.StateDir)
+		stateDir = cfg.StateDir
 	}
-	state, err := p.DialStatus(ctx)
+	state, err := p.DialStatus(ctx, stateDir)
 	if err != nil {
 		code := errcode.Of(err)
 		if code == "" {

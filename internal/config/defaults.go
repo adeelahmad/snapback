@@ -59,6 +59,15 @@ func applyDefaults(c *Config) {
 	}
 }
 
+// Default returns the configuration used before any config file exists: the
+// static and environment defaults with no repositories or roots.
+func Default() *Config {
+	c := defaults()
+	c.Version = 1
+	applyDefaults(c)
+	return c
+}
+
 // DefaultPath returns the default config file path under the XDG config home.
 func DefaultPath() (string, error) {
 	if xc := os.Getenv("XDG_CONFIG_HOME"); filepath.IsAbs(xc) {

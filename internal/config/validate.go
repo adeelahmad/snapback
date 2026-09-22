@@ -192,6 +192,9 @@ func (v *validator) repositories(c *Config) {
 		v.absPath(p+".password_file", r.PasswordFile)
 		if r.CacheDir != "" {
 			v.absPath(p+".cache_dir", r.CacheDir)
+			if r.NoCache {
+				v.add(p+".no_cache", "cache_dir and no_cache are mutually exclusive")
+			}
 		}
 		if r.LockMode != "normal" && r.LockMode != "none" {
 			v.add(p+".lock_mode", "must be normal or none")

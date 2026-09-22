@@ -38,3 +38,19 @@ func Lock(stateDir string) (unlock func(), err error) {
 		_ = f.Close()
 	}, nil
 }
+
+// Running reports whether a daemon holds the single-instance lock in
+// stateDir. It probes without blocking and releases the lock at once if the
+// probe acquires it; it never creates the lock file or writes the pidfile.
+func Running(stateDir string) bool {
+	f, err := os.OpenFile(filepath.Join(stateDir, "daemon.lock"), os.O_RDWR, 0)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = f.Close() }()
+	if err := unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+		return errors.Is(err, unix.EWOULDBLOCK)
+	}
+	_ = unix.Flock(int(f.Fd()), unix.LOCK_UN)
+	return false
+}

@@ -53,7 +53,9 @@ func PlanPath(root, seedPath string, maxDepth int, excludes []string) (Plan, err
 		}
 		entries, err := os.ReadDir(dir)
 		if err != nil {
-			return fmt.Errorf("seed: read %s: %w", dir, err)
+			// An unreadable directory stays planned so Run reports it by
+			// name; its children are skipped and the walk goes on.
+			return nil
 		}
 		for _, e := range entries {
 			// DirEntry reports a symlink's own type, so links are never followed.

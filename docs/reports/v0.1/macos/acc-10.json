@@ -1,0 +1,10 @@
+{
+  "acc": "acc-10",
+  "commit": "ef8decdbdc7e8214c870c150cccfc9ede0a283da",
+  "fuse3_version": "",
+  "gofuse_version": "",
+  "kernel": "25.5.0",
+  "restic_version": "restic 0.19.0 compiled with go1.26.4 on darwin/arm64",
+  "skip_reason": "",
+  "status": "pass"
+}

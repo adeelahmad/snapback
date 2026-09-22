@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"time"
@@ -56,7 +56,7 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 	if err != nil {
 		return daemon.Deps{}, errcode.New(errcode.PermissionDenied, daemonOp, err)
 	}
-	engine := links.NewEngine(reg, linksPolicy(cfg))
+	engine := links.NewEngine(reg, linkPolicy(*cfg))
 
 	watcher, err := seed.NewWatcher(engine, watchRoots(cfg))
 	if err != nil {
@@ -88,7 +88,7 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 			Max:     mountBackoffMax,
 		}),
 		History:   view,
-		Refresher: refresher{ref: ref, view: view},
+		Refresher: refresher{ref: ref, view: view, repos: slices.Sorted(maps.Keys(provs))},
 		Linker:    engine,
 		Recoverer: recoverer{
 			owned:   []string{cfg.HistoryMount, cfg.BackendMountDir},
@@ -106,42 +106,15 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 // daemonProvider returns the restic provider for repository r, or
 // errcode.PrereqMissing when its restic binary cannot be found.
 func daemonProvider(r config.Repository) (*restic.Provider, error) {
-	bin := r.ResticBinary
-	if bin == "" {
-		bin = "restic"
-	}
-	path, err := exec.LookPath(bin)
+	opts, err := restic.FromConfig(&config.Config{Repositories: []config.Repository{r}}, r.ID)
 	if err != nil {
-		return nil, errcode.New(errcode.PrereqMissing, daemonOp, fmt.Errorf("restic binary %s not found: %w", bin, err))
-	}
-	if path, err = filepath.Abs(path); err != nil {
 		return nil, err
 	}
-	p, err := restic.New(restic.Options{
-		Binary:       path,
-		Repository:   r.Repository,
-		PasswordFile: r.PasswordFile,
-		CacheDir:     r.CacheDir,
-		NoCache:      r.NoCache,
-		NoLock:       r.LockMode == "none",
-		RcloneBinary: r.RcloneBinary,
-		Env:          r.Environment,
-	})
+	p, err := restic.New(opts)
 	if err != nil {
 		return nil, errcode.New(errcode.InvalidConfig, daemonOp, err)
 	}
 	return p, nil
-}
-
-func linksPolicy(cfg *config.Config) links.Policy {
-	pol := links.Policy{LinkName: cfg.LinkName, HistoryMount: cfg.HistoryMount}
-	for _, r := range cfg.Roots {
-		pol.Roots = append(pol.Roots, resolver.RootSpec{ID: r.ID, LocalPath: r.LocalPath})
-		for _, e := range r.ExcludeRelativePaths {
-			pol.Excluded = append(pol.Excluded, filepath.Join(r.LocalPath, e))
-		}
-	}
-	return pol
 }
 
 func watchRoots(cfg *config.Config) []seed.WatchRoot {

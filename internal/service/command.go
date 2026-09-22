@@ -63,16 +63,21 @@ func ServiceCommand() cli.Command {
 // realDeps wires commandDeps to the host: /proc, os.Stat, exec and os.Executable.
 func realDeps(env cli.Env) commandDeps {
 	return commandDeps{
-		probe: Probe{
-			PID1Comm: pid1Comm,
-			Exists: func(path string) bool {
-				_, err := os.Stat(path)
-				return err == nil
-			},
-		},
+		probe:      RealProbe(),
 		run:        execRunner,
 		executable: os.Executable,
 		unitDir:    userUnitDir(env.Getenv),
+	}
+}
+
+// RealProbe returns the Probe wired to the running host.
+func RealProbe() Probe {
+	return Probe{
+		PID1Comm: pid1Comm,
+		Exists: func(path string) bool {
+			_, err := os.Stat(path)
+			return err == nil
+		},
 	}
 }
 

@@ -21,19 +21,28 @@ GOTOOLCHAIN=auto go test -race ./... # If the local Go is older than go.mod
 ## Structure
 
 ```
-cmd/snapback/     # CLI entry point (main.go, run.go)
-internal/version/ # Build version info
-test/projectdocs/ # Tests that pin the project docs (README, CLAUDE, DEVLOG, ...)
-docs/agents/      # Sprint planning and agent channel files (not committed per task)
+cmd/snapback/     # CLI entry point and daemon wiring
+internal/cli/     # Subcommands behind a shared contract
+internal/daemon/  # Instance lock, lifecycle; internal/ipc is its local JSON channel
+internal/provider/ # SnapshotProvider seam; provider/restic is the only backend
+internal/resolver/ # Live dir -> Restic snapshots; aliases, projection, history
+internal/mount/   # FUSE seam; mount/gofuse adapts it; readerpolicy gates readers
+internal/links/   # Managed .snapshot symlinks; discovery/seed plans and watches
+internal/web/     # Local web UI and authenticated API; assets in internal/webui
+internal/service/ # Background service install and control
+internal/doctor/  # Read-only health checks
+test/projectdocs/ # Tests that pin the project docs
 SPEC.md           # Product spec: what Snapback is and is not
 ```
 
 ## Architecture
 
-Today the binary is a skeleton: `cmd/snapback` supports only `snapback version`,
-which prints build info from `internal/version`. The planned design puts a read-only FUSE view behind each
-directory's `.snapshot` entry, fed by Restic snapshot metadata through a single
-provider seam. See ARCHITECTURE.md for current state versus planned modules.
+`cmd/snapback` wires the CLI (`internal/cli`) and a daemon (`internal/daemon`) that the
+CLI reaches over `internal/ipc`. The daemon reads Restic snapshot metadata through the
+`provider` seam, resolves each directory's snapshots (`resolver`, `aliases`, `history`)
+and serves a read-only history mount (`mount`, `mount/gofuse`), linked into directories
+as `.snapshot` by `links` and `discovery/seed`. `web`, `service` and `doctor` add the
+local UI, background service control and health checks. See ARCHITECTURE.md.
 
 ## Conventions
 

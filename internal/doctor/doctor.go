@@ -19,7 +19,7 @@ type Probes struct {
 	Repos      func(config.Repository) (provider.Validator, provider.Lister)
 	Detect     func() (service.Manager, error)
 	Statfs     func(path string) (freeInodes, totalInodes uint64, err error)
-	DialStatus func(ctx context.Context) (string, error)
+	DialStatus func(ctx context.Context, stateDir string) (string, error)
 	MountTest  func(ctx context.Context) error
 }
 

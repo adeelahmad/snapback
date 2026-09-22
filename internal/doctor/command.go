@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
@@ -47,19 +46,7 @@ func realProbes() Probes {
 		},
 		Repos: resticRepos,
 		Detect: func() (service.Manager, error) {
-			return service.Detect(service.Probe{
-				PID1Comm: func() (string, error) {
-					b, err := os.ReadFile("/proc/1/comm")
-					if err != nil {
-						return "", err
-					}
-					return strings.TrimSpace(string(b)), nil
-				},
-				Exists: func(path string) bool {
-					_, err := os.Stat(path)
-					return err == nil
-				},
-			})
+			return service.Detect(service.RealProbe())
 		},
 		Statfs: func(path string) (freeInodes, totalInodes uint64, err error) {
 			st, err := seed.StatfsOf(path)

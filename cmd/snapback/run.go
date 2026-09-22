@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
@@ -24,5 +26,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	} else if p, err := config.DefaultPath(); err == nil {
 		env.ConfigPath = p
 	}
-	return cli.Dispatch(context.Background(), env, usage, allCommands(realDeps(env.ConfigPath)), args)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
+	defer stop()
+	return cli.Dispatch(ctx, env, usage, allCommands(realDeps(env.ConfigPath)), args)
 }

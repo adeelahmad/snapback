@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,7 +17,6 @@ import (
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/ipc"
-	"github.com/adeelahmad/snapback/internal/status"
 	"github.com/adeelahmad/snapback/internal/webui"
 )
 
@@ -63,15 +61,66 @@ func ConfigCommand() cli.Command {
 		Name:    "config",
 		Summary: "open the setup page in the web UI",
 		Run: func(ctx context.Context, env cli.Env, args []string) int {
+			fs := flag.NewFlagSet("config", flag.ContinueOnError)
+			fs.SetOutput(io.Discard)
+			file := fs.String("file", "", "validate and save the config file at PATH")
+			if err := fs.Parse(args); err != nil {
+				return cli.WriteError(env, "config", false, &cli.UsageError{Msg: err.Error()})
+			}
+			if *file != "" {
+				return saveFile(env, *file)
+			}
 			return serve(ctx, env, "config", "", true, "/setup")
 		},
 	}
 }
 
+// saveFile loads and validates the config at src and saves it to
+// env.ConfigPath, leaving the existing config untouched on any error.
+func saveFile(env cli.Env, src string) int {
+	cfg, _, err := config.Load(src)
+	if err != nil {
+		code := errcode.Of(err)
+		if code == "" {
+			code = errcode.InvalidConfig
+		}
+		return cli.WriteError(env, "config", false, errcode.New(code, "load "+src, err))
+	}
+	rev, err := currentRevision(env.ConfigPath)
+	if err != nil {
+		return cli.WriteError(env, "config", false, err)
+	}
+	if _, err := config.Save(env.ConfigPath, cfg, rev); err != nil {
+		return cli.WriteError(env, "config", false, err)
+	}
+	return 0
+}
+
+// currentRevision returns the revision of the file at path, or "" when no
+// file exists yet. An existing file that no longer parses still has a
+// revision, so --file can replace it.
+func currentRevision(path string) (config.Revision, error) {
+	_, rev, err := config.Load(path)
+	if rev != "" || errors.Is(err, os.ErrNotExist) {
+		return rev, nil
+	}
+	return "", err
+}
+
+// loadOrDefault loads the config at path, or returns config.Default at
+// revision "" when the file does not exist yet.
+func loadOrDefault(path string) (*config.Config, config.Revision, error) {
+	cfg, rev, err := config.Load(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return config.Default(), "", nil
+	}
+	return cfg, rev, err
+}
+
 // serve starts the server for cmd, opens it at next when open allows and
 // serves until ctx is done.
 func serve(ctx context.Context, env cli.Env, cmd, assets string, open bool, next string) int {
-	cfg, _, err := config.Load(env.ConfigPath)
+	cfg, _, err := loadOrDefault(env.ConfigPath)
 	if err != nil {
 		return cli.WriteError(env, cmd, false, err)
 	}
@@ -174,27 +223,15 @@ func (b fileBackend) Status() any {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), statusTimeout)
 	defer cancel()
-	c, err := ipc.Dial(ctx, ipc.SocketPath(os.Getenv, cfg.StateDir))
+	snap, err := ipc.QueryStatus(ctx, ipc.SocketPath(os.Getenv, cfg.StateDir))
 	if err != nil {
 		return err
-	}
-	defer func() { _ = c.Close() }()
-	resp, err := c.Call(ctx, ipc.Request{V: 1, Op: ipc.OpStatus})
-	if err != nil {
-		return errcode.New(errcode.PrereqMissing, "daemon status", err)
-	}
-	if !resp.OK {
-		return errcode.New(resp.Code, "daemon status", errors.New(resp.Error))
-	}
-	var snap status.Snapshot
-	if err := json.Unmarshal(resp.Data, &snap); err != nil {
-		return fmt.Errorf("decode daemon status: %w", err)
 	}
 	return snap
 }
 
 func (b fileBackend) Config() (*config.Config, config.Revision, error) {
-	return config.Load(b.path)
+	return loadOrDefault(b.path)
 }
 
 func (b fileBackend) SaveConfig(c *config.Config, rev config.Revision) (config.Revision, error) {

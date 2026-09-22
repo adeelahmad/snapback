@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/discovery/seed"
-	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/ipc"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/provider/restic"
@@ -100,31 +98,9 @@ func realDeps(configPath string) cli.Deps {
 
 // newSnapper returns the restic Snapper for repository repoID in cfg.
 func newSnapper(cfg config.Config, repoID string) (provider.Snapper, error) {
-	for _, r := range cfg.Repositories {
-		if r.ID != repoID {
-			continue
-		}
-		bin := r.ResticBinary
-		if bin == "" {
-			bin = "restic"
-		}
-		path, err := exec.LookPath(bin)
-		if err != nil {
-			return nil, errcode.New(errcode.PrereqMissing, "snap", fmt.Errorf("restic binary %s not found: %w", bin, err))
-		}
-		if path, err = filepath.Abs(path); err != nil {
-			return nil, err
-		}
-		return restic.New(restic.Options{
-			Binary:       path,
-			Repository:   r.Repository,
-			PasswordFile: r.PasswordFile,
-			CacheDir:     r.CacheDir,
-			NoCache:      r.NoCache,
-			NoLock:       r.LockMode == "none",
-			RcloneBinary: r.RcloneBinary,
-			Env:          r.Environment,
-		})
+	opts, err := restic.FromConfig(&cfg, repoID)
+	if err != nil {
+		return nil, err
 	}
-	return nil, errcode.New(errcode.InvalidConfig, "snap", fmt.Errorf("unknown repository %q", repoID))
+	return restic.New(opts)
 }

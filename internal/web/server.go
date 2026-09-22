@@ -71,6 +71,10 @@ func New(opts Options) (*Server, error) {
 	s.handler = s.guard(s.routes())
 
 	line := s.URL() + "auth?token=" + url.QueryEscape(opts.Token) + "\n"
+	if err := os.MkdirAll(opts.StateDir, 0o700); err != nil {
+		_ = ln.Close()
+		return nil, fmt.Errorf("web.New: create state dir: %w", err)
+	}
 	if err := os.WriteFile(s.urlFile, []byte(line), 0o600); err != nil {
 		_ = ln.Close()
 		return nil, fmt.Errorf("web.New: write web.url: %w", err)

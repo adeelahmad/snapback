@@ -286,6 +286,99 @@ func TestFuseJobUploadFailsOnMissingEvidence(t *testing.T) {
 	}
 }
 
+var (
+	systemdTestsEnvRe = regexp.MustCompile(`SNAPBACK_SYSTEMD_TESTS:\s*["']1["']`)
+	githubEnvRe       = regexp.MustCompile(`>>\s*"?\$\{?GITHUB_ENV`)
+)
+
+const acceptanceTestPath = "./test/acceptance/..."
+
+func isAcceptanceTestLine(line string) bool {
+	return isGoTestLine(line) && strings.Contains(line, acceptanceTestPath)
+}
+
+// acceptanceLine returns the line index of the acceptance `go test` run, failing when absent.
+func acceptanceLine(t *testing.T, lines []string) int {
+	t.Helper()
+	i := firstLineIndex(lines, isAcceptanceTestLine)
+	if i < 0 {
+		t.Fatalf("fuse-linux job has no `go test ... %s` line", acceptanceTestPath)
+	}
+	return i
+}
+
+func TestFuseJobInstallsInotifyTools(t *testing.T) {
+	tokens := aptInstallTokens(t)
+	for _, want := range []string{"fuse3", "ripgrep", "fd-find", "rsync", "inotify-tools"} {
+		if !hasToken(tokens, want) {
+			t.Errorf("apt-get install tokens %v missing %q (Acc 2 and Acc 12 need inotifywait)", tokens, want)
+		}
+	}
+}
+
+// Ubuntu's fd-find installs the binary as fdfind, but the Acc 12 crawler looks up `fd`.
+func TestFuseJobExposesFdfindAsFd(t *testing.T) {
+	block := fuseJobBlock(t)
+	lines := strings.Split(block, "\n")
+	link := firstLineIndex(lines, func(l string) bool {
+		return strings.Contains(l, "ln -s") && strings.Contains(l, "fdfind") && strings.Contains(l, "/fd")
+	})
+	if link < 0 {
+		t.Fatalf("fuse-linux job has no step linking fdfind to fd on PATH:\n%s", block)
+	}
+	if acc := acceptanceLine(t, lines); link > acc {
+		t.Errorf("fdfind link (line %d) must come before the acceptance go test (line %d)", link, acc)
+	}
+}
+
+func TestFuseJobSetsSystemdTestsEnv(t *testing.T) {
+	block := fuseJobBlock(t)
+	if n := len(systemdTestsEnvRe.FindAllString(block, -1)); n != 1 {
+		t.Errorf("fuse-linux job has %d `SNAPBACK_SYSTEMD_TESTS: \"1\"` entries, want exactly 1:\n%s", n, block)
+	}
+}
+
+func TestFuseJobStartsUserManagerBeforeAcceptance(t *testing.T) {
+	block := fuseJobBlock(t)
+	step := stepContaining(block, "loginctl enable-linger")
+	if step == "" {
+		t.Fatalf("fuse-linux job has no `loginctl enable-linger` step for the runner user:\n%s", block)
+	}
+	assertContainsAll(t, step, "sudo loginctl enable-linger", "/run/user/", "/bus", "id -u")
+	for _, key := range []string{"XDG_RUNTIME_DIR=", "DBUS_SESSION_BUS_ADDRESS="} {
+		exported := false
+		for _, line := range strings.Split(step, "\n") {
+			if strings.Contains(line, key) && githubEnvRe.MatchString(line) {
+				exported = true
+			}
+		}
+		if !exported {
+			t.Errorf("user manager step does not export %s via $GITHUB_ENV:\n%s", key, step)
+		}
+	}
+	lines := strings.Split(block, "\n")
+	linger := firstLineIndex(lines, func(l string) bool { return strings.Contains(l, "loginctl enable-linger") })
+	if acc := acceptanceLine(t, lines); linger > acc {
+		t.Errorf("user manager step (line %d) must come before the acceptance go test (line %d)", linger, acc)
+	}
+}
+
+func TestFuseJobAcceptanceUploadsEvidence(t *testing.T) {
+	block := fuseJobBlock(t)
+	acc := stepContaining(block, acceptanceTestPath)
+	if acc == "" {
+		t.Fatalf("fuse-linux job has no acceptance step running %s", acceptanceTestPath)
+	}
+	if !evidenceDirEnvRe.MatchString(acc) || !evidenceMkdirRe.MatchString(acc) {
+		t.Errorf("acceptance step does not set and create SNAPBACK_EVIDENCE_DIR:\n%s", acc)
+	}
+	up := stepContaining(block, "name: v0.1-evidence-linux")
+	if up == "" {
+		t.Fatalf("fuse-linux job has no v0.1-evidence-linux upload step")
+	}
+	assertContainsAll(t, up, "actions/upload-artifact@v4", "always()", "v0.1-evidence", "if-no-files-found: error")
+}
+
 func TestFuseJobHasNoSecrets(t *testing.T) {
 	block := fuseJobBlock(t)
 	for _, bad := range []string{"secrets.", "continue-on-error"} {

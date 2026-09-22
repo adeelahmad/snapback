@@ -52,14 +52,15 @@ func (r *recorder) list() []string {
 }
 
 type fakeSupervisor struct {
-	rec     *recorder
-	states  map[string]history.RepoState
-	stopErr error
+	rec      *recorder
+	states   map[string]history.RepoState
+	startErr error
+	stopErr  error
 }
 
 func (f *fakeSupervisor) Start(context.Context) error {
 	f.rec.add("supervisor.start")
-	return nil
+	return f.startErr
 }
 
 func (f *fakeSupervisor) States() map[string]history.RepoState {
@@ -184,12 +185,13 @@ func (f *fakeDiscovery) Stop() { f.rec.add("discovery.stop") }
 
 type fakePrewarmer struct {
 	providertest.Fake
-	rec *recorder
+	rec     *recorder
+	results []provider.PrewarmResult
 }
 
 func (f *fakePrewarmer) Prewarm(context.Context) []provider.PrewarmResult {
 	f.rec.add("prewarm")
-	return nil
+	return f.results
 }
 
 // recordingListener records "listener.close" when closed.
