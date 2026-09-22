@@ -1,4 +1,5 @@
 See SPEC-ADDENDUM-A.md (Rev 2.1) for instances, consistency, ignore files and cache configuration.
+See SPEC-ADDENDUM-B.md for opt-in telemetry, crash reports and diagnostic bundles.
 
 # Snapback — Implementation Specification
 

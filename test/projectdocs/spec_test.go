@@ -12,11 +12,12 @@ import (
 )
 
 const (
-	specSHA256    = "4fc1dd2b661a62f8d2e95e870e21459afa2309742040f1e4afc49365742981c2"
-	specSize      = 68872
+	specSHA256    = "df0ca14ebab015e6c5ace364dca5d4ce231bf18227e678242c21507ea44711b6"
+	specSize      = 68955
 	specFirstLine = "# Snapback — Implementation Specification"
 	// specPointerLine is the Addendum A pointer the human mandated as SPEC.md's
-	// first line; the spec title follows it after a blank line.
+	// first line; the Addendum B pointer follows on line 2 and the spec title
+	// follows that after a blank line.
 	specPointerLine = "See SPEC-ADDENDUM-A.md (Rev 2.1) for instances, consistency, ignore files and cache configuration."
 )
 
@@ -40,6 +41,10 @@ func TestSpecSizeAndFirstLine(t *testing.T) {
 	first, rest, _ := strings.Cut(spec, "\n")
 	if first != specPointerLine {
 		t.Errorf("SPEC.md first line = %q, want %q", first, specPointerLine)
+	}
+	second, rest, _ := strings.Cut(rest, "\n")
+	if second != specAddendumBPointer {
+		t.Errorf("SPEC.md second line = %q, want %q", second, specAddendumBPointer)
 	}
 	if want := "\n" + specFirstLine + "\n"; !strings.HasPrefix(rest, want) {
 		t.Errorf("SPEC.md does not carry %q after a blank line below the pointer", specFirstLine)
