@@ -46,6 +46,24 @@ next_steps() {
 	printf '  2. Run: snapback config\n'
 }
 
+download() {
+	if command -v curl >/dev/null 2>&1; then
+		curl -fsSL -o "$2" "$1"
+	elif command -v wget >/dev/null 2>&1; then
+		wget -q -O "$2" "$1"
+	else
+		die "curl or wget is required"
+	fi
+}
+
+sha256() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | cut -d ' ' -f 1
+	else
+		shasum -a 256 "$1" | cut -d ' ' -f 1
+	fi
+}
+
 main() {
 	os=$(detect_os)
 	arch=$(detect_arch)
@@ -69,7 +87,19 @@ main() {
 		exit 0
 	fi
 
-	die "installation is not implemented yet"
+	tmp=$(mktemp -d)
+	trap 'rm -rf "$tmp"' EXIT
+	download "$SNAPBACK_BASE_URL/$asset" "$tmp/$asset" || die "failed to download $SNAPBACK_BASE_URL/$asset"
+	download "$SNAPBACK_BASE_URL/checksums.txt" "$tmp/checksums.txt" || die "failed to download checksums.txt"
+	want=$(awk -v a="$asset" '$2 == a { print $1 }' "$tmp/checksums.txt")
+	[ -n "$want" ] || die "no checksum for $asset in checksums.txt"
+	[ "$(sha256 "$tmp/$asset")" = "$want" ] || die "checksum mismatch for $asset; refusing to install"
+	tar -xzf "$tmp/$asset" -C "$tmp" snapback
+	mkdir -p "$install_dir"
+	cp "$tmp/snapback" "$install_dir/snapback"
+	chmod 755 "$install_dir/snapback"
+	printf 'installed snapback to %s\n' "$install_dir/snapback"
+	next_steps "$os"
 }
 
 main "$@"
