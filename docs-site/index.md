@@ -12,7 +12,14 @@ Snapback is pre-release software under active development. Expect breaking chang
 
 ## Roadmap
 
-Restic is the only backend. When the daemon runs, a snapshot taken while it runs can take up to about a minute to appear under `.snapshot`, because the view reloads Restic snapshot metadata on a refresh interval.
+These backends are planned, not supported yet:
+
+- Borg: planned.
+- Kopia: planned.
+- ZFS snapshots: planned.
+- Btrfs snapshots: planned.
+
+When the daemon runs, a snapshot taken while it runs can take up to about a minute to appear under `.snapshot`, because the view reloads Restic snapshot metadata on a refresh interval.
 
 ## Versions
 
