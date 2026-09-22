@@ -4,7 +4,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 42
+- **Tick:** 43
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 — all stories merged on stage-1 (ccbfbbe); FINAL GATE → commit-subject rewrite → promotion
 - **Last gate:** FINAL GATE GREEN on stage-1 @ af90d5d (after 2 fixes)
@@ -484,6 +484,8 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 42 | COMMIT SUBJECT REWRITE | orchestrator | msg-filter origin/master..stage-1: merge:→chore: merge, build:→chore:, drop '# Conflicts' lines; then fold body lines to ≤100; trees identical, 187 commits all Adeel Ahmad, 0 trailers; bundle backup scratchpad/pre-subject-rewrite.bundle; force-pushed stage-1 (→413d568) | — |
 | 42 | PR #1 CI | orchestrator | all jobs green (build/test, 7 builds, FUSE linux, site build) except commitlint → PR TITLE (not commits) failed; renamed to "feat: stage 1 compatibility milestone"; needs a new push event to re-lint | — |
 | 42 | HUMAN SPEC REVIEW | human | 8-point refinement of SPEC.md (FUSE wording, linkage claims, versions dedup semantics, canonical source_paths_exact, reader_policy not a security boundary, explicit v0.1 release contract, preserve invariants, keep central idea) | story S2-14 (C5) green-worker spawned 04:22Z |
+| 43 | S2-14 SPEC refinements | green-worker | passed — 8 points applied (FUSE wording §1; Linux static w/ evidence, macOS self-contained §1/§17; versions panel shows every occurrence, size+mtime only "likely identical" §15; canonical source_paths_exact §6; reader_policy not an access-control boundary §7; new §22.1 first public release contract + reconciled §2/§9/§17/§18/§20/§22/§24; invariants untouched; central idea + design anchor in §1); spec pin updated; OpenRC placed in follow-up (orchestrator accepts; human may move) | — |
+| 43 | MERGE S2-14 → stage-1 | orchestrator | 23095b1; full gate GREEN | — |
 
 ## Plugin issues found
 
