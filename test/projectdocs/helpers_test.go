@@ -57,9 +57,45 @@ func TestSectionExtractsBody(t *testing.T) {
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
-	panic("SUB-AGENT-TODO: T1 - start at the test's working directory and walk up parent dirs until one contains go.mod; return that dir; t.Fatalf if the filesystem root is reached without finding go.mod")
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatalf("no go.mod found above working directory")
+		}
+		dir = parent
+	}
 }
 
 func section(doc, heading string) string {
-	panic("SUB-AGENT-TODO: T1 - find the line exactly equal to heading (e.g. \"## A\" or \"### Key Files (current shape)\"); return the text after it up to the next heading of the same or higher level (a line of the same or fewer '#' then a space), or end of doc; return \"\" when heading is absent. Must handle ### subheadings (T8 calls section(ws, \"### Key Files (current shape)\")) and must not stop at deeper headings")
+	// headingLevel is the count of leading '#' for a markdown heading, else 0.
+	headingLevel := func(line string) int {
+		n := len(line) - len(strings.TrimLeft(line, "#"))
+		if n == 0 || !strings.HasPrefix(line[n:], " ") {
+			return 0
+		}
+		return n
+	}
+	level := headingLevel(heading)
+	lines := strings.Split(doc, "\n")
+	for i, line := range lines {
+		if line != heading {
+			continue
+		}
+		end := len(lines)
+		for j := i + 1; j < len(lines); j++ {
+			if l := headingLevel(lines[j]); l > 0 && l <= level {
+				end = j
+				break
+			}
+		}
+		return strings.Join(lines[i+1:end], "\n")
+	}
+	return ""
 }
