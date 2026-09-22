@@ -102,7 +102,8 @@ func TestDaemonDepsComplete(t *testing.T) {
 	typ := v.Type()
 	for i := range typ.NumField() {
 		f := typ.Field(i)
-		if f.Name == "Trace" {
+		// Unlock is set by run after the builder returns (S3-10 T7d).
+		if f.Name == "Trace" || f.Name == "Unlock" {
 			continue
 		}
 		switch f.Type.Kind() {
