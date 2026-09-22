@@ -202,7 +202,7 @@ Durations use Go syntax: `20ms`, `60s`, `5m`, `1h`.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `views.rsnapshot` | boolean | `false` | Also present snapshots as `daily.N`, `weekly.N` and so on. |
+| `views.rsnapshot` | boolean | `false` | Turn on the optional `daily.N`/`weekly.N` view names. |
 | `views.rsnapshot_keep.hourly` | integer | `0` | Number of hourly entries to show. At least 0. |
 | `views.rsnapshot_keep.daily` | integer | `7` | Number of daily entries to show. At least 0. |
 | `views.rsnapshot_keep.weekly` | integer | `4` | Number of weekly entries to show. At least 0. |

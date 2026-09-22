@@ -22,6 +22,10 @@ var (
 	scriptCommand    = regexp.MustCompile(`snapback ([a-z][a-z-]*)`)
 	reloadLatency    = regexp.MustCompile(`(?i)up to (about|around|roughly) (a|one) minute`)
 	notWord          = regexp.MustCompile(`\bnot\b`)
+	// v01ConfigKeyInline and v01ConfigKeyYAML match the views config keys, which
+	// name the optional daily.N/weekly.N view, not another backend.
+	v01ConfigKeyInline = regexp.MustCompile("`views\\.rsnapshot(_keep(\\.(hourly|daily|weekly|monthly))?)?`")
+	v01ConfigKeyYAML   = regexp.MustCompile(`^\s*(views\.)?rsnapshot(_keep)?:`)
 )
 
 // scriptProse are words that follow "snapback " in install.sh prose rather than naming a command.
@@ -80,17 +84,25 @@ func snapbackHelp(t *testing.T) string {
 
 // unplannedBackendLines returns, keyed by 1-based line number, each line of
 // text that names another backend, except lines inside a `## Roadmap` section
-// that say "planned". Any "## " heading ends the section. It mirrors
+// that say "planned". Any "## " heading ends the section. Exact views config
+// keys are exempt: in inline code, and as YAML keys inside fenced code blocks. It mirrors
 // test/docs/honesty_test.go::TestOnlyResticBackendNamed; the two _test
 // packages cannot share code, so the rule is duplicated here.
 func unplannedBackendLines(text string) map[int]string {
 	hits := map[int]string{}
-	inRoadmap := false
+	inRoadmap, inFence := false, false
 	for i, line := range strings.Split(text, "\n") {
 		if strings.HasPrefix(line, "## ") {
 			inRoadmap = strings.TrimSpace(line) == "## Roadmap"
 		}
-		if !v01OtherBackend.MatchString(line) {
+		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+			inFence = !inFence
+		}
+		scan := v01ConfigKeyInline.ReplaceAllString(line, "")
+		if inFence {
+			scan = v01ConfigKeyYAML.ReplaceAllString(scan, "")
+		}
+		if !v01OtherBackend.MatchString(scan) {
 			continue
 		}
 		if inRoadmap && strings.Contains(strings.ToLower(line), "planned") {
@@ -99,6 +111,27 @@ func unplannedBackendLines(text string) map[int]string {
 		hits[i+1] = strings.TrimSpace(line)
 	}
 	return hits
+}
+
+func TestUnplannedBackendLinesExemptsOnlyConfigKeys(t *testing.T) {
+	cases := []struct {
+		in   string
+		want int
+	}{
+		{"```yaml\nviews:\n  rsnapshot: false\n  rsnapshot_keep: {daily: 7}\n```", 0},
+		{"| `views.rsnapshot` | boolean |", 0},
+		{"| `views.rsnapshot_keep.daily` | integer |", 0},
+		{"Set `views.rsnapshot_keep` to trim the list.", 0},
+		{"rsnapshot: false", 1},
+		{"Snapback also reads rsnapshot trees.", 1},
+		{"Use `views.rsnapshot` like rsnapshot does.", 1},
+		{"```yaml\n# rsnapshot is supported\n```", 1},
+	}
+	for _, c := range cases {
+		if got := len(unplannedBackendLines(c.in)); got != c.want {
+			t.Errorf("len(unplannedBackendLines(%q)) = %d, want %d", c.in, got, c.want)
+		}
+	}
 }
 
 func sentences(text string) []string {
