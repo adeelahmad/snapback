@@ -99,6 +99,7 @@ func Validate(c *Config) error {
 	v.errs = append(v.errs, checkMountPoints(c)...)
 	v.errs = append(v.errs, checkCredentials(c)...)
 	v.errs = append(v.errs, checkLogging(c)...)
+	v.errs = append(v.errs, checkFiles(c)...)
 	if len(v.errs) > 0 {
 		return &ValidationError{Fields: v.errs}
 	}

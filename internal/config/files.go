@@ -1,6 +1,11 @@
 package config
 
-import "github.com/adeelahmad/snapback/internal/fsmode"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/adeelahmad/snapback/internal/fsmode"
+)
 
 // Files is the `files:` section: the modes Snapback creates its own state with,
 // exactly as the user spelled them. Every field is optional; the zero value
@@ -17,7 +22,26 @@ type Files struct {
 // Modes resolves the section into the pair of modes Snapback creates
 // directories and files with. An absent section resolves to the defaults.
 func (f Files) Modes() (fsmode.Modes, error) {
-	return fsmode.Modes{}, nil
+	if f.Umask != "" {
+		if f.DirMode != "" || f.FileMode != "" {
+			return fsmode.Modes{}, errors.New(umaskConflict)
+		}
+		return fsmode.FromUmask(f.Umask)
+	}
+
+	var m fsmode.Modes
+	var err error
+	if f.DirMode != "" {
+		if m.Dir, err = fsmode.Parse(f.DirMode); err != nil {
+			return fsmode.Modes{}, fmt.Errorf("files.dir_mode: %w", err)
+		}
+	}
+	if f.FileMode != "" {
+		if m.File, err = fsmode.Parse(f.FileMode); err != nil {
+			return fsmode.Modes{}, fmt.Errorf("files.file_mode: %w", err)
+		}
+	}
+	return m.OrDefault(), nil
 }
 
 // checkFiles reports the errors in the files section: an unparsable mode on
@@ -25,5 +49,29 @@ func (f Files) Modes() (fsmode.Modes, error) {
 // umask set together with an explicit mode, also on files.umask. An absent
 // section is valid.
 func checkFiles(c *Config) []FieldError {
-	return nil
+	f := c.Files
+	var errs []FieldError
+	if f.Umask != "" {
+		if f.DirMode != "" || f.FileMode != "" {
+			return append(errs, FieldError{Path: "files.umask", Msg: umaskConflict})
+		}
+		if _, err := fsmode.FromUmask(f.Umask); err != nil {
+			errs = append(errs, FieldError{Path: "files.umask", Msg: err.Error()})
+		}
+		return errs
+	}
+	if f.DirMode != "" {
+		if _, err := fsmode.Parse(f.DirMode); err != nil {
+			errs = append(errs, FieldError{Path: "files.dir_mode", Msg: err.Error()})
+		}
+	}
+	if f.FileMode != "" {
+		if _, err := fsmode.Parse(f.FileMode); err != nil {
+			errs = append(errs, FieldError{Path: "files.file_mode", Msg: err.Error()})
+		}
+	}
+	return errs
 }
+
+// umaskConflict is the message for a umask set together with an explicit mode.
+const umaskConflict = "umask cannot be combined with an explicit dir_mode or file_mode: pick one spelling"
