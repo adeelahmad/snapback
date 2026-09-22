@@ -589,13 +589,21 @@ type ReadyPublisher struct {
 // of the generations published through it.
 func NewReadyPublisher(pub mount.Publisher) *ReadyPublisher {
 	held := &catalogHolder{}
-	return &ReadyPublisher{pub: pub, ready: mount.NewReady(), held: held, cat: held}
+	ready := mount.NewReady()
+	return &ReadyPublisher{
+		pub:   pub,
+		ready: ready,
+		held:  held,
+		cat:   mount.NewReadyCatalog(held, ready, 0),
+	}
 }
 
-// Publish serves cat as the current generation.
+// Publish serves cat as the current generation, marking the barrier once the
+// first publish has returned so nothing is looked up before it is readable.
 func (p *ReadyPublisher) Publish(cat mount.Catalog) {
 	p.held.set(cat)
 	p.pub.Publish(p.cat)
+	p.ready.Mark()
 }
 
 // markAll adds every repo in repos to set.

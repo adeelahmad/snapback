@@ -81,7 +81,7 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 		PrewarmSnapshots:   cfg.Catalog.PrewarmSnapshots,
 		PrewarmConcurrency: cfg.Catalog.PrewarmConcurrency,
 		Now:                time.Now,
-	}, listers, view, multiPrewarmer(provs))
+	}, listers, daemon.NewReadyPublisher(view), multiPrewarmer(provs))
 
 	return daemon.Deps{
 		Supervisor: history.NewSupervisor(mounters, cfg.BackendMountDir, history.Backoff{
