@@ -1,9 +1,6 @@
-// agentic:shim
-
 package fidelity
 
 import (
-	"errors"
 	"io/fs"
 	"time"
 )
@@ -50,28 +47,23 @@ type Unclaimed struct {
 	Value *time.Time
 }
 
-// MarshalJSON is a compile shim with a deliberately wrong body.
+// MarshalJSON encodes u as {value, claimed:false, note}.
 func (u Unclaimed) MarshalJSON() ([]byte, error) {
-	return []byte(`{"value":"shim","claimed":true,"note":""}`), nil
+	panic("SUB-AGENT-TODO: T4 encode {value: RFC3339Nano time or null when Value is nil, claimed: false, note: recorded-not-asserted, or not-exposed when Value is nil}")
 }
 
-// UnmarshalJSON is a compile shim with a deliberately wrong body.
-func (u *Unclaimed) UnmarshalJSON(_ []byte) error {
-	u.Value = nil
-	return nil
+// UnmarshalJSON decodes the {value, claimed, note} form into u.
+func (u *Unclaimed) UnmarshalJSON(data []byte) error {
+	panic("SUB-AGENT-TODO: T4 decode the object; Value is the parsed time, nil when value is null")
 }
 
-// WriteEvidence is a compile shim with a deliberately wrong body.
-func WriteEvidence(_ string, _ Evidence) (string, error) {
-	return "", errors.New("shim: not implemented")
+// WriteEvidence writes ev as indented JSON to dir/fidelity-<GOOS>.json and
+// returns the path.
+func WriteEvidence(dir string, ev Evidence) (string, error) {
+	panic("SUB-AGENT-TODO: T4 error if dir does not exist; json.MarshalIndent; write filepath.Join(dir, fidelity-<runtime.GOOS>.json) with mode 0644; return the path")
 }
 
-// ReadEvidence is a compile shim with a deliberately wrong body.
-func ReadEvidence(_ string) (Evidence, error) {
-	return Evidence{}, nil
-}
-
-// MissingPrereq is a compile shim with a deliberately wrong body.
-func MissingPrereq(_ func(string) string, _ func(string) (string, error), _ func(string) bool, _ string) string {
-	return "shim"
+// ReadEvidence reads the evidence JSON at path.
+func ReadEvidence(path string) (Evidence, error) {
+	panic("SUB-AGENT-TODO: T4 os.ReadFile then json.Unmarshal into Evidence; wrap errors with the path")
 }
