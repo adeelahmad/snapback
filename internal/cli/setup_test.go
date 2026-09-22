@@ -220,3 +220,145 @@ func TestSetupOnEmptyRepositoryWritesConfigAndAdvisesSnap(t *testing.T) {
 		t.Errorf("setup stdout = %q, want a line containing %q", out, want)
 	}
 }
+
+// fakeInstaller records the service installs setup asks for.
+type fakeInstaller struct {
+	calls int
+}
+
+func (f *fakeInstaller) Install(context.Context, string, string) error {
+	f.calls++
+	return nil
+}
+
+// withFakeService points the fixture at a Linux host with a supported service
+// manager and returns the installer it records the calls on.
+func (f *setupFixture) withFakeService() *fakeInstaller {
+	inst := &fakeInstaller{}
+	f.deps.GOOS = "linux"
+	f.deps.ServiceSupported = func() bool { return true }
+	f.deps.ServiceInstaller = inst
+	return inst
+}
+
+// withFakeLinker records the directories setup links and fails the ones named
+// in fail.
+func (f *setupFixture) withFakeLinker(linked *[]string, fail map[string]error) {
+	f.deps.Link = func(_ context.Context, dir string) (bool, error) {
+		if err := fail[dir]; err != nil {
+			return false, err
+		}
+		*linked = append(*linked, dir)
+		return true, nil
+	}
+}
+
+func TestSetupOnLinuxLinksRootsInstallsServiceAndBrowsesTheRoot(t *testing.T) {
+	f := newSetupFixture(t)
+	var linked []string
+	f.withFakeLinker(&linked, nil)
+	inst := f.withFakeService()
+
+	if got := f.dispatch(t); got != 0 {
+		t.Fatalf("setup = %d, want 0 (stderr %q)", got, f.err.String())
+	}
+	if len(linked) != 1 || linked[0] != f.root {
+		t.Errorf("setup linked %v, want [%q]", linked, f.root)
+	}
+	if inst.calls != 1 {
+		t.Errorf("installer calls = %d, want 1", inst.calls)
+	}
+
+	out := f.out.String()
+	for _, want := range []string{
+		"linked " + f.root,
+		"service: installed (remove with: snapback service uninstall)",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("setup stdout = %q, want a line containing %q", out, want)
+		}
+	}
+	if got, want := lastLine(out), "next: ls "+filepath.Join(f.root, ".snapshot"); got != want {
+		t.Errorf("setup last stdout line = %q, want %q", got, want)
+	}
+}
+
+func TestSetupOnDarwinAsksForTheDaemon(t *testing.T) {
+	f := newSetupFixture(t)
+	var linked []string
+	f.withFakeLinker(&linked, nil)
+	inst := f.withFakeService()
+	f.deps.GOOS = "darwin"
+
+	if got := f.dispatch(t); got != 0 {
+		t.Fatalf("setup = %d, want 0 (stderr %q)", got, f.err.String())
+	}
+	if inst.calls != 0 {
+		t.Errorf("installer calls on darwin = %d, want 0", inst.calls)
+	}
+	if got, want := lastLine(f.out.String()), "next: snapback run"; got != want {
+		t.Errorf("setup last stdout line = %q, want %q", got, want)
+	}
+}
+
+func TestSetupNoServiceSkipsTheInstaller(t *testing.T) {
+	f := newSetupFixture(t)
+	var linked []string
+	f.withFakeLinker(&linked, nil)
+	inst := f.withFakeService()
+
+	if got := f.dispatch(t, "--no-service"); got != 0 {
+		t.Fatalf("setup --no-service = %d, want 0 (stderr %q)", got, f.err.String())
+	}
+	if inst.calls != 0 {
+		t.Errorf("installer calls with --no-service = %d, want 0", inst.calls)
+	}
+	out := f.out.String()
+	if want := "service: skipped (--no-service)"; !strings.Contains(out, want) {
+		t.Errorf("setup --no-service stdout = %q, want a line containing %q", out, want)
+	}
+	if got, want := lastLine(out), "next: snapback run"; got != want {
+		t.Errorf("setup --no-service last stdout line = %q, want %q", got, want)
+	}
+}
+
+func TestSetupReportsALinkErrorAndKeepsGoing(t *testing.T) {
+	f := newSetupFixture(t)
+	docs := filepath.Join(filepath.Dir(f.root), "docs")
+	if err := os.MkdirAll(docs, 0o700); err != nil {
+		t.Fatalf("MkdirAll(%q) = %v, want nil", docs, err)
+	}
+	var linked []string
+	f.withFakeLinker(&linked, map[string]error{docs: fs.ErrPermission})
+	f.withFakeService()
+
+	if got := f.dispatch(t, f.root, docs); got != 0 {
+		t.Fatalf("setup with a failing root = %d, want 0 (stderr %q)", got, f.err.String())
+	}
+	if len(linked) != 1 || linked[0] != f.root {
+		t.Errorf("setup linked %v, want [%q]", linked, f.root)
+	}
+	if got := f.err.String(); !strings.Contains(got, docs) {
+		t.Errorf("setup stderr = %q, want it to name %q", got, docs)
+	}
+	if got, want := lastLine(f.out.String()), "next: ls "+filepath.Join(f.root, ".snapshot"); got != want {
+		t.Errorf("setup last stdout line = %q, want %q", got, want)
+	}
+}
+
+func TestSetupDryRunSkipsLinkingAndService(t *testing.T) {
+	f := newSetupFixture(t)
+	var linked []string
+	f.withFakeLinker(&linked, nil)
+	inst := f.withFakeService()
+
+	if got := f.dispatch(t, "--dry-run"); got != 0 {
+		t.Fatalf("setup --dry-run = %d, want 0 (stderr %q)", got, f.err.String())
+	}
+	if len(linked) != 0 {
+		t.Errorf("setup --dry-run linked %v, want none", linked)
+	}
+	if inst.calls != 0 {
+		t.Errorf("installer calls with --dry-run = %d, want 0", inst.calls)
+	}
+}

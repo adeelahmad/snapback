@@ -55,4 +55,16 @@ type Deps struct {
 	Run setup.Runner
 	// RunSeed creates the links planned in p.
 	RunSeed func(ctx context.Context, l seed.Linker, p seed.Plan) (seed.Report, error)
+	// GOOS names the host operating system setup decides the login service
+	// and the next step for. An empty GOOS means the running host.
+	GOOS string
+	// Link ensures the .snapshot link of one directory, daemon first.
+	Link func(ctx context.Context, dir string) (created bool, err error)
+	// ServiceInstaller installs the login service setup turns on.
+	ServiceInstaller setup.ServiceInstaller
+	// ServiceSupported reports whether this host has a service manager
+	// Snapback can install for.
+	ServiceSupported func() bool
+	// DaemonRunning reports whether a daemon already holds stateDir.
+	DaemonRunning func(stateDir string) bool
 }
