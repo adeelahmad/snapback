@@ -1,17 +1,28 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"os"
 
-	"github.com/adeelahmad/snapback/internal/version"
+	"github.com/adeelahmad/snapback/internal/cli"
+	"github.com/adeelahmad/snapback/internal/config"
 )
 
+const usage = "usage: snapback version|help|COMMAND [--json] [args]"
+
 func run(args []string, stdout, stderr io.Writer) int {
-	if len(args) == 1 && args[0] == "version" {
-		_, _ = fmt.Fprint(stdout, version.String())
-		return 0
+	env := cli.Env{Stdout: stdout, Stderr: stderr, Getenv: os.Getenv}
+	if len(args) > 0 && args[0] == "--config" {
+		if len(args) < 2 {
+			_, _ = fmt.Fprintln(stderr, usage)
+			return 2
+		}
+		env.ConfigPath = args[1]
+		args = args[2:]
+	} else if p, err := config.DefaultPath(); err == nil {
+		env.ConfigPath = p
 	}
-	_, _ = fmt.Fprintln(stderr, "usage: snapback version")
-	return 2
+	return cli.Dispatch(context.Background(), env, usage, allCommands(realDeps(env.ConfigPath)), args)
 }

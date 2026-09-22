@@ -1,0 +1,4 @@
+22 1 8:1 / / rw,relatime shared:1 - ext4 /dev/sda1 rw,errors=remount-ro
+41 22 0:40 / /home/u/.local/state/snapback/backend/repoA ro,nosuid,nodev,relatime shared:20 - fuse.restic restic ro,user_id=1000,group_id=1000
+42 22 0:41 / /home/u/Snapshots\040History ro,nosuid,nodev,relatime shared:21 - fuse snapback ro,user_id=1000,group_id=1000
+43 22 0:42 / /mnt/nas rw,nosuid,nodev,relatime shared:22 - fuse.sshfs nas:/export rw,user_id=1000,group_id=1000

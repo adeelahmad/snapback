@@ -1,0 +1,15 @@
+# Managed by snapback; do not edit.
+[Unit]
+Description=Snapback .snapshot history
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/snapback run --config /home/u/.config/snapback/config.yaml
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+
+[Install]
+WantedBy=default.target
