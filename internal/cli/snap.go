@@ -116,13 +116,14 @@ func takeSnap(ctx context.Context, d Deps, env Env, o snapOpts) (snapResult, err
 	if err != nil {
 		return snapResult{}, err
 	}
-	repoID, browsable, err := snapRepository(cfg, path, o.repo)
+	repoID, browsable, host, err := snapRepository(cfg, path, o.repo)
 	if err != nil {
 		return snapResult{}, err
 	}
-	host, err := d.Hostname()
-	if err != nil {
-		return snapResult{}, errcode.New(errcode.PrereqMissing, "snap", err)
+	if host == "" {
+		if host, err = d.Hostname(); err != nil {
+			return snapResult{}, errcode.New(errcode.PrereqMissing, "snap", err)
+		}
 	}
 	snapper, err := d.NewSnapper(cfg, repoID)
 	if err != nil {
@@ -180,13 +181,14 @@ func snapPath(d Deps, p string) (string, error) {
 
 // snapRepository picks the repository for path: the explicit repo when
 // given (not browsable), else the repository of the root containing path.
-func snapRepository(cfg config.Config, path, repo string) (repoID string, browsable bool, err error) {
+// For a root it also returns the root's hostname filter, empty when unset.
+func snapRepository(cfg config.Config, path, repo string) (repoID string, browsable bool, host string, err error) {
 	if repo != "" {
 		known := slices.ContainsFunc(cfg.Repositories, func(r config.Repository) bool { return r.ID == repo })
 		if !known {
-			return "", false, errcode.New(errcode.InvalidConfig, "snap", fmt.Errorf("unknown repository %q", repo))
+			return "", false, "", errcode.New(errcode.InvalidConfig, "snap", fmt.Errorf("unknown repository %q", repo))
 		}
-		return repo, false, nil
+		return repo, false, "", nil
 	}
 	specs := make([]resolver.RootSpec, 0, len(cfg.Roots))
 	for _, r := range cfg.Roots {
@@ -194,14 +196,14 @@ func snapRepository(cfg config.Config, path, repo string) (repoID string, browsa
 	}
 	m, err := resolver.SelectRoot(specs, path)
 	if err != nil {
-		return "", false, errcode.New(errcode.MappingAbsent, "snap", err)
+		return "", false, "", errcode.New(errcode.MappingAbsent, "snap", err)
 	}
 	for _, r := range cfg.Roots {
 		if r.ID == m.RootID {
-			return r.RepositoryID, true, nil
+			return r.RepositoryID, true, r.Snapshots.Hostname, nil
 		}
 	}
-	return "", false, errcode.New(errcode.MappingAbsent, "snap", errors.New("root not found"))
+	return "", false, "", errcode.New(errcode.MappingAbsent, "snap", errors.New("root not found"))
 }
 
 // waitVisible polls daemon every snapPollInterval until id is visible or
