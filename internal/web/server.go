@@ -77,7 +77,7 @@ func New(opts Options) (*Server, error) {
 		return nil, errcode.New(errcode.InvalidConfig, "web.New", err)
 	}
 	approved := opts.Policy.Bind == opts.Listen && opts.Policy.Warning != ""
-	if ip := net.ParseIP(host); (ip == nil || !ip.IsLoopback()) && !approved {
+	if !isLoopbackHost(host) && !approved {
 		return nil, errcode.New(errcode.InvalidConfig, "web.New", fmt.Errorf("listen address %q is not loopback", opts.Listen))
 	}
 	ln, err := net.Listen("tcp", opts.Listen)
