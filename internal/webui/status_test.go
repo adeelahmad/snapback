@@ -51,8 +51,11 @@ func TestStatusUnmeasuredNotZero(t *testing.T) {
 		DiscoveryMode: "seeded",
 	}
 	got := render(t, p, "status", v)
-	if n := strings.Count(got, "not measured yet"); n != 4 {
-		t.Errorf(`Render(status) has %d "not measured yet", want 4`, n)
+	if n := strings.Count(got, "not reported"); n != 4 {
+		t.Errorf(`Render(status) has %d "not reported", want 4`, n)
+	}
+	if strings.Contains(got, "not measured yet") {
+		t.Errorf(`Render(status) contains "not measured yet", want every missing metric to say "not reported"`)
 	}
 	zero := regexp.MustCompile(`>\s*0\s*<`)
 	if m := zero.FindString(got); m != "" {
