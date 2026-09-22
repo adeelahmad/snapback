@@ -104,21 +104,21 @@ func TestSnapshotJSONHasNoCredentials(t *testing.T) {
 	if err := json.Unmarshal(b, &top); err != nil {
 		t.Fatalf("json.Unmarshal(%s) error = %v", got, err)
 	}
-	for _, key := range []string{"State", "Repos", "LastRefresh", "Generation", "EligibleCount", "Links", "Warm", "Pending", "Discovery", "Throttle", "WebURL"} {
+	for _, key := range []string{"state", "repos", "last_refresh", "generation", "eligible_count", "links", "warm", "pending", "discovery", "throttle", "web_url"} {
 		if _, ok := top[key]; !ok {
 			t.Errorf("json.Marshal(snapshot) = %s, want key %q", got, key)
 		}
 	}
 	var reposJSON []map[string]json.RawMessage
-	if err := json.Unmarshal(top["Repos"], &reposJSON); err != nil {
-		t.Fatalf("json.Unmarshal(Repos %s) error = %v", top["Repos"], err)
+	if err := json.Unmarshal(top["repos"], &reposJSON); err != nil {
+		t.Fatalf("json.Unmarshal(repos %s) error = %v", top["repos"], err)
 	}
 	if len(reposJSON) != 1 {
-		t.Fatalf("Repos JSON = %s, want 1 entry", top["Repos"])
+		t.Fatalf("repos JSON = %s, want 1 entry", top["repos"])
 	}
-	for _, key := range []string{"ID", "State", "Code"} {
+	for _, key := range []string{"id", "state", "code"} {
 		if _, ok := reposJSON[0][key]; !ok {
-			t.Errorf("Repos[0] JSON = %s, want key %q", top["Repos"], key)
+			t.Errorf("repos[0] JSON = %s, want key %q", top["repos"], key)
 		}
 	}
 }
