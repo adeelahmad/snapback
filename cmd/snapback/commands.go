@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/discovery/seed"
+	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/ipc"
+	"github.com/adeelahmad/snapback/internal/provider"
+	"github.com/adeelahmad/snapback/internal/provider/restic"
 	"github.com/adeelahmad/snapback/internal/version"
 )
 
@@ -41,24 +47,43 @@ func versionCommand() cli.Command {
 	}
 }
 
-// realDeps returns the production dependencies. The configuration is read
-// only when a command calls LoadConfig.
-func realDeps() cli.Deps {
+// realDeps returns the production dependencies for the configuration at
+// configPath. The configuration is read only when a dependency needs it.
+func realDeps(configPath string) cli.Deps {
+	loadConfig := func(path string) (config.Config, error) {
+		c, _, err := config.Load(path)
+		if err != nil {
+			return config.Config{}, err
+		}
+		return *c, nil
+	}
 	return cli.Deps{
+		Daemon: func(ctx context.Context) (cli.Daemon, error) {
+			cfg, err := loadConfig(configPath)
+			if err != nil {
+				return nil, err
+			}
+			return dialDaemon(ipc.SocketPath(os.Getenv, cfg.StateDir))(ctx)
+		},
+		NewSnapper: newSnapper,
+		PlanPath:   seed.PlanPath,
+		Preflight: func(p seed.Plan, force bool) error {
+			cfg, err := loadConfig(configPath)
+			if err != nil {
+				return err
+			}
+			s := cfg.Discovery.Seed
+			return seed.Preflight(p, seed.StatfsOf, s.InodeThreshold, s.MaxLinksPerPath, force)
+		},
+		RunSeed:  seed.Run,
 		Getwd:    os.Getwd,
 		LookPath: exec.LookPath,
 		Exec: func(ctx context.Context, name string, args []string) error {
 			return exec.CommandContext(ctx, name, args...).Run()
 		},
-		LoadConfig: func(path string) (config.Config, error) {
-			c, _, err := config.Load(path)
-			if err != nil {
-				return config.Config{}, err
-			}
-			return *c, nil
-		},
-		Hostname: os.Hostname,
-		Now:      time.Now,
+		LoadConfig: loadConfig,
+		Hostname:   os.Hostname,
+		Now:        time.Now,
 		Sleep: func(ctx context.Context, d time.Duration) error {
 			t := time.NewTimer(d)
 			defer t.Stop()
@@ -70,4 +95,35 @@ func realDeps() cli.Deps {
 			}
 		},
 	}
+}
+
+// newSnapper returns the restic Snapper for repository repoID in cfg.
+func newSnapper(cfg config.Config, repoID string) (provider.Snapper, error) {
+	for _, r := range cfg.Repositories {
+		if r.ID != repoID {
+			continue
+		}
+		bin := r.ResticBinary
+		if bin == "" {
+			bin = "restic"
+		}
+		path, err := exec.LookPath(bin)
+		if err != nil {
+			return nil, errcode.New(errcode.PrereqMissing, "snap", fmt.Errorf("restic binary %s not found: %w", bin, err))
+		}
+		if path, err = filepath.Abs(path); err != nil {
+			return nil, err
+		}
+		return restic.New(restic.Options{
+			Binary:       path,
+			Repository:   r.Repository,
+			PasswordFile: r.PasswordFile,
+			CacheDir:     r.CacheDir,
+			NoCache:      r.NoCache,
+			NoLock:       r.LockMode == "none",
+			RcloneBinary: r.RcloneBinary,
+			Env:          r.Environment,
+		})
+	}
+	return nil, errcode.New(errcode.InvalidConfig, "snap", fmt.Errorf("unknown repository %q", repoID))
 }

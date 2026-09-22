@@ -24,5 +24,5 @@ func run(args []string, stdout, stderr io.Writer) int {
 	} else if p, err := config.DefaultPath(); err == nil {
 		env.ConfigPath = p
 	}
-	return cli.Dispatch(context.Background(), env, usage, coreCommands(realDeps()), args)
+	return cli.Dispatch(context.Background(), env, usage, allCommands(realDeps(env.ConfigPath)), args)
 }

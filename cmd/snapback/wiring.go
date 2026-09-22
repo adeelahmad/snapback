@@ -1,15 +1,38 @@
 package main
 
-import "github.com/adeelahmad/snapback/internal/cli"
+import (
+	"github.com/adeelahmad/snapback/internal/cli"
+	"github.com/adeelahmad/snapback/internal/daemon"
+	"github.com/adeelahmad/snapback/internal/doctor"
+	"github.com/adeelahmad/snapback/internal/service"
+	"github.com/adeelahmad/snapback/internal/shellhook"
+	"github.com/adeelahmad/snapback/internal/web"
+)
 
 // allCommands returns the core commands plus the wave-5 commands from later
 // stories.
 func allCommands(deps cli.Deps) []cli.Command {
-	panic("SUB-AGENT-TODO: return coreCommands(deps) plus run, status, refresh (S3-10 constructors), shell-hook, notify (S3-12), web (S3-13), install, service (S3-15 service), doctor (S3-15 doctor); the config command gets configFallback() as its fallback; no duplicate names")
+	cmds := coreCommands(deps)
+	for i, c := range cmds {
+		if c.Name == "config" {
+			cmds[i] = cli.ConfigCommand(deps, configFallback().Run)
+		}
+	}
+	return append(cmds,
+		daemon.Command(daemonBuilder),
+		daemon.StatusCommand(),
+		daemon.RefreshCommand(),
+		shellhook.Command(),
+		shellhook.NotifyCommand(),
+		web.Command(),
+		service.InstallCommand(),
+		service.ServiceCommand(),
+		doctor.Command(),
+	)
 }
 
 // configFallback is the command that handles config subcommands other than
 // validate and show.
 func configFallback() cli.Command {
-	panic("SUB-AGENT-TODO: return web.ConfigCommand() (S3-13 config fallback, same Name and Summary)")
+	return web.ConfigCommand()
 }
