@@ -232,3 +232,27 @@ func TestShutdownLeavesLinksAndCancelsFiniteOps(t *testing.T) {
 		t.Errorf("len(List()) = %d, want 1", len(recs))
 	}
 }
+
+func TestFailedStartupUnmountsStartedMounts(t *testing.T) {
+	h := newHarness(t)
+	refreshErr := errcode.New(errcode.InvalidConfig, "refresh", errors.New("bad catalog"))
+	h.ref.err = refreshErr
+	d := New(h.cfg, h.deps)
+	_, errc := runCancelable(t, d)
+
+	err, ok := awaitRun(t, errc, 3*time.Second)
+	if !ok {
+		t.Fatal("Run did not return after the failed first refresh")
+	}
+	if !errors.Is(err, refreshErr) {
+		t.Errorf("Run() = %v, want %v", err, refreshErr)
+	}
+
+	steps := h.rec.list()
+	si := slices.Index(steps, "supervisor.start")
+	hi := slices.Index(steps, "history.unmount")
+	bi := slices.Index(steps, "supervisor.stop")
+	if si < 0 || hi < si || bi < hi {
+		t.Errorf("startup steps = %q, want supervisor.start, then history.unmount, then supervisor.stop", steps)
+	}
+}
