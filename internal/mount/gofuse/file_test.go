@@ -152,6 +152,24 @@ func TestFileSetattrReturnsEROFS(t *testing.T) {
 	}
 }
 
+func TestReaddirReportsGeneratedFileAsRegular(t *testing.T) {
+	f := fileFixture(t)
+	entries := readdirNames(t, f.root)
+	var found bool
+	for _, e := range entries {
+		if e.Name != "info.json" {
+			continue
+		}
+		found = true
+		if got := e.Mode & syscall.S_IFMT; got != syscall.S_IFREG {
+			t.Errorf("Readdir entry %q mode type = %#o, want %#o", e.Name, got, syscall.S_IFREG)
+		}
+	}
+	if !found {
+		t.Fatalf("Readdir entries = %v, want an entry named %q", entries, "info.json")
+	}
+}
+
 func TestFileReadFiresOneReadEvent(t *testing.T) {
 	f := fileFixture(t)
 	n := fileOps(t, f)
