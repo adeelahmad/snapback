@@ -15,8 +15,8 @@ const (
 	robotsTxt   = "web/public/robots.txt"
 	sitemapXML  = "web/public/sitemap.xml"
 	mkdocsYML   = "mkdocs.yml"
-	sitemapURL  = "https://snapback.run/sitemap.xml"
-	docsURL     = "https://snapback.run/docs/"
+	sitemapURL  = "https://snapback.sh/sitemap.xml"
+	docsURL     = "https://snapback.sh/docs/"
 	sitemapNS   = "http://www.sitemaps.org/schemas/sitemap/0.9"
 	lastmodForm = "2006-01-02"
 )

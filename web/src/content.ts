@@ -34,7 +34,7 @@ export const header: HeaderContent = {
 
 export const hero: HeroContent = {
   pitch: 'snapback is building Time Machine-style restore for Restic backups, in every directory.',
-  installCommand: 'curl -fsSL https://snapback.run/install.sh | sh',
+  installCommand: 'curl -fsSL https://snapback.sh/install.sh | sh',
   status:
     'Today snapback is the stage 0 skeleton, whose only command is snapback version, plus stage 1 compatibility evidence. The .snapshot view is not yet built.',
 };

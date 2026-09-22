@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://snapback.run/sitemap.xml
+Sitemap: https://snapback.sh/sitemap.xml

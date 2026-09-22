@@ -147,7 +147,7 @@ func TestWorkflowTopLevelPermissionsReadOnly(t *testing.T) {
 
 // TestWorkflowPublishesInstallScript pins that the build job copies install.sh
 // to _site/install.sh after mkdocs builds and before the Pages artifact is
-// uploaded, so https://snapback.run/install.sh is served.
+// uploaded, so https://snapback.sh/install.sh is served.
 func TestWorkflowPublishesInstallScript(t *testing.T) {
 	text := readRepoFile(t, docsWorkflowFile)
 

@@ -65,7 +65,7 @@ func TestSiteURLAndName(t *testing.T) {
 	text := readRepoFile(t, mkdocsFile)
 
 	want := map[string]string{
-		"site_url":  "https://snapback.run/docs/",
+		"site_url":  "https://snapback.sh/docs/",
 		"site_name": "Snapback",
 		"repo_url":  "https://github.com/adeelahmad/snapback",
 	}

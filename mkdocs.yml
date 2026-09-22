@@ -1,7 +1,7 @@
 site_name: Snapback
 site_description: Browse and restore past versions of any directory from your Restic backups.
 site_author: Adeel Ahmad
-site_url: https://snapback.run/docs/
+site_url: https://snapback.sh/docs/
 repo_url: https://github.com/adeelahmad/snapback
 docs_dir: docs-site
 
