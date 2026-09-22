@@ -48,6 +48,14 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	if s.opts.Daemon != nil {
+		ctl, err := webui.RenderDaemonControl(webui.DaemonControlView{Running: s.opts.Daemon.Running(), CSRFToken: s.csrfToken(r)})
+		if err != nil {
+			v.Errors = append(v.Errors, err.Error())
+		} else {
+			v.DaemonControl = ctl
+		}
+	}
 	s.render(w, "status", v)
 }
 

@@ -22,6 +22,10 @@
 <dd>{{with .DiscoveryMode}}{{.}}{{else}}<span class="unmeasured">not reported</span>{{end}}</dd>
 </dl>
 </section>
+{{with .DaemonControl}}<section aria-labelledby="daemon-h">
+<h2 id="daemon-h">Daemon</h2>
+{{.}}
+</section>{{end}}
 {{if .Errors}}<section aria-labelledby="errors-h">
 <h2 id="errors-h">Errors</h2>
 <ul class="errors">

@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"mime"
 	"net/http"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
@@ -53,6 +54,22 @@ func (s *Server) handleAPIDaemonStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, daemonState{Running: d.Running()})
 }
 
+// writeDaemonState answers a successful control call: an HTML form post gets
+// the JS-off redirect back to /status, a JSON caller the state envelope.
+func (s *Server) writeDaemonState(w http.ResponseWriter, r *http.Request, d DaemonControl) {
+	if isFormPost(r) {
+		http.Redirect(w, r, "/status", http.StatusSeeOther)
+		return
+	}
+	writeJSON(w, http.StatusOK, daemonState{Running: d.Running()})
+}
+
+// isFormPost reports whether r is an HTML form post rather than a JSON call.
+func isFormPost(r *http.Request) bool {
+	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	return err == nil && ct == "application/x-www-form-urlencoded"
+}
+
 func (s *Server) handleAPIDaemonStart(w http.ResponseWriter, r *http.Request) {
 	d, ok := s.daemon(w)
 	if !ok {
@@ -62,7 +79,7 @@ func (s *Server) handleAPIDaemonStart(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, errcode.Of(err), err)
 		return
 	}
-	writeJSON(w, http.StatusOK, daemonState{Running: d.Running()})
+	s.writeDaemonState(w, r, d)
 }
 
 func (s *Server) handleAPIDaemonStop(w http.ResponseWriter, r *http.Request) {
@@ -74,5 +91,5 @@ func (s *Server) handleAPIDaemonStop(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, errcode.Of(err), err)
 		return
 	}
-	writeJSON(w, http.StatusOK, daemonState{Running: d.Running()})
+	s.writeDaemonState(w, r, d)
 }

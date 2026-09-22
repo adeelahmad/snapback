@@ -1,5 +1,7 @@
 package webui
 
+import "html/template"
+
 // StatusView is the Status page model; nil pointers mean not measured.
 type StatusView struct {
 	Chrome
@@ -12,6 +14,9 @@ type StatusView struct {
 	DiscoveryMode     string
 	ThrottleEvents    *int
 	Integrations      []IntegrationState
+	// DaemonControl is the rendered daemon control partial, empty when the
+	// server has no daemon seam.
+	DaemonControl template.HTML
 }
 
 // MountStatus is one mount and its state.

@@ -153,8 +153,25 @@ function initChips(input) {
   });
 }
 
+function initDaemonStatus(pill) {
+  const refresh = async () => {
+    try {
+      const res = await csrfFetch('/api/daemon');
+      if (!res.ok) {
+        return;
+      }
+      const state = await res.json();
+      pill.textContent = state.running ? 'running' : 'stopped';
+    } catch (err) {
+      // Leave the server-rendered text in place when the poll fails.
+    }
+  };
+  setInterval(refresh, 5000);
+}
+
 document.querySelectorAll('[data-js="timeline"]').forEach(initTimeline);
 document.querySelectorAll('[data-js="versions"]').forEach(initVersions);
 document.querySelectorAll('[data-js="restore"]').forEach(initRestore);
 document.querySelectorAll('[data-js="rows"]').forEach(initRows);
 document.querySelectorAll('[data-js="chips"]').forEach(initChips);
+document.querySelectorAll('[data-js="daemon-status"]').forEach(initDaemonStatus);
