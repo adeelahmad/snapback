@@ -1,0 +1,22 @@
+name: Bug report
+description: Something snapback does that it shouldn't
+labels: [bug]
+body:
+  - type: textarea
+    id: version
+    attributes: {label: snapback version, description: "Paste the full output of `snapback version`.", render: text}
+    validations: {required: true}
+  - type: input
+    id: os
+    attributes: {label: OS and FUSE, placeholder: "macOS 15.6, macFUSE 4.10 / Ubuntu 24.04, fuse3 3.14"}
+    validations: {required: true}
+  - type: textarea
+    id: what
+    attributes: {label: What happened, description: "Commands you ran and what you saw. Paste output as text, not a screenshot."}
+    validations: {required: true}
+  - type: textarea
+    id: expected
+    attributes: {label: What you expected}
+  - type: textarea
+    id: repo
+    attributes: {label: Restic repository, description: "Backend (local, sftp, s3, rest…), roughly how many snapshots, and restic version. No credentials."}
