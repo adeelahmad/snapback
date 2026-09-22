@@ -10,6 +10,8 @@ type Kind = uint8
 const (
 	KindDir     Kind = 1
 	KindSymlink Kind = 2
+	// KindFile is a placeholder value. SUB-AGENT-TODO: set KindFile to 3 (tasks.md T1).
+	KindFile Kind = 0
 )
 
 // Entry is one node in a catalog.
@@ -30,6 +32,7 @@ const (
 	OpLookup   Op = 1
 	OpReadDir  Op = 2
 	OpReadlink Op = 3
+	OpRead     Op = 4
 )
 
 // String returns the operation name.
@@ -42,6 +45,7 @@ func (o Op) String() string {
 	case OpReadlink:
 		return "readlink"
 	default:
+		// SUB-AGENT-TODO: name OpRead as "read" (tasks.md T1).
 		return "unknown"
 	}
 }
@@ -70,4 +74,14 @@ type Adapter interface {
 // Observer receives observed operations.
 type Observer interface {
 	Observe(ev Event)
+}
+
+// Gate decides whether an observed operation may proceed.
+type Gate interface {
+	Allow(ev Event) bool
+}
+
+// Publisher swaps the catalog an adapter serves.
+type Publisher interface {
+	Publish(cat Catalog)
 }
