@@ -2,11 +2,24 @@ package web
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/webui"
+)
+
+const (
+	sessionCookie     = "snapback_session"
+	readHeaderTimeout = 10 * time.Second
 )
 
 // Backend is the daemon seam the server reads and writes through.
@@ -29,29 +42,86 @@ type Options struct {
 }
 
 // Server is the local web server.
-type Server struct{}
+type Server struct {
+	opts    Options
+	ln      net.Listener
+	urlFile string
+	handler http.Handler
+}
 
-// New returns a Server for opts.
+// New returns a Server for opts. It refuses any listen address that is not a
+// loopback IP, binds the listener and publishes the bootstrap URL to
+// StateDir/web.url (mode 0600) and Stdout.
 func New(opts Options) (*Server, error) {
-	panic("SUB-AGENT-TODO: validate Listen is loopback, bind the listener, publish the URL to StateDir/web.url, build the mux with Host/Origin guard, security headers, session and page routes")
+	host, _, err := net.SplitHostPort(opts.Listen)
+	if err != nil {
+		return nil, errcode.New(errcode.InvalidConfig, "web.New", err)
+	}
+	if ip := net.ParseIP(host); ip == nil || !ip.IsLoopback() {
+		return nil, errcode.New(errcode.InvalidConfig, "web.New", fmt.Errorf("listen address %q is not loopback", opts.Listen))
+	}
+	ln, err := net.Listen("tcp", opts.Listen)
+	if err != nil {
+		return nil, errcode.New(errcode.InvalidConfig, "web.New", err)
+	}
+	s := &Server{opts: opts, ln: ln, urlFile: filepath.Join(opts.StateDir, "web.url")}
+	s.handler = s.guard(http.HandlerFunc(s.route))
+
+	line := s.URL() + "auth?token=" + url.QueryEscape(opts.Token) + "\n"
+	if err := os.WriteFile(s.urlFile, []byte(line), 0o600); err != nil {
+		_ = ln.Close()
+		return nil, fmt.Errorf("web.New: write web.url: %w", err)
+	}
+	if opts.Stdout != nil {
+		if _, err := io.WriteString(opts.Stdout, line); err != nil {
+			_ = s.Close()
+			return nil, fmt.Errorf("web.New: print url: %w", err)
+		}
+	}
+	return s, nil
 }
 
 // URL returns the server's base URL.
 func (s *Server) URL() string {
-	panic("SUB-AGENT-TODO: return http://<bound loopback addr>/")
+	return "http://" + s.ln.Addr().String() + "/"
 }
 
 // Handler returns the server's HTTP handler.
 func (s *Server) Handler() http.Handler {
-	panic("SUB-AGENT-TODO: return the guarded mux (Host/Origin check, security headers, auth and CSRF middleware, page and asset routes)")
+	return s.handler
+}
+
+// route serves requests that passed the guard. Without a session cookie every
+// route is 401; T2 replaces this with the real session check.
+func (s *Server) route(w http.ResponseWriter, r *http.Request) {
+	if _, err := r.Cookie(sessionCookie); err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	http.NotFound(w, r)
 }
 
 // Serve serves until ctx is done.
 func (s *Server) Serve(ctx context.Context) error {
-	panic("SUB-AGENT-TODO: serve on the bound listener, shut down when ctx is done")
+	hs := &http.Server{Handler: s.handler, ReadHeaderTimeout: readHeaderTimeout}
+	go func() {
+		<-ctx.Done()
+		_ = hs.Close()
+	}()
+	if err := hs.Serve(s.ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return nil
 }
 
-// Close stops the server.
+// Close stops the server and removes web.url.
 func (s *Server) Close() error {
-	panic("SUB-AGENT-TODO: close the listener and remove web.url")
+	err := s.ln.Close()
+	if errors.Is(err, net.ErrClosed) {
+		err = nil
+	}
+	if rmErr := os.Remove(s.urlFile); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) && err == nil {
+		err = rmErr
+	}
+	return err
 }
