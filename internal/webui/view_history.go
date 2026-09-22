@@ -3,6 +3,8 @@ package webui
 // HistoryView is the History page model.
 type HistoryView struct {
 	Chrome
+	// Root and Path are the selected root and path; snapshot forms keep them.
+	Root, Path      string
 	Roots           []RootItem
 	Timeline        []SnapshotTick
 	LinkedDirs      []LinkedDir
