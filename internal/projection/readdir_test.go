@@ -49,9 +49,9 @@ func TestReadDirSortedByteOrder(t *testing.T) {
 
 func TestReadDirNotFound(t *testing.T) {
 	g := buildFixture(t)
-	relIno, relIsDir, relFound := lookupPath(g, "rel")
-	if !relFound || relIsDir {
-		t.Fatalf("lookupPath(\"rel\") = (%d, isDir=%v, found=%v), want a found symlink", relIno, relIsDir, relFound)
+	relIno, relKind, relFound := lookupPath(g, "rel")
+	if !relFound || relKind == kindDir {
+		t.Fatalf("lookupPath(\"rel\") = (%d, %d, %v), want a found non-directory", relIno, relKind, relFound)
 	}
 
 	rows := []struct {
@@ -103,9 +103,9 @@ func TestReadDirReturnsCopy(t *testing.T) {
 
 func TestReadDirEmptyDirectory(t *testing.T) {
 	g := buildFixture(t)
-	emptyIno, isDir, found := g.Lookup(RootIno, "empty")
-	if !found || !isDir {
-		t.Fatalf("Lookup(RootIno, \"empty\") = (%d, isDir=%v, found=%v), want a found directory", emptyIno, isDir, found)
+	emptyIno, kind, found := g.Lookup(RootIno, "empty")
+	if !found || kind != kindDir {
+		t.Fatalf("Lookup(RootIno, \"empty\") = (%d, %d, %v), want a found directory", emptyIno, kind, found)
 	}
 
 	names, found := g.ReadDir(emptyIno)

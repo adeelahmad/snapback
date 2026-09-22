@@ -32,9 +32,9 @@ func TestReadlinkExactBytes(t *testing.T) {
 	for i, want := range targets {
 		name := fmt.Sprintf("l%d", i)
 		t.Run(fmt.Sprintf("%s=%q", name, want), func(t *testing.T) {
-			ino, isDir, found := g.Lookup(RootIno, name)
-			if !found || isDir {
-				t.Fatalf("Lookup(RootIno, %q) = (%d, isDir=%v, found=%v), want a found symlink", name, ino, isDir, found)
+			ino, kind, found := g.Lookup(RootIno, name)
+			if !found || kind == kindDir {
+				t.Fatalf("Lookup(RootIno, %q) = (%d, %d, %v), want a found non-directory", name, ino, kind, found)
 			}
 			got, ok := g.Readlink(ino)
 			if !ok {
@@ -49,13 +49,13 @@ func TestReadlinkExactBytes(t *testing.T) {
 
 func TestReadlinkNotFound(t *testing.T) {
 	g := buildFixture(t)
-	relIno, relIsDir, relFound := lookupPath(g, "rel")
-	if !relFound || relIsDir {
-		t.Fatalf("lookupPath(\"rel\") = (%d, isDir=%v, found=%v), want a found symlink", relIno, relIsDir, relFound)
+	relIno, relKind, relFound := lookupPath(g, "rel")
+	if !relFound || relKind == kindDir {
+		t.Fatalf("lookupPath(\"rel\") = (%d, %d, %v), want a found non-directory", relIno, relKind, relFound)
 	}
-	docsIno, docsIsDir, docsFound := lookupPath(g, "docs")
-	if !docsFound || !docsIsDir {
-		t.Fatalf("lookupPath(\"docs\") = (%d, isDir=%v, found=%v), want a found directory", docsIno, docsIsDir, docsFound)
+	docsIno, docsKind, docsFound := lookupPath(g, "docs")
+	if !docsFound || docsKind != kindDir {
+		t.Fatalf("lookupPath(\"docs\") = (%d, %d, %v), want a found directory", docsIno, docsKind, docsFound)
 	}
 
 	rows := []struct {
@@ -112,9 +112,9 @@ func TestGenerationsIndependentTargets(t *testing.T) {
 		{"g1", g1, "a/b"},
 		{"g2", g2, "changed/target"},
 	} {
-		ino, isDir, found := tc.g.Lookup(RootIno, "rel")
-		if !found || isDir {
-			t.Fatalf("%s: Lookup(RootIno, \"rel\") = (%d, isDir=%v, found=%v), want a found symlink", tc.label, ino, isDir, found)
+		ino, kind, found := tc.g.Lookup(RootIno, "rel")
+		if !found || kind == kindDir {
+			t.Fatalf("%s: Lookup(RootIno, \"rel\") = (%d, %d, %v), want a found non-directory", tc.label, ino, kind, found)
 		}
 		got, ok := tc.g.Readlink(ino)
 		if !ok {
