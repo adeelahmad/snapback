@@ -1,12 +1,14 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/provider"
+	"github.com/adeelahmad/snapback/internal/status"
 	"github.com/adeelahmad/snapback/internal/webui"
 )
 
@@ -25,7 +27,50 @@ func (s *Server) render(w http.ResponseWriter, name webui.PageName, data any) {
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "status", webui.StatusView{Chrome: s.chrome(r, "status", "Status")})
+	v := webui.StatusView{Chrome: s.chrome(r, "status", "Status")}
+	if s.opts.Backend != nil {
+		switch st := s.opts.Backend.Status().(type) {
+		case status.Snapshot:
+			v = statusView(v, st)
+		case error:
+			v.Errors = append(v.Errors, st.Error())
+		}
+	}
+	s.render(w, "status", v)
+}
+
+// statusView fills v from the daemon snapshot st. Metrics the snapshot does
+// not report stay nil, so the page shows them as not measured.
+func statusView(v webui.StatusView, st status.Snapshot) webui.StatusView {
+	for _, repo := range st.Repos {
+		state := repo.State
+		if state == "ready" {
+			state = "mounted"
+		}
+		v.Mounts = append(v.Mounts, webui.MountStatus{Name: repo.ID, State: state})
+		if repo.Code != "" {
+			v.Errors = append(v.Errors, repo.ID+": "+string(repo.Code))
+		}
+	}
+	if !st.LastRefresh.IsZero() {
+		last := st.LastRefresh.Format(time.RFC3339)
+		v.LastRefresh = &last
+	}
+	if st.EligibleCount != nil {
+		n := 0
+		for _, c := range st.EligibleCount {
+			n += c
+		}
+		v.EligibleSnapshots = &n
+	}
+	if st.Throttle != nil {
+		n := len(st.Throttle)
+		v.ThrottleEvents = &n
+	}
+	p := st.Prewarm
+	v.Prewarm = fmt.Sprintf("%d warm, %d cold, %d pending", p.Warm, p.Cold, p.Pending)
+	v.DiscoveryMode = st.Discovery
+	return v
 }
 
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
