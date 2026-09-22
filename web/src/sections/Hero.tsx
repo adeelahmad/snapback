@@ -1,5 +1,15 @@
+import { hero } from '../content';
+
 export function Hero() {
-  // SUB-AGENT-TODO: one-sentence pitch, the install command exactly once inside <pre>/<code> in a snippet box,
-  // and a status line saying what exists today (stage 0; the .snapshot view is not yet built), from content.ts.
-  return null;
+  return (
+    <section className="hero">
+      <h1>{hero.pitch}</h1>
+      <div className="glass snippet">
+        <pre>
+          <code>{hero.installCommand}</code>
+        </pre>
+      </div>
+      <p className="hero__status">{hero.status}</p>
+    </section>
+  );
 }

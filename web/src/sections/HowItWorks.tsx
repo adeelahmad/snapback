@@ -1,5 +1,20 @@
+import { howItWorks } from '../content';
+
 export function HowItWorks() {
-  // SUB-AGENT-TODO: terminal-style <pre> showing `ls -a` revealing .snapshot, `ls .snapshot/`,
-  // and a line `cp .snapshot/<timestamp>/file ./file`, labelled as planned behaviour, from content.ts.
-  return null;
+  return (
+    <section className="how">
+      <h2>{howItWorks.heading}</h2>
+      <p className="how__label">{howItWorks.label}</p>
+      <div className="glass terminal">
+        <pre>
+          {howItWorks.terminalLines.map((line, i) => (
+            <span key={line} className={i % 2 === 0 ? 'terminal__cmd' : 'terminal__out'}>
+              {line}
+              {'\n'}
+            </span>
+          ))}
+        </pre>
+      </div>
+    </section>
+  );
 }

@@ -1,7 +1,13 @@
+import { Header } from './sections/Header';
+import { Hero } from './sections/Hero';
+import { HowItWorks } from './sections/HowItWorks';
+
 export default function App() {
   return (
     <main>
-      <h1>snapback</h1>
+      <Header />
+      <Hero />
+      <HowItWorks />
     </main>
   );
 }
