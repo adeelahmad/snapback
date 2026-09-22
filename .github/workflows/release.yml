@@ -90,3 +90,23 @@ jobs:
         with:
           name: linkage-linux
           path: linkage-linux.txt
+      - name: Name the multi-arch archives in the release footer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.semantic-release.outputs.new_release_git_tag }}
+        run: |
+          set -eu
+          names=""
+          for archive in snapback_darwin_universal.tar.gz snapback_all_arch.tar.gz; do
+            if [ -f "dist/$archive" ]; then
+              names="$names- \`$archive\`
+          "
+            fi
+          done
+          if [ -z "$names" ]; then
+            echo "no multi-arch archive built; footer unchanged"
+            exit 0
+          fi
+          gh release view "$TAG" --json body --jq .body > body.md
+          printf '\nMulti-arch archives in this release:\n\n%s' "$names" >> body.md
+          gh release edit "$TAG" --notes-file body.md

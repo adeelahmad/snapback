@@ -2,7 +2,15 @@
   "branches": ["master"],
   "plugins": [
     ["@semantic-release/commit-analyzer", { "preset": "conventionalcommits" }],
-    ["@semantic-release/release-notes-generator", { "preset": "conventionalcommits" }],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits",
+        "writerOpts": {
+          "commitPartial": "* {{#if scope}}**{{scope}}:** {{/if}}{{#if subject}}{{subject}}{{else}}{{header}}{{/if}}{{#if body}}\n\n{{body}}{{/if}}\n\n"
+        }
+      }
+    ],
     ["@semantic-release/changelog", { "changelogFile": "CHANGELOG.md", "changelogTitle": "# Changelog" }],
     [
       "@semantic-release/git",
