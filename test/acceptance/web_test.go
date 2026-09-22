@@ -4,6 +4,8 @@ package acceptance
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -146,12 +148,38 @@ func TestAcc16WebCLIParityAndSecurity(t *testing.T) {
 			t.Errorf("GET %s = %d, want 200", page, code)
 			continue
 		}
-		if strings.Contains(html, "<img src=x") {
-			t.Errorf("GET %s renders the root filename raw, want it escaped", page)
+		for _, v := range []string{"img src=x", "img%20src", filepath.Join(e.Root, "work")} {
+			if strings.Contains(html, v) {
+				t.Errorf("GET %s HTML contains config value %q, want config served only by /api/config", page, v)
+			}
 		}
-		if !strings.Contains(html, "&lt;img src=x") {
-			t.Errorf("GET %s does not show the escaped root filename, want &lt;img src=x", page)
-		}
+	}
+
+	req, err := http.NewRequestWithContext(t.Context(), "GET", base+"/api/config", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := c.Do(req)
+	if err != nil {
+		t.Fatalf("GET /api/config: %v", err)
+	}
+	cfgBody, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("GET /api/config Content-Type = %q, want application/json", ct)
+	}
+	if got := resp.Header.Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Errorf("GET /api/config X-Content-Type-Options = %q, want nosniff", got)
+	}
+	var cfg any
+	if err := json.Unmarshal(cfgBody, &cfg); err != nil {
+		t.Errorf("GET /api/config body %q is not JSON: %v", cfgBody, err)
+	}
+	if !jsonStringContains(cfg, hostileName) {
+		t.Errorf("GET /api/config body %q, want the root name %q inside a JSON string", cfgBody, hostileName)
+	}
+	if bytes.Contains(cfgBody, []byte("&lt;img")) {
+		t.Errorf("GET /api/config body %q HTML-escapes the root name, want it JSON-encoded only", cfgBody)
 	}
 
 	startDaemon(t, e)
@@ -165,4 +193,25 @@ func TestAcc16WebCLIParityAndSecurity(t *testing.T) {
 		skip(t, "missing prerequisite: daemon did not reach ready within 20s, last status "+upBody)
 	}
 	t.Logf("evidence: /api/status with daemon up = %d %s", upCode, upBody)
+}
+
+// jsonStringContains reports whether any string in the decoded JSON value v contains sub.
+func jsonStringContains(v any, sub string) bool {
+	switch x := v.(type) {
+	case string:
+		return strings.Contains(x, sub)
+	case []any:
+		for _, e := range x {
+			if jsonStringContains(e, sub) {
+				return true
+			}
+		}
+	case map[string]any:
+		for _, e := range x {
+			if jsonStringContains(e, sub) {
+				return true
+			}
+		}
+	}
+	return false
 }
