@@ -71,7 +71,7 @@ Your live files will stay exactly where they are, on their own filesystem. The o
 
 ## Status
 
-snapback is early, pre-release software and not yet usable for restores. The only command that exists is `snapback version`; the `.snapshot` view described above is the design goal. Expect breaking changes.
+snapback is early, pre-release software and not yet usable for restores. The command set is listed by the built-in help and described in the [usage guide](docs-site/usage.md); it targets Linux first. Expect breaking changes.
 
 Stage 1 compatibility evidence (FUSE catalog, `restic mount` path templates, metadata fidelity, crawler safety and latency measurements) is in [docs/reports/stage1/](docs/reports/stage1/). Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
