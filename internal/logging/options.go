@@ -2,7 +2,11 @@
 // into the values the slog handlers are built from.
 package logging
 
-import "log/slog"
+import (
+	"fmt"
+	"log/slog"
+	"strings"
+)
 
 // Format is the encoding a log record is written in.
 type Format string
@@ -30,15 +34,51 @@ type Resolved struct {
 
 // Parse maps a level name to its slog.Level, ignoring case.
 func Parse(s string) (slog.Level, error) {
-	return 0, nil // SUB-AGENT-TODO
+	switch strings.ToLower(s) {
+	case "debug":
+		return slog.LevelDebug, nil
+	case "info":
+		return slog.LevelInfo, nil
+	case "warn":
+		return slog.LevelWarn, nil
+	case "error":
+		return slog.LevelError, nil
+	default:
+		return 0, fmt.Errorf("unknown log level %q: want one of debug, info, warn, error", s)
+	}
 }
 
 // ParseFormat maps a format name to its Format, ignoring case.
 func ParseFormat(s string) (Format, error) {
-	return "", nil // SUB-AGENT-TODO
+	switch strings.ToLower(s) {
+	case string(FormatText):
+		return FormatText, nil
+	case string(FormatJSON):
+		return FormatJSON, nil
+	default:
+		return "", fmt.Errorf("unknown log format %q: want one of text, json", s)
+	}
 }
 
 // Resolve validates o and fills in the defaults for the fields it leaves empty.
 func (o Options) Resolve() (Resolved, error) {
-	return Resolved{}, nil // SUB-AGENT-TODO
+	level := slog.LevelInfo
+	if o.Level != "" {
+		parsed, err := Parse(o.Level)
+		if err != nil {
+			return Resolved{}, err
+		}
+		level = parsed
+	}
+
+	format := FormatText
+	if o.Format != "" {
+		parsed, err := ParseFormat(o.Format)
+		if err != nil {
+			return Resolved{}, err
+		}
+		format = parsed
+	}
+
+	return Resolved{Level: level, Format: format, File: o.File}, nil
 }
