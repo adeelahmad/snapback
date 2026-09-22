@@ -9,7 +9,12 @@ latency go/no-go decision; that decision is left to a human.
 
 ## Pinned versions
 
-Not filled yet.
+| Component | Version |
+| --- | --- |
+| go-fuse | v2.11.0 |
+| restic | 0.19.0 |
+| rclone | v1.75.0 |
+| Go toolchain | go1.27.1 |
 
 ## Path-template verification
 
