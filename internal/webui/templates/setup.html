@@ -23,7 +23,9 @@
 <input type="text" id="repo-uri" name="repo_uri" value="{{.RepoURI}}" required>
 <label for="credential-file">Password file</label>
 <input type="text" id="credential-file" name="credential_file" value="{{.CredentialFile}}">
-{{with .MountPoint}}<div class="field">
+{{range .PasswordControls}}{{if eq .Kind "password"}}{{template "control-password" .}}
+{{else}}{{template "control-select" .}}
+{{end}}{{end}}{{with .MountPoint}}<div class="field">
 <label for="f-{{.Path}}" class="field__label">{{.Label}}</label>
 <input class="field__control" type="text" id="f-{{.Path}}" name="{{.Path}}" value="{{.Value}}" aria-describedby="f-{{.Path}}-help">
 <p class="field__help" id="f-{{.Path}}-help">{{.Help}}</p>

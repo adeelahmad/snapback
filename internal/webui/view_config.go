@@ -22,6 +22,9 @@ type SetupView struct {
 
 	// Tour is the pre-rendered first-run tour, empty once a config exists.
 	Tour template.HTML
+	// PasswordControls are the repository password controls: the mode and the
+	// typed secret, which is never echoed back.
+	PasswordControls []Control
 }
 
 // Control is one form control on a page, shaped like the controls.html

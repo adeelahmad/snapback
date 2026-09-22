@@ -149,6 +149,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		Value: d.Hostname,
 		Help:  "The hostname Snapback resolves snapshots under.",
 	}
+	v.PasswordControls = passwordControls(setupRepoPrefix, nil, nil)
 	v.DetectedPrefix = webui.Control{Path: "prefix_map", Label: "Detected prefix map"}
 	for _, m := range d.PrefixMap {
 		v.DetectedPrefix.Options = append(v.DetectedPrefix.Options,

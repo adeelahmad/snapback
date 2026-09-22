@@ -167,6 +167,10 @@ func control(f webui.Field, msg string) webui.Control {
 	return c
 }
 
+// setupRepoPrefix is the field prefix the Setup form's single repository
+// supplies its password under, matching the Config form's key paths.
+const setupRepoPrefix = "repositories[0]"
+
 // passwordControls are the two controls a repository supplies its password
 // with: the mode, and the secret itself, which is never echoed back.
 func passwordControls(prefix string, byPath map[string]string, form url.Values) []webui.Control {
@@ -252,6 +256,7 @@ func (s *Server) setupFormView(r *http.Request, errs []string) webui.SetupView {
 	v.RclonePaths = binaries([]string{r.PostFormValue("rclone_path")}, "rclone")
 	v.MountPoint = mountPointField(nil, goos, s.setupHome())
 	v.MountPoint.Value = strings.TrimSpace(r.PostFormValue(mountPointKey))
+	v.PasswordControls = passwordControls(setupRepoPrefix, nil, r.PostForm)
 	return v
 }
 
@@ -275,6 +280,10 @@ func (s *Server) handleSetupSave(w http.ResponseWriter, r *http.Request) {
 	repo.MountPoint = strings.TrimSpace(r.PostFormValue(mountPointKey))
 	applyRoots(cfg, lines(r.PostFormValue("roots")))
 	config.ApplyDefaults(cfg)
+	if err := s.applyCredentials(cfg, r.PostForm); err != nil {
+		s.render(w, "setup", s.setupFormView(r, []string{err.Error()}))
+		return
+	}
 
 	if msg := mountPointError(cfg); msg != "" {
 		v := s.setupFormView(r, nil)
