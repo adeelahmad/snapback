@@ -47,6 +47,7 @@ type Server struct {
 	ln      net.Listener
 	urlFile string
 	handler http.Handler
+	sess    *sessions
 }
 
 // New returns a Server for opts. It refuses any listen address that is not a
@@ -64,8 +65,8 @@ func New(opts Options) (*Server, error) {
 	if err != nil {
 		return nil, errcode.New(errcode.InvalidConfig, "web.New", err)
 	}
-	s := &Server{opts: opts, ln: ln, urlFile: filepath.Join(opts.StateDir, "web.url")}
-	s.handler = s.guard(http.HandlerFunc(s.route))
+	s := &Server{opts: opts, ln: ln, urlFile: filepath.Join(opts.StateDir, "web.url"), sess: newSessions(opts.Token)}
+	s.handler = s.guard(s.routes())
 
 	line := s.URL() + "auth?token=" + url.QueryEscape(opts.Token) + "\n"
 	if err := os.WriteFile(s.urlFile, []byte(line), 0o600); err != nil {
@@ -91,14 +92,17 @@ func (s *Server) Handler() http.Handler {
 	return s.handler
 }
 
-// route serves requests that passed the guard. Without a session cookie every
-// route is 401; T2 replaces this with the real session check.
-func (s *Server) route(w http.ResponseWriter, r *http.Request) {
-	if _, err := r.Cookie(sessionCookie); err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
+// routes returns the handler behind the guard: /auth and the static assets
+// are open, everything else needs a session.
+func (s *Server) routes() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /auth", s.handleAuth)
+	if s.opts.Pages != nil {
+		mux.Handle("GET /assets/", s.opts.Pages.Static())
+		mux.Handle("GET /fonts/", s.opts.Pages.Static())
 	}
-	http.NotFound(w, r)
+	mux.Handle("/", s.requireSession(http.NotFoundHandler()))
+	return mux
 }
 
 // Serve serves until ctx is done.
