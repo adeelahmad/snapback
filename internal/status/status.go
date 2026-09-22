@@ -32,6 +32,7 @@ type Snapshot struct {
 	EligibleCount map[string]int
 	Links         int
 	Warm          map[provider.SnapshotID]bool
+	Prewarm       PrewarmSummary
 	Pending       []provider.SnapshotID
 	Discovery     string
 	Throttle      []readerpolicy.ThrottleEvent

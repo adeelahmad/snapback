@@ -185,12 +185,13 @@ func (f *fakeDiscovery) Stop() { f.rec.add("discovery.stop") }
 
 type fakePrewarmer struct {
 	providertest.Fake
-	rec *recorder
+	rec     *recorder
+	results []provider.PrewarmResult
 }
 
 func (f *fakePrewarmer) Prewarm(context.Context) []provider.PrewarmResult {
 	f.rec.add("prewarm")
-	return nil
+	return f.results
 }
 
 // recordingListener records "listener.close" when closed.
