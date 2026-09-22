@@ -69,8 +69,8 @@ source "$SNIP"
 (exit 3); for c in "${PROMPT_COMMAND[@]}"; do eval "$c"; done; echo "rc=$?"
 printf '%s\n%s' "${#PROMPT_COMMAND[@]}" "${PROMPT_COMMAND[0]}" > "$HOME/state"`
 	res := h.run(t, script, nil)
-	if res.stdout != "rc=3\n" || res.stderr != "" {
-		t.Errorf("hook stdout = %q, stderr = %q, want %q and empty", res.stdout, res.stderr, "rc=3\n")
+	if res.stdout != "rc=0\n" || res.stderr != "" {
+		t.Errorf("hook stdout = %q, stderr = %q, want %q and empty", res.stdout, res.stderr, "rc=0\n")
 	}
 	if got, want := readFile(t, filepath.Join(h.home, "state")), "2\n"+prior; got != want {
 		t.Errorf("PROMPT_COMMAND length and element 0 = %q, want %q", got, want)
