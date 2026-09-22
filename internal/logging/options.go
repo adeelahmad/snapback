@@ -4,6 +4,7 @@ package logging
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 )
@@ -23,6 +24,10 @@ type Options struct {
 	Level  string
 	Format string
 	File   string
+
+	// Writer is where records are written. A nil Writer means the caller's
+	// fallback writer.
+	Writer io.Writer
 }
 
 // Resolved is a set of Options that has been validated and given defaults.
