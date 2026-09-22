@@ -17,25 +17,34 @@ type SetupView struct {
 }
 
 // Control is one form control on a page, shaped like the controls.html
-// partials: a field path, its label, its value and its help text.
+// partials: a field path that is also the input name, its label, its value,
+// its help text and the error anchored to it.
 type Control struct {
-	Path    string
-	Label   string
-	Value   string
-	Help    string
-	Options []ControlOption
+	Kind     Kind
+	Path     string
+	Label    string
+	Value    string
+	Help     string
+	Options  []Option
+	Error    string
+	Required bool
 }
 
 // ControlOption is one option of a select, chips or row control.
-type ControlOption struct {
-	Value string
-	Label string
+type ControlOption = Option
+
+// ConfigSection is one group of controls on the Configuration page.
+type ConfigSection struct {
+	Title    string
+	Controls []Control
 }
 
-// ConfigView is the Configuration page model.
+// ConfigView is the Configuration page model. Sections carries the whole
+// configuration as key-path controls; Errors is the page-level banner.
 type ConfigView struct {
 	Chrome
 	Revision        string
+	Sections        []ConfigSection
 	Roots           []string
 	Filters         []string
 	Exclusions      []string

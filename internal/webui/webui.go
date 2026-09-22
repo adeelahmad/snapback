@@ -44,10 +44,10 @@ var contentTypes = map[string]string{
 	".woff2": "font/woff2",
 }
 
-// load parses templates/layout.html and pairs a clone of it with every other
-// templates/*.html file, one template set per page.
+// load parses templates/layout.html with the control partials and pairs a
+// clone of it with every other templates/*.html file, one set per page.
 func load(fsys fs.FS) (*Pages, error) {
-	layout, err := template.ParseFS(fsys, "templates/layout.html")
+	layout, err := template.ParseFS(fsys, "templates/layout.html", "templates/controls.html")
 	if err != nil {
 		return nil, fmt.Errorf("webui: parse layout: %w", err)
 	}
@@ -58,7 +58,7 @@ func load(fsys fs.FS) (*Pages, error) {
 	pages := make(map[PageName]*template.Template)
 	for _, f := range files {
 		name := strings.TrimSuffix(path.Base(f), ".html")
-		if name == "layout" {
+		if name == "layout" || name == "controls" {
 			continue
 		}
 		base, err := layout.Clone()

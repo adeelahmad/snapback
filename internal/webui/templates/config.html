@@ -13,6 +13,24 @@
 <form method="post" action="/config">
 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <input type="hidden" name="revision" value="{{.Revision}}">
+{{if .Sections}}
+{{range .Sections}}
+<section class="config-section">
+<h2>{{.Title}}</h2>
+{{range .Controls}}
+{{if eq .Kind "row"}}<h3 class="config-section__row">{{.Label}}</h3>
+{{else if eq .Kind "select"}}{{template "control-select" .}}
+{{else if eq .Kind "number"}}{{template "control-number" .}}
+{{else if eq .Kind "duration"}}{{template "control-duration" .}}
+{{else if eq .Kind "toggle"}}{{template "control-toggle" .}}
+{{else if eq .Kind "chips"}}{{template "control-chips" .}}
+{{else if eq .Kind "password"}}{{template "control-password" .}}
+{{else}}{{template "control-input" .}}
+{{end}}
+{{end}}
+</section>
+{{end}}
+{{else}}
 <label for="roots">Roots, one per line</label>
 <textarea id="roots" name="roots" rows="4">{{range .Roots}}{{.}}
 {{end}}</textarea>
@@ -34,6 +52,7 @@
 <input type="text" id="cache-dir" name="cache_dir" value="{{.CacheDir}}">
 <label for="refresh-interval">Refresh interval</label>
 <input type="text" id="refresh-interval" name="refresh_interval" value="{{.RefreshInterval}}">
+{{end}}
 <button type="submit">Save configuration</button>
 </form>
 {{end}}
