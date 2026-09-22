@@ -15,7 +15,11 @@ func (g *Generation) Lookup(parent uint64, name string) (ino uint64, isDir bool,
 
 // ReadDir returns a fresh, byte-sorted copy of dir's child names.
 func (g *Generation) ReadDir(dir uint64) (names []string, found bool) {
-	panic("SUB-AGENT-TODO: copy pre-sorted children (empty non-nil slice for empty dir); nil,false for symlink, unknown inode, or 0")
+	n, ok := g.nodes[dir]
+	if !ok || !n.isDir {
+		return nil, false
+	}
+	return append([]string{}, n.names...), true
 }
 
 // Readlink returns a symlink's stored target unchanged.
