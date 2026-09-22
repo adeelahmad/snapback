@@ -214,8 +214,28 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.phase = "ready"
 	d.mu.Unlock()
 
-	<-ctx.Done()
+	d.refreshEvery(ctx, d.cfg.Catalog.RefreshInterval)
 	return d.shutdown(context.WithoutCancel(ctx), l)
+}
+
+// refreshEvery refreshes the catalog every interval until ctx is done, so a
+// snapshot that was pending while restic's mount had not yet reloaded gets
+// its links once it becomes visible. A non-positive interval only waits.
+func (d *Daemon) refreshEvery(ctx context.Context, interval time.Duration) {
+	if interval <= 0 {
+		<-ctx.Done()
+		return
+	}
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			_ = d.runRefresh(ctx)
+		}
+	}
 }
 
 // shutdown stops the daemon in order: stop answering IPC, cancel finite
