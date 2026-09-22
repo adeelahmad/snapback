@@ -11,11 +11,31 @@ const wantModule = "github.com/adeelahmad/snapback"
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
-	panic("SUB-AGENT-TODO: walk up from the working directory to the first dir containing go.mod and return it; t.Fatalf if none is found")
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatalf("no go.mod found above working directory")
+		}
+		dir = parent
+	}
 }
 
 func yamlScalar(text, key string) (string, bool) {
-	panic("SUB-AGENT-TODO: return the value of the first top-level (unindented) `key: value` line in text with surrounding quotes stripped, and ok=true; (\"\", false) if absent")
+	for _, line := range strings.Split(text, "\n") {
+		rest, ok := strings.CutPrefix(line, key+":")
+		if !ok {
+			continue
+		}
+		return strings.Trim(strings.TrimSpace(rest), `"'`), true
+	}
+	return "", false
 }
 
 func readRepoFile(t *testing.T, rel string) string {
