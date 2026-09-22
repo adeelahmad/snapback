@@ -26,6 +26,7 @@ func coreCommands(deps cli.Deps) []cli.Command {
 		cli.LinksCommand(deps),
 		cli.OpenCommand(deps),
 		cli.SeedCommand(deps),
+		cli.SetupCommand(deps),
 		cli.SnapCommand(deps),
 	}
 }
