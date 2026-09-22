@@ -69,7 +69,7 @@ func readlinkAt(fd int, name string) (string, error) {
 	}
 }
 
-// unlinkAt removes a non-directory entry; it never passes AT_REMOVEDIR.
+// unlinkAt removes a non-directory entry; it never removes directories.
 func unlinkAt(fd int, name string) error {
 	return unix.Unlinkat(fd, name, 0)
 }

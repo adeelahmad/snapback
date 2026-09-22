@@ -78,16 +78,18 @@ func (e *Engine) repairOne(rec Record, rep *RepairReport) error {
 	}
 
 	want := filepath.Join(e.pol.HistoryMount, "roots", rec.RootID, "dirs", rec.Key)
-	if absent || rec.Target == want {
+	switch {
+	case absent:
+	case rec.Target == want:
 		return nil
-	}
-	if !owned {
+	case !owned:
 		ent.Code = errcode.LinkConflict
 		rep.Preserved = append(rep.Preserved, ent)
 		return nil
-	}
-	if err := unlinkAt(fd, name); err != nil {
-		return fsErr(err)
+	default:
+		if err := unlinkAt(fd, name); err != nil {
+			return fsErr(err)
+		}
 	}
 	if err := symlinkAt(fd, name, want); err != nil {
 		return fsErr(err)
