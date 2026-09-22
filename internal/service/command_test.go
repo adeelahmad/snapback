@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -197,5 +198,21 @@ func TestServiceCommandSubcommands(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(f.stderr.String()), "usage") {
 		t.Errorf("service bogus stderr = %q, want usage", f.stderr.String())
+	}
+}
+
+func TestServiceUninstallNotInstalled(t *testing.T) {
+	f := newCommandFixture(t, fakeProbe("systemd"))
+	f.run.errs = map[string]error{
+		"systemctl --user disable snapback.service": errors.New("exit status 1"),
+	}
+
+	code := serviceCommand(f.deps).Run(t.Context(), f.env, []string{"uninstall"})
+
+	if code != 0 {
+		t.Fatalf("service uninstall exit = %d, want 0 (stderr %q)", code, f.stderr.String())
+	}
+	if !strings.Contains(f.stdout.String(), "not installed") {
+		t.Errorf("service uninstall stdout = %q, want it to contain %q", f.stdout.String(), "not installed")
 	}
 }

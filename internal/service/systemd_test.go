@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,12 +16,13 @@ import (
 
 const foreignUnit = "[Service]\nExecStart=/usr/bin/other\n"
 
-// fakeRunner records every argv and answers from a canned stdout table keyed
-// by the space-joined argv.
+// fakeRunner records every argv and answers from canned stdout and error
+// tables keyed by the space-joined argv.
 type fakeRunner struct {
 	mu     sync.Mutex
 	calls  [][]string
 	stdout map[string]string
+	errs   map[string]error
 }
 
 func (f *fakeRunner) run(_ context.Context, name string, args ...string) ([]byte, error) {
@@ -28,7 +30,8 @@ func (f *fakeRunner) run(_ context.Context, name string, args ...string) ([]byte
 	defer f.mu.Unlock()
 	argv := append([]string{name}, args...)
 	f.calls = append(f.calls, argv)
-	return []byte(f.stdout[strings.Join(argv, " ")]), nil
+	key := strings.Join(argv, " ")
+	return []byte(f.stdout[key]), f.errs[key]
 }
 
 func (f *fakeRunner) argv() [][]string {
@@ -315,6 +318,42 @@ func TestUninstallRemovesOnlyOwnedUnit(t *testing.T) {
 		}
 		if string(got) != foreignUnit {
 			t.Errorf("foreign unit = %q, want unchanged %q", got, foreignUnit)
+		}
+	})
+}
+
+func TestUninstallIsIdempotent(t *testing.T) {
+	errExit1 := errors.New("exit status 1")
+
+	t.Run("absent", func(t *testing.T) {
+		run := &fakeRunner{errs: map[string]error{
+			"systemctl --user stop snapback.service":    errExit1,
+			"systemctl --user disable snapback.service": errExit1,
+		}}
+		s := &Systemd{UnitDir: t.TempDir(), Run: run.run}
+
+		if err := s.Uninstall(t.Context()); err != nil {
+			t.Fatalf("Uninstall(absent) = %v, want nil", err)
+		}
+		for _, verb := range []string{"stop", "disable"} {
+			if calls := run.argv(); hasArgv(calls, systemctl(verb, "snapback.service")) {
+				t.Errorf("Uninstall(absent) argv = %q, want no %s", calls, verb)
+			}
+		}
+	})
+
+	t.Run("present disable fails", func(t *testing.T) {
+		dir := t.TempDir()
+		writeUnit(t, dir, readGolden(t, "user.service.golden"))
+		run := &fakeRunner{errs: map[string]error{
+			"systemctl --user disable snapback.service": errExit1,
+		}}
+		s := &Systemd{UnitDir: dir, Run: run.run}
+
+		err := s.Uninstall(t.Context())
+
+		if !errors.Is(err, errExit1) {
+			t.Errorf("Uninstall(present, disable fails) = %v, want %v", err, errExit1)
 		}
 	})
 }
