@@ -35,6 +35,12 @@ Override any of it: `--repo` and `--password-file` name the repository and its p
 instead of writing it, and `--force` overwrites a configuration that already exists. Pass
 directories as arguments to use roots other than the working directory.
 
+Setup also asks where to mount the repository itself: a directory whose `.snapshot` shows the
+whole repository history — every snapshot, every host — for restoring onto a machine that was not
+the one backed up. `--mount` sets it, `--mount ""` disables it, and the default is
+`/mnt/<repository id>` (`~/Library/Application Support/snapback/mounts/<repository id>` on macOS),
+which `--no-prompt` keeps. The daemon links it once the repository is ready.
+
 On Linux, setup also creates the `.snapshot` entry in the root and installs the login service, so
 the daemon is already running when it finishes. On macOS it writes the configuration only; start
 the daemon yourself with `snapback run`, which runs in the foreground — the login service is

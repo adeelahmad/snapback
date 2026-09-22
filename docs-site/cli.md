@@ -13,6 +13,14 @@ for the same synopsis you see below. Flags accept one or two dashes: `-json` and
 
 Detect this machine and write a working configuration.
 
+Setup also picks a mount point for the repository: a directory whose `.snapshot`
+shows the whole repository history — every snapshot, every host — so you can
+restore onto a machine that was not the one backed up. The default is
+`/mnt/<repository id>` (on macOS,
+`~/Library/Application Support/snapback/mounts/<repository id>`); interactive
+setup asks for it, `--no-prompt` keeps the default, and `--mount ""` leaves the
+repository unmounted. The daemon links it once the repository is ready.
+
 ```
 snapback setup [flags] [ROOT...]
 ```
@@ -31,6 +39,7 @@ snapback setup --repo /srv/restic ~/work
 |---|---|
 | `--dry-run` | report the configuration without writing it |
 | `--force` | overwrite an existing configuration |
+| `--mount` | mount point for this repository's restores (default `/mnt/<repository id>`); empty disables it |
 | `--no-prompt` | do not ask any question, keep every default |
 | `--no-service` | do not install a background service |
 | `--password-file` | repository password file to use instead of the detected one |
