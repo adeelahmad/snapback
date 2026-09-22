@@ -1,12 +1,8 @@
-// agentic:shim
 package resticfx
 
-import (
-	"errors"
-	"os"
-	"time"
-)
+import "time"
 
+// Evidence is the path-template verification record written for CI.
 type Evidence struct {
 	GOOS          string    `json:"goos"`
 	GOARCH        string    `json:"goarch"`
@@ -21,26 +17,17 @@ type Evidence struct {
 	GeneratedAt   time.Time `json:"generated_at"`
 }
 
+// EvidenceDir returns the evidence directory from SNAPBACK_EVIDENCE_DIR.
 func EvidenceDir(getenv func(string) string) string {
-	return "shim-wrong-evidence-dir"
+	panic("SUB-AGENT-TODO: return getenv of SNAPBACK_EVIDENCE_DIR")
 }
 
+// WriteEvidence writes pathtemplate-<ev.GOOS>.json under dir.
 func WriteEvidence(dir string, ev Evidence) (string, error) {
-	return "", errors.New("agentic shim: WriteEvidence not implemented")
+	panic("SUB-AGENT-TODO: pretty-printed JSON + trailing newline, 0644, to dir/pathtemplate-<ev.GOOS>.json; return path")
 }
 
+// ReadEvidence reads an evidence file.
 func ReadEvidence(path string) (Evidence, error) {
-	return Evidence{}, errors.New("agentic shim: ReadEvidence not implemented")
-}
-
-type Probe struct {
-	Getenv           func(string) string
-	LookPath         func(string) (string, error)
-	Stat             func(string) (os.FileInfo, error)
-	GOOS             string
-	ResticVersionOut string
-}
-
-func MissingPrerequisite(p Probe) string {
-	return "agentic shim: prerequisite missing"
+	panic("SUB-AGENT-TODO: read file and json-decode into Evidence")
 }
