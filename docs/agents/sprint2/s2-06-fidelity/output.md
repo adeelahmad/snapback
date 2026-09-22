@@ -262,3 +262,41 @@ No production change was needed; RED's T5 test plus the T5b contract ruling alre
 | diff within SCOPE_GLOBS | PASS | only docs/reports/stage1/fidelity-darwin.json |
 ### Next
 Structural review of S2-06, then final gate / merge of chain2/s2-06.
+
+## S2-06/fix-gate · attempt 1 · red-worker · 2026-09-22T04:02:49Z
+status: ok
+### Summary
+Added two rows to the TestMissingPrereqNamesEach table in internal/compat/fidelity/prereq_test.go: SNAPBACK_FUSE_TESTS="0" and "yes" must return the same skip message as unset. They fail by assertion against the current prereq.go, which treats any non-empty value as enabled. No shim needed. plan.md, tasks.md and validate.md have no fix-gate section, so the init.md brief served as the contract. Commit 0a4e9d5 on the worktree branch; go vet and golangci-lint are clean.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `internal/compat/fidelity/prereq_test.go::TestMissingPrereqNamesEach/env_set_to_0` | FAIL | MissingPrereq(env set to 0, "linux") = "", want "SNAPBACK_FUSE_TESTS not set: fidelity tests skipped" |
+| `internal/compat/fidelity/prereq_test.go::TestMissingPrereqNamesEach/env_set_to_yes` | FAIL | MissingPrereq(env set to yes, "linux") = "", want "SNAPBACK_FUSE_TESTS not set: fidelity tests skipped" |
+| existing prereq rows + TestMissingPrereqEmptyWhenAllPresent | PASS | unchanged, still green |
+| go vet ./... / golangci-lint | PASS | clean |
+### Next
+GREEN: change the check in prereq.go to getenv("SNAPBACK_FUSE_TESTS") != "1", matching resticfx.MissingPrerequisite. No new symbols to scaffold.
+
+## S2-06/fix-gate · attempt 1 · green-worker · 2026-09-22T04:05:00Z
+status: ok
+### Summary
+One-line fix in internal/compat/fidelity/prereq.go: MissingPrereq now skips unless SNAPBACK_FUSE_TESTS is exactly "1" (was: skip only when empty), keeping the same skip message. Values such as "0" or "yes" now skip, matching the new TestMissingPrereqNamesEach rows. Committed as 4a8a6be on worktree-agent-a133e9f7ff62410f1 (base 0a4e9d5). No tests edited; diff is within SCOPE_GLOBS.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `internal/compat/fidelity::TestMissingPrereqNamesEach` | PASS | new 0/yes rows green |
+| `internal/compat/fidelity::TestMissingPrereqEmptyWhenAllPresent` | PASS | green |
+| `go test -race ./internal/compat/fidelity/...` | PASS | all 25 tests green |
+| gofmt / goimports | PASS | no output |
+| `CGO_ENABLED=0 go build ./...` | PASS | |
+| `go vet ./...` | PASS | |
+| `golangci-lint run` | PASS | 0 issues |
+| `go test -race ./...` | PASS | all packages ok |
+| coverage | PASS | total 84.0% (>=80%) |
+| `govulncheck ./...` | PASS | 0 called vulnerabilities (1 in required module, not reachable) |
+| actionlint | PASS | |
+| `shellcheck -s sh install.sh` | PASS | |
+| `mkdocs build --strict` | PASS | |
+| `goreleaser check` | PASS | |
+### Next
+Structural review, then merge fix-gate into chain/stage-1.

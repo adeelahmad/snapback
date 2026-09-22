@@ -376,3 +376,21 @@ Filled the T5 stubs: `content.ts` gains `stages` (the eight SPEC §22 names; sta
 
 ### Next
 Structural review of S2-12 T5, then T6 (SEO/OG meta).
+
+## S2-12/integrate · attempt 1 · green-worker · 2026-09-22T04:04:00Z
+status: ok
+### Summary
+Merged chain2/c3-site (af00edb) then chain2/c3-t7 (17054ed) into the stage-1 line with --no-ff. The one conflict was in `.github/workflows/ci.yml`: kept stage-1's `if-no-files-found: error` on the fuse-linux evidence upload and added the new `site` job. The c3-t7 merge was clean. Nothing else changed. Both merge commits are authored by Adeel Ahmad <adeelahmad99@gmail.com> with no AI trailers. Final HEAD 17054ed13889a3882aff8153cef668bc6d9c682f.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `go vet ./...` | PASS | clean |
+| `go test -race ./...` | PASS | all packages ok, including test/site, test/ci, test/docs and test/projectdocs |
+| `golangci-lint run` | PASS | 0 issues |
+| `actionlint` | PASS | clean |
+| web `npm ci` / `npm test` | PASS | 5 files, 21 tests |
+| web `npm run lint` | PASS | tsc --noEmit clean |
+| web `npm run build` | PASS | dist built |
+| Pages assembly dry run | PASS | _site/index.html, _site/docs/index.html and _site/install.sh present; build outputs removed afterwards |
+### Next
+Structural review, then fast-forward stage-1 to 17054ed.

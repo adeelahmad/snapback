@@ -247,3 +247,24 @@ Write every fix-gate test bullet in `plan.md` § fix-gate at the exact path::fn 
 - all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
 - red-worker: make shim bodies differ so comparison tests cannot pass by accident.
 - all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.
+
+## S2-06/fix-gate · attempt 1 · green-worker · 2026-09-22T04:03:09Z
+
+### Mandate
+Implement S2-06 fix-gate per `tasks.md` § fix-gate with the least change that makes exactly TestMissingPrereqNamesEach (new 0/yes rows) + all fidelity tests pass. One-line fix: require SNAPBACK_FUSE_TESTS == "1" exactly, same skip message. Full matrix (fix to a merged story).
+
+### Scope
+#### May
+- internal/compat/fidelity/prereq.go only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § fix-gate, `plan-ready.md` § fix-gate, `validate.md` § fix-gate. Chain base `chain/s2-06` @ 0a4e9d5.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`internal/compat/fidelity/prereq.go`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.

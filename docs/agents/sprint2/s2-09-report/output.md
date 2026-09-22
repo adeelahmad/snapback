@@ -162,3 +162,46 @@ Replaced the `## Crawler hit counts` placeholder in `docs/reports/stage1-measure
 
 ### Next
 Structural review, then T6 (matrix, open item, honesty).
+
+## S2-09/T6 · attempt 1 · red-worker · 2026-09-22T04:02:19Z
+status: ok
+### Summary
+Wrote the five plan.md § T6 tests in `test/reports/matrix_test.go` (commit 5ec8316, test file only, no shim needed: every helper already exists). Four tests fail by assertion against the current report (matrix and Open items still "Not filled yet"; the intro sentence "latency go/no-go decision" trips the verdict gate). `TestNoBannedHonestyWords` is PASS-ON-RED: a negative guard that the report already satisfies. Package lists 21 tests; go vet and golangci-lint are clean. Contract notes for GREEN: (1) the plan's regex `(?i)threshold|acceptable|\bno-go\b|\bGO\b` would match "Go toolchain" and "go-fuse" if case-insensitive applied to `GO`, so `GO` is matched upper-case only; (2) the exact pending line and the Open items option bullets are exempt from the verdict scan, and every other line (including the intro) must avoid "no-go"; (3) evidence mapping for "implemented and tested": path-template needs both pathtemplate files with result pass, each catalog needs its platform file with result pass, fidelity needs both files with pass true, latency needs remote_deleted true, crawler needs both files with at least one tested row. Pin dependencies and Disposable Restic repo have no evidence file.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/reports/matrix_test.go::TestMatrixCoversAllStage1Items` | FAIL | "## Requirement matrix" has no table rows |
+| `test/reports/matrix_test.go::TestMatrixStatusConsistentWithEvidence` | FAIL | "## Requirement matrix" has no table rows |
+| `test/reports/matrix_test.go::TestPendingDecisionLine` | FAIL | pending line count 0, want 1; option bullets 0, want 3 |
+| `test/reports/matrix_test.go::TestNoThresholdOrVerdict` | FAIL | report line 8 contains "no-go" outside the Open items pending line/options |
+| `test/reports/matrix_test.go::TestNoBannedHonestyWords` | PASS-ON-RED | negative guard already satisfied by the report |
+### Next
+GREEN: fill the eight-row requirement matrix and Open items (pending line + proceed / pre-warm / §23 bullets), rephrase the intro sentence to drop "go/no-go", then run the full standards matrix (M-005).
+
+## S2-09/T6 · attempt 1 · green-worker · 2026-09-22T04:20:00Z
+status: ok
+### Summary
+Filled `## Requirement matrix` with the eight SPEC §22 row 1 items, all `implemented and tested`: the six evidence-backed items cite their passing JSON files; Pin dependencies cites go.mod and the checked Pinned versions table; Disposable Restic repo cites `internal/compat/resticfx` (no evidence file, stated in the reason). Crawler row notes VS Code search is not tested here on either platform. Filled `## Open items` with the exact pending line and three bullets (proceed to Stage 2; deeper pre-warm; pull the §23 local hot-cache repository forward) with no threshold or recommendation. Reworded the intro to drop "go/no-go" ("The latency call is left to a human; see Open items."). Commit 8cdd57f on chain base 5ec8316, report only, author Adeel Ahmad, no AI trailers.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/reports/matrix_test.go::TestMatrixCoversAllStage1Items` | PASS | green |
+| `test/reports/matrix_test.go::TestMatrixStatusConsistentWithEvidence` | PASS | green |
+| `test/reports/matrix_test.go::TestPendingDecisionLine` | PASS | green |
+| `test/reports/matrix_test.go::TestNoThresholdOrVerdict` | PASS | green |
+| `test/reports/matrix_test.go::TestNoBannedHonestyWords` | PASS | green |
+| `test/reports` (all 21) | PASS | `go test -race ./test/reports/ -v` |
+| gofmt / goimports | PASS | no output |
+| `CGO_ENABLED=0 go build ./...` | PASS | |
+| `go vet ./...` | PASS | |
+| `golangci-lint run` | PASS | 0 issues |
+| `go test -race ./...` | PASS | all packages ok |
+| coverage | PASS | 84.0% (>=80%) |
+| `govulncheck ./...` | PASS | exit 0; no called vulnerabilities |
+| `actionlint` | PASS | |
+| `shellcheck -s sh install.sh` | PASS | |
+| `mkdocs build --strict --site-dir site` | PASS | |
+| `goreleaser check` | PASS | |
+| scope | PASS | `git show --stat HEAD`: only docs/reports/stage1-measurements.md |
+### Next
+Structural review of S2-09, then merge chain2/s2-09 into stage-1. S2-09 complete (T6 was the last task).

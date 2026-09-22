@@ -4,10 +4,10 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 39
+- **Tick:** 40
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
-- **Phase:** SPRINT 2 EXECUTION — S2-01..S2-04, S2-06, S2-07, S2-08, C1, C2 merged (stage-1 b2572b2); S2-05 T3 + S2-09 in flight; C3 site + C4 launch in flight
-- **Last gate:** GREEN on stage-1 @ df2d91f (full standards matrix)
+- **Phase:** SPRINT 2 — all stories merged on stage-1 (ccbfbbe); FINAL GATE → commit-subject rewrite → promotion
+- **Last gate:** GREEN on stage-1 @ ccbfbbe (full standards matrix + web gates)
 - **Human gate pending:** latency go/no-go (numbers recorded tick 35)
 
 ## Stage table (README §22)
@@ -471,6 +471,12 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 39 | Structural S2-06/07 | structural-reviewer | findings: SNAPBACK_FUSE_TESTS truthiness drift (fidelity "any non-empty" vs resticfx/crawler "=1") → REAL BUG; evidence writer duplication → tech debt | S2-06/fix-gate RED spawned |
 | 39 | MERGE C3 → stage-1 (orchestrator attempt) | orchestrator | CONFLICT in ci.yml (S2-05 upload=error vs new site job) → aborted; delegated to S2-12/integrate worker (keep both sides) | — |
 | 39 | S2-09/T6 RED, S2-12/integrate, S2-06/fix-gate RED | various | spawned 04:02Z | — |
+| 40 | S2-12/integrate | green-worker | passed — ci.yml conflict resolved keeping both (upload=error + site job); Pages dry run: _site/index.html, _site/docs/index.html, _site/install.sh | — |
+| 40 | MERGE S2-12 site → stage-1 | orchestrator | 5cd1001; full gate GREEN; web: 21 vitest PASS, tsc clean, build ok | — |
+| 40 | S2-06/fix-gate RED+GREEN | red/green | passed — MissingPrereq requires SNAPBACK_FUSE_TESTS=="1"; full matrix green | — |
+| 40 | MERGE S2-06 fix-gate → stage-1 | orchestrator | 9b097ab; full gate GREEN | — |
+| 40 | S2-09/T6 RED+GREEN | red/green | passed — requirement matrix (8 rows, all implemented and tested, reasons cite evidence), open item "Latency go/no-go: PENDING — human decision" + 3 options; 21 report tests PASS; full matrix green | — |
+| 40 | MERGE S2-09 → stage-1 | orchestrator | ccbfbbe; full gate GREEN — ALL SPRINT 2 STORIES MERGED | final-gate next |
 
 ## Plugin issues found
 

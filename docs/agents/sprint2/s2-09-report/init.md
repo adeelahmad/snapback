@@ -245,3 +245,24 @@ Write every T6 test bullet in `plan.md` § T6 at the exact path::fn so each FAIL
 - all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
 - red-worker: make shim bodies differ so comparison tests cannot pass by accident.
 - all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.
+
+## S2-09/T6 · attempt 1 · green-worker · 2026-09-22T04:02:40Z
+
+### Mandate
+Implement S2-09 T6 per `tasks.md` § T6 with the least change that makes exactly the 5 T6 tests (+ all 16 earlier) pass. LAST task of S2-09: full standards matrix. Requirement matrix rows per the T6 evidence mapping (implemented and tested / implemented but not tested here / not implemented, with reasons). Open items: the exact pending latency-decision line + the 3 option bullets from tasks.md. No verdict/threshold words outside Open items. Plain factual voice.
+
+### Scope
+#### May
+- docs/reports/stage1-measurements.md (Requirement matrix, Missing evidence, Open items; reword the intro line that says go/no-go) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § T6, `plan-ready.md` § T6, `validate.md` § T6. Chain base `chain/s2-09` @ 5ec8316.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`docs/reports/stage1-measurements.md`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.
