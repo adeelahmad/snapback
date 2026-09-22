@@ -1,6 +1,10 @@
 package crawler
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
 
 // Status is the evidence status of one crawler row.
 type Status string
@@ -16,9 +20,28 @@ type Tool struct {
 	VersionArgs []string
 }
 
-// Argv returns the argument vector that runs the tool over root.
+// Argv returns the argument vector that runs the tool over root. Only the
+// rsync row uses dest. The first element is the program name; callers replace
+// it with the path Resolve returns.
 func (t Tool) Argv(root, dest string) []string {
-	panic("SUB-AGENT-TODO: T2 build the argv for root (rsync also uses dest); rg/fd pass --hidden --no-ignore (fd: -H -I); argument arrays only, no shell")
+	var argv []string
+	switch t.Candidates[0] {
+	case "rg":
+		argv = []string{"rg", "--files", "--hidden", "--no-ignore"}
+	case "fd":
+		argv = []string{"fd", "-H", "-I"}
+	case "find":
+		argv = []string{"find"}
+	case "rsync":
+		return []string{"rsync", "-a", root, dest + "/"}
+	}
+	if t.Follows {
+		argv = append(argv, "-L")
+	}
+	if t.Candidates[0] == "fd" {
+		argv = append(argv, ".")
+	}
+	return append(argv, root)
 }
 
 // FixedRow is a row that is recorded but never run.
@@ -31,15 +54,37 @@ type FixedRow struct {
 
 // Tools returns the ordered crawler tool table.
 func Tools() []Tool {
-	panic("SUB-AGENT-TODO: T2 return the seven ordered rows rg, rg -L, fd, fd -L, find, find -L, rsync -a; fd rows try fd then fdfind")
+	rg := []string{"rg"}
+	fd := []string{"fd", "fdfind"}
+	find := []string{"find"}
+	version := []string{"--version"}
+	return []Tool{
+		{Name: "rg", Candidates: rg, VersionArgs: version},
+		{Name: "rg -L", Candidates: rg, Follows: true, VersionArgs: version},
+		{Name: "fd", Candidates: fd, VersionArgs: version},
+		{Name: "fd -L", Candidates: fd, Follows: true, VersionArgs: version},
+		{Name: "find", Candidates: find, VersionArgs: version},
+		{Name: "find -L", Candidates: find, Follows: true, VersionArgs: version},
+		{Name: "rsync -a", Candidates: []string{"rsync"}, VersionArgs: version},
+	}
 }
 
 // Resolve returns the path of the first candidate binary lookPath finds.
+// Callers normally pass exec.LookPath.
 func Resolve(tool Tool, lookPath func(string) (string, error)) (string, error) {
-	panic("SUB-AGENT-TODO: T2 return the first candidate lookPath finds, else an error wrapping ErrToolMissing naming every candidate tried")
+	for _, name := range tool.Candidates {
+		if path, err := lookPath(name); err == nil {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("%w: %s (tried %s)", ErrToolMissing, tool.Name, strings.Join(tool.Candidates, ", "))
 }
 
 // VSCodeRow returns the fixed VS Code search row.
 func VSCodeRow() FixedRow {
-	panic("SUB-AGENT-TODO: T2 return the VS Code search row with status not-tested-here, a reason and no argv")
+	return FixedRow{
+		Name:   "vscode search",
+		Status: StatusNotTestedHere,
+		Reason: "VS Code search needs a GUI session; it follows symlinks only when search.followSymlinks is true (the default)",
+	}
 }
