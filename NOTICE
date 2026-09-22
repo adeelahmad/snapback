@@ -9,4 +9,10 @@ This product includes software developed by third parties:
 - react — MIT (https://github.com/facebook/react/blob/main/LICENSE)
 - react-dom — MIT (https://github.com/facebook/react/blob/main/LICENSE)
 
+The website self-hosts these fonts, licensed under the SIL Open Font License 1.1 (https://openfontlicense.org):
+
+- IBM Plex Sans — SIL Open Font License 1.1 (https://github.com/IBM/plex/blob/master/LICENSE.txt)
+- IBM Plex Mono — SIL Open Font License 1.1 (https://github.com/IBM/plex/blob/master/LICENSE.txt)
+- JetBrains Mono — SIL Open Font License 1.1 (https://github.com/JetBrains/JetBrainsMono/blob/master/OFL.txt)
+
 This list is updated as dependencies are added.
