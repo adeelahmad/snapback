@@ -5,7 +5,9 @@
 package readerpolicy
 
 import (
+	"container/list"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/mount"
@@ -51,12 +53,22 @@ type Policy struct {
 	cfg      Config
 	procName func(uint32) string
 	now      func() time.Time
+
+	mu       sync.Mutex
+	trackers map[trackerKey]*list.Element
+	lru      *list.List
 }
 
 // New returns a Policy for cfg that resolves process names with procName and
 // reads the time from now.
 func New(cfg Config, procName func(uint32) string, now func() time.Time) *Policy {
-	return &Policy{cfg: cfg, procName: procName, now: now}
+	return &Policy{
+		cfg:      cfg,
+		procName: procName,
+		now:      now,
+		trackers: make(map[trackerKey]*list.Element),
+		lru:      list.New(),
+	}
 }
 
 // Allow reports whether ev may proceed.
@@ -71,5 +83,8 @@ func (p *Policy) Allow(ev Event) bool {
 			return false
 		}
 	}
-	return true
+	if p.cfg.BurstLimit <= 0 {
+		return true
+	}
+	return !p.throttled(ev, name)
 }
