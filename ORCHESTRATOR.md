@@ -6,15 +6,15 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 - **Tick:** 14
 - **Stage:** 0 — Scaffolding (Sprint 1)
-- **Phase:** SPRINT 1 FINAL-GATE PASS (stage-0 @ e83ecd8). Awaiting human confirmation to push to GitHub for Stage 0 exit evidence (CI green on master, Pages deploys)
-- **Last gate:** GREEN on stage-0 @ e83ecd8 (01:18Z) after S1-08 merge: gofmt, goimports, build, vet, golangci-lint, test -race, cov 87.5%, govulncheck, actionlint, shellcheck, mkdocs --strict — all PASS
-- **Human gate pending:** YES — GitHub push (outward-facing) required for Stage 0 exit evidence
+- **Phase:** STAGE 0 COMPLETE (01:45Z) — exit evidence verified on GitHub. Sprint 1 closed. Next: Stage 1 (compatibility milestone) requires a new planning session
+- **Last gate:** GREEN on master @ 41722b6 locally (all checks incl. goreleaser check) and on GitHub (CI 35676870835, docs 35676870852, release 35676870860 — all success)
+- **Human gate pending:** none (human chose push+merge to master at 01:37Z)
 
 ## Stage table (README §22)
 
 | Stage | Scope | Exit evidence | Status | Evidence recorded |
 | --- | --- | --- | --- | --- |
-| 0. Scaffolding | Repository furniture, CI, lint, race tests, semantic release, docs site pipeline, installer script skeleton | Green CI on an empty binary; docs site deploys | implemented + locally gated (FINAL-GATE PASS @ e83ecd8); GitHub exit evidence NOT YET VERIFIED | local: full matrix green, 178/178 plan-ready ticked; GitHub CI/Pages: pending push |
+| 0. Scaffolding | Repository furniture, CI, lint, race tests, semantic release, docs site pipeline, installer script skeleton | Green CI on an empty binary; docs site deploys | **DONE** | CI success on master (runs 35676441800, 35676870835); docs deployed, https://adeelahmad.github.io/snapback/ → HTTP/2 200; release v1.0.1 published with 7 archives + cosign-signed checksums.txt (run 35676870860). v1.0.0 exists without assets (first GoReleaser run failed; fixed by S1-06/fix2+fix3) |
 | 1. Compatibility milestone | Pin deps; disposable Restic repo; verify `--path-template ids/%I`; tiny FUSE catalog Linux+macOS; metadata fidelity; rclone/GDrive latency; crawler test | Numbers recorded in the report; go/no-go on latency | not started | — |
 | 2. Core vertical slice | Config, SnapshotProvider + Restic, resolver, private Restic mount, virtual catalog, `link`/`open`/`snap`, ownership registry | Acceptance 3–8, 10 on Linux | not started | — |
 | 3. Reliable background operation | Daemon, refresh, pre-warm, IPC, shell hooks, seeding + watcher + inode budget, reader policy, crash recovery, shutdown | Acceptance 1, 2, 9, 11–15 | not started | — |
@@ -250,6 +250,12 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 12 | S1/final-gate | final-gate | spawned 01:18Z | — |
 | 13 | S1-03+S1-05+S1-07/review | structural-reviewer | passed — verdict CLEAN (ownership exact, S1-03↔S1-06 naming contract byte-identical, workflows least-privilege + pinned, no in-package dupes, no markers); gate FAIL = known _test.go false positive only. Ran 3m08s | — |
 | 14 | S1/final-gate | final-gate | PASS — full matrix green (cov 87.5%), 0 suppressions (6 t.Skip all plan-allowed tool-absent; only commitlint+goreleaser actually skip), 178/178 plan-ready [x], gate-final exit 0; GitHub-only DoD items NOT YET VERIFIED. Ran 4m57s | — |
+| 14 | GitHub push | orchestrator | human chose push+merge; master ff e13192d→9c3c2a6 pushed; Pages enabled (build_type workflow) | — |
+| 14 | GitHub runs | orchestrator | CI success; docs success (Pages 200); release: semantic-release published v1.0.0 (+chore(release) commit 4d44590), GoReleaser FAILED — `field formats not found in type config.Archive` (pinned v2.5.1 predates `formats`). Root cause: config never tool-validated (goreleaser absent locally — flagged risk). goreleaser 2.18.2 installed locally: `goreleaser check` validates config | fix task: S1-06/fix2 (bump pin to v2.18.2, fix: commit → v1.0.1 with assets) |
+| 14 | S1-06/fix2 | green-worker | ESCALATED (partial pass) — pin v2.5.1→v2.18.2 done (61a1906): goreleaser check PASS, TestGoreleaserCheck RUNS+PASS, actionlint clean; matrix red ONLY on TestChangelogSeededHeader — pre-existing on master: release commit 4d44590 ([skip ci], bot) rewrote CHANGELOG.md without title → master red locally, CI skipped. chain/s1-06-fix → 61a1906 | split → S1-06/fix3 (.releaserc changelogTitle + restore header) |
+| 14 | S1-06/fix3 | green-worker | passed — changelogTitle added + header restored; 34/34 release tests PASS; full matrix green | — |
+| 14 | fix2+fix3 push | orchestrator | master ff 4d44590→41722b6; local full gate GREEN incl. goreleaser check; pushed. CI/docs/release all SUCCESS; v1.0.1 published with all 7 contract-named archives + checksums.txt(.sig/.pem) | — |
+| 14 | STAGE 0 | orchestrator | EXIT EVIDENCE RECORDED — Stage 0 DONE (01:45Z) | — |
 
 ## Plugin issues found
 
@@ -263,6 +269,9 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 - gate-structural-integrity `norm_high` test-file carve-out matches only .ts/.tsx/.js/.mjs/.rs — Go `_test.go` function-local duplicates (e.g. `var stdout` in two tests) are misreported as HIGH foundation-poisoning. Needs a `_test.go` carve-out upstream.
 
 ## Technical debt (for next planning session)
+
+- v1.0.0 GitHub release exists with NO assets (GoReleaser failed); fix2 should publish v1.0.1 with assets. Deleting/annotating v1.0.0 is a human decision.
+- goreleaser warns `builds.goarm is ignored when builds.targets is set` — harmless (arm asset name still bare) but the goarm/gomips lines are dead config.
 
 - Consolidate duplicated Go test helpers (repoRoot, readRepoFile, indentOf, topLevelBlock, jobBlock, section helpers) across test/ci, test/commitlint, test/release, test/docs, test/community, test/projectdocs into one shared test-support package — needs a test/**-scoped task (no single story may touch others' tests). Source: S1-02+S1-04 and S1-06 structural reviews.
 - Human decisions surfaced by workers: installer falls back to ~/.local/bin when /usr/local/bin is unwritable OR not on PATH (S1-03 T5); SECURITY.md promises 7-day acknowledgement (S1-05 T3).

@@ -190,3 +190,43 @@ S1-06 as merged at 57f1518 adds exactly the release pipeline it was scoped for: 
 - Sprint-level (not S1-06-specific) recommendation: consolidate `repoRoot`/`readRepoFile`/`indentOf`/`topLevelBlock`/`jobBlock` into one shared internal test-support package once a story is scoped to touch `test/**` broadly; out of scope for S1-06's green-workers, who were restricted to `.goreleaser.yaml`/`.releaserc.json`/`CHANGELOG.md`/`release.yml` only.
 ### Next
 continue — no HALT warranted for S1-06 itself. The selfcheck HIGH findings are either detector false positives (local vars/struct fields) or pre-existing (pre-3bd0642) per-package test-helper duplication that S1-06's scope constraints required it to extend rather than fix; recommend a separate, explicitly-scoped cleanup task for the shared-test-helper consolidation, not a retry of S1-06.
+
+## S1-06/fix2 · attempt 1 · green-worker · 2026-09-22T01:41:28Z
+status: escalate
+### Summary
+Changed the goreleaser-action pin in .github/workflows/release.yml from version: v2.5.1 to version: v2.18.2. That is the only diff, committed as 61a1906 on top of 4d44590. goreleaser check, actionlint, TestGoreleaserCheck (it ran, it did not skip) and every other release-workflow test pass. One test fails, and it is outside this task's scope: test/release TestChangelogSeededHeader. The v1.0.0 release commit 4d44590 (semantic-release-bot) replaced the seeded CHANGELOG.md, so its first line is now "## 1.0.0 (2026-09-22)" and no longer "# Changelog". This task did not cause it; the test fails the same way on 4d44590 without the fix. Fixing it means editing CHANGELOG.md and/or setting changelogTitle in .releaserc (@semantic-release/changelog), and both files are outside SCOPE_GLOBS.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| goreleaser check (v2.18.2 local) | PASS | 1 configuration file validated |
+| actionlint | PASS | clean |
+| test/release::TestGoreleaserCheck | PASS | ran, not skipped |
+| test/release (other 33 tests) | PASS | green |
+| test/release::TestChangelogSeededHeader | FAIL | already failing on 4d44590: the release rewrote CHANGELOG.md header; out of scope |
+| gofmt / goimports / build / vet / golangci-lint | PASS | 0 issues |
+| go test -race ./... | FAIL | only TestChangelogSeededHeader |
+| coverage | PASS | 87.5% |
+| govulncheck | PASS | no vulnerabilities |
+### Next
+Orchestrator: open a follow-up task (e.g. S1-06/fix3) with scope CHANGELOG.md + .releaserc. Put the "# Changelog" header back and set changelogTitle: "# Changelog" in the @semantic-release/changelog options so later releases keep the header. Commit it as a non-releasing type (e.g. docs:/chore:) or together with this fix. After that, merge 61a1906 and run the release.
+
+## S1-06/fix3 · attempt 1 · green-worker · 2026-09-22T01:43:27Z
+status: ok
+### Summary
+The v1.0.0 semantic-release run rewrote CHANGELOG.md without its title. The fix adds `"changelogTitle": "# Changelog"` to the @semantic-release/changelog options in `.releaserc.json` so future releases keep the title. It also puts the `# Changelog` line back at the top of CHANGELOG.md, with the 1.0.0 notes left below it. The maintained-by line was not restored because no test requires it, and semantic-release would drop it anyway since it writes only the title. No tests were edited. Commit 41722b6 on top of 61a1906.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/release/releaserc_test.go::TestChangelogSeededHeader` | PASS | green |
+| `test/release/releaserc_test.go::TestReleaserc*` (6 tests) | PASS | changelog options still accepted |
+| `go test -race ./test/release/ -v` | PASS | all 34 tests, including TestGoreleaserCheck |
+| gofmt / goimports | PASS | no output |
+| `CGO_ENABLED=0 go build ./...` / `go vet ./...` | PASS | |
+| `golangci-lint run` | PASS | 0 issues |
+| `go test -race ./...` | PASS | 9 packages ok |
+| coverage | PASS | 87.5% (>=80%) |
+| `govulncheck ./...` | PASS | no vulnerabilities |
+| `actionlint` | PASS | clean |
+| scope | PASS | diff only touches .releaserc.json and CHANGELOG.md |
+### Next
+Structural review, then merge into chain/s1-06-fix and master.

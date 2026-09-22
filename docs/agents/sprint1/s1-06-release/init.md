@@ -196,3 +196,45 @@ verdict clean|isolated|foundation-poisoning; findings file:line; selfcheck (know
 ### Memory
 - all: harness locks workers to their worktree — STORY_DIR inside your worktree.
 - structural-reviewer: gate-structural-integrity misreports Go _test.go function-local duplicates as HIGH — verify scope first.
+
+## S1-06/fix2 · attempt 1 · green-worker · 2026-09-22T01:39:59Z
+
+### Mandate
+Implement S1-06 fix2 per `tasks.md` § fix2 with the least change that makes exactly all S1-06 tests; TestGoreleaserCheck now RUNS (goreleaser 2.18.2 installed locally) and must PASS pass. Release run 35676441842 failed: goreleaser v2.5.1 (pinned in release.yml) rejects .goreleaser.yaml "line 29: field formats not found in type config.Archive" — `formats` needs a newer GoReleaser. Local `goreleaser check` with v2.18.2 validates the config. Bump the pin to v2.18.2 (a real release; matches local), nothing else. Commit type must be `fix:` so semantic-release publishes a patch release whose GoReleaser job uses the fixed pin. Full matrix runs.
+
+### Scope
+#### May
+- `.github/workflows/release.yml` (edit: bump the pinned GoReleaser version) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § fix2, `plan-ready.md` § fix2, `validate.md` § fix2. Chain base `chain/s1-06` @ 4d44590.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`.github/workflows/release.yml`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S1-06/fix3 · attempt 1 · green-worker · 2026-09-22T01:42:11Z
+
+### Mandate
+Implement S1-06 fix3 per `tasks.md` § fix3 with the least change that makes exactly all S1-06 tests, specifically TestChangelogSeededHeader and every TestReleaserc* test pass. master is red: the v1.0.0 release commit 4d44590 (semantic-release-bot, [skip ci]) regenerated CHANGELOG.md without a title, so TestChangelogSeededHeader fails. Restore the header now and configure changelogTitle so future releases keep it. Check the TestReleaserc* tests still accept the changelog plugin options. Commit type `fix:`. Full matrix runs. Base includes fix2 (goreleaser v2.18.2 pin).
+
+### Scope
+#### May
+- `.releaserc.json` (edit: add `changelogTitle: "# Changelog"` to the @semantic-release/changelog options) and `CHANGELOG.md` (edit: restore the `# Changelog` header line at the very top, keeping the existing 1.0.0 release notes below it) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § fix3, `plan-ready.md` § fix3, `validate.md` § fix3. Chain base `chain/s1-06` @ 61a1906.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`.releaserc.json CHANGELOG.md`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.
