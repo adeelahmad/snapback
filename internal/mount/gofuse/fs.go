@@ -38,29 +38,75 @@ var (
 )
 
 func newRoot(cat mount.Catalog, obs mount.Observer) *dirNode {
-	panic("SUB-AGENT-TODO: return the root dirNode over cat and obs with ino mount.RootIno and the root path")
+	return &dirNode{cat: cat, obs: obs, ino: mount.RootIno, path: ""}
+}
+
+func childPath(parent, name string) string {
+	if parent == "" {
+		return name
+	}
+	return parent + "/" + name
+}
+
+func entry(ino uint64, isDir bool, name string) mount.Entry {
+	if isDir {
+		return mount.Entry{Ino: ino, Kind: mount.KindDir, Name: name}
+	}
+	return mount.Entry{Ino: ino, Kind: mount.KindSymlink, Name: name}
 }
 
 func (d *dirNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	panic("SUB-AGENT-TODO: look up name in the catalog; ENOENT on miss; create a child dirNode or symlinkNode inode with StableAttr.Ino = catalog stable inode and correct type bits; fill out via attr.go (mode, uid/gid, entry and attr timeouts from attr.go constants); fire exactly one lookup Observer event with the node path")
+	path := childPath(d.path, name)
+	d.obs.Observe(mount.Event{Op: mount.OpLookup, Path: path})
+	ino, isDir, found := d.cat.Lookup(d.ino, name)
+	if !found {
+		return nil, syscall.ENOENT
+	}
+	e := entry(ino, isDir, name)
+	*out = EntryOut(e, DaemonOwner())
+	var node fs.InodeEmbedder
+	if isDir {
+		node = &dirNode{cat: d.cat, obs: d.obs, ino: ino, path: path}
+	} else {
+		node = &symlinkNode{cat: d.cat, obs: d.obs, ino: ino, path: path}
+	}
+	return d.NewInode(ctx, node, StableAttr(e)), 0
 }
 
 func (d *dirNode) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) {
-	panic("SUB-AGENT-TODO: return the catalog's ordered listing for d.path as a DirStream; fire exactly one readdir Observer event with the node path")
+	d.obs.Observe(mount.Event{Op: mount.OpReadDir, Path: d.path})
+	names, found := d.cat.ReadDir(d.ino)
+	if !found {
+		return nil, syscall.ENOENT
+	}
+	entries := make([]fuse.DirEntry, 0, len(names))
+	for _, name := range names {
+		ino, isDir, _ := d.cat.Lookup(d.ino, name)
+		entries = append(entries, fuse.DirEntry{Name: name, Ino: ino, Mode: StableAttr(entry(ino, isDir, name)).Mode})
+	}
+	return fs.NewListDirStream(entries), 0
 }
 
 func (d *dirNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
-	panic("SUB-AGENT-TODO: fill out from attr.go for this directory's catalog entry")
+	*out = AttrOut(mount.Entry{Ino: d.ino, Kind: mount.KindDir}, DaemonOwner())
+	return 0
 }
 
 func (d *dirNode) Statfs(ctx context.Context, out *fuse.StatfsOut) syscall.Errno {
-	panic("SUB-AGENT-TODO: return success with zero free and available blocks and inodes (read-only catalog)")
+	*out = fuse.StatfsOut{}
+	return 0
 }
 
 func (s *symlinkNode) Readlink(ctx context.Context) ([]byte, syscall.Errno) {
-	panic("SUB-AGENT-TODO: return the catalog's target bytes unchanged (never cleaned or resolved); fire exactly one readlink Observer event with the node path")
+	s.obs.Observe(mount.Event{Op: mount.OpReadlink, Path: s.path})
+	target, found := s.cat.Readlink(s.ino)
+	if !found {
+		return nil, syscall.ENOENT
+	}
+	return []byte(target), 0
 }
 
 func (s *symlinkNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
-	panic("SUB-AGENT-TODO: fill out from attr.go for this symlink's catalog entry")
+	*out = AttrOut(mount.Entry{Ino: s.ino, Kind: mount.KindSymlink}, DaemonOwner())
+	return 0
 }
