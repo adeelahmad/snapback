@@ -79,9 +79,7 @@ func command(deps commandDeps) cli.Command {
 			jsonOut := fs.Bool("json", false, "print checks as a JSON array")
 			mountTest := fs.Bool("mount-test", false, "add a mount_test check that performs a real mount")
 			strict := fs.Bool("strict", false, "keep platform-inapplicable checks as failures")
-			// SUB-AGENT-TODO(S5-36/T13): parsed but ignored; GREEN must print
-			// the probe and the raw observation under every verdict.
-			_ = fs.Bool("verbose", false, "print the probe and the raw observation under every check")
+			verbose := fs.Bool("verbose", false, "print the probe and the raw observation under every check")
 			bundle := fs.Bool("bundle", false, "write a local diagnostic bundle into DIR and print its path")
 			help, err := cli.ParseWithUsage(fs, args)
 			if err != nil {
@@ -99,6 +97,9 @@ func command(deps commandDeps) cli.Command {
 			}
 
 			checks = applyPlatform(checks, deps.goos, *strict)
+			if !*verbose {
+				checks = withoutVerbose(checks)
+			}
 
 			if *bundle {
 				return writeBundleFor(env, checks, cfg, fs.Arg(0))
@@ -108,6 +109,8 @@ func command(deps commandDeps) cli.Command {
 				if err := json.NewEncoder(env.Stdout).Encode(checks); err != nil {
 					return 1
 				}
+			} else if *verbose {
+				printChecksVerbose(env.Stdout, checks)
 			} else {
 				printChecks(env.Stdout, checks)
 			}
@@ -120,12 +123,20 @@ func command(deps commandDeps) cli.Command {
 // followed by the fix on its own line for every failing check.
 func printChecks(w io.Writer, checks []Check) {
 	for _, c := range checks {
-		_, _ = fmt.Fprintf(w, "%-20s %-8s %s\n", c.Name, c.Status, c.Detail)
-		if c.Status == statusFail && c.Fix != "" {
-			_, _ = fmt.Fprintf(w, "  fix: %s\n", c.Fix)
-		}
+		printCheck(w, c)
 	}
 }
+
+// printCheck writes one check's verdict line and, when it failed, its fix.
+func printCheck(w io.Writer, c Check) {
+	_, _ = fmt.Fprintf(w, "%-20s %-8s %s\n", c.Name, c.Status, c.Detail)
+	if c.Status == statusFail && c.Fix != "" {
+		_, _ = fmt.Fprintf(w, "  fix: %s\n", c.Fix)
+	}
+}
+
+// mountTestProbe names what the mount_test check runs.
+const mountTestProbe = "mount and unmount a temporary FUSE mount"
 
 // checkMountTest performs a real mount through p.MountTest. It is only ever
 // called when --mount-test is passed.
@@ -136,7 +147,9 @@ func checkMountTest(ctx context.Context, p Probes) Check {
 			code = errcode.MountFailure
 		}
 		return Check{Name: "mount_test", Status: statusFail, Code: code,
-			Detail: err.Error(), Fix: "check that FUSE is installed and the mount point is free, then retry"}
+			Detail: err.Error(), Fix: "check that FUSE is installed and the mount point is free, then retry",
+			Probe: mountTestProbe, Observed: "mount failed with code " + string(code)}
 	}
-	return Check{Name: "mount_test", Status: statusOK, Detail: "mount test succeeded"}
+	return Check{Name: "mount_test", Status: statusOK, Detail: "mount test succeeded",
+		Probe: mountTestProbe, Observed: "mounted and unmounted without error"}
 }
