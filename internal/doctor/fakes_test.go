@@ -14,6 +14,7 @@ import (
 
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/provider"
+	"github.com/adeelahmad/snapback/internal/service"
 )
 
 // fakeRunner records every call and answers from out/errs keyed by the joined
@@ -152,7 +153,7 @@ func healthyProbes(t *testing.T) *fixture {
 		Repos: func(config.Repository) (provider.Validator, provider.Lister) {
 			return f.repo, f.repo
 		},
-		Detect:     func() (Manager, error) { return "systemd", nil },
+		Detect:     func() (service.Manager, error) { return "systemd", nil },
 		Statfs:     func(string) (uint64, uint64, error) { return 500, 1000, nil },
 		DialStatus: func(context.Context) (string, error) { return "ready", nil },
 		MountTest:  func(context.Context) error { return nil },
