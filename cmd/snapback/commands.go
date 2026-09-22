@@ -58,6 +58,7 @@ func realDeps(configPath string) cli.Deps {
 		return *c, nil
 	}
 	return cli.Deps{
+		Linker: &lazyLinker{load: loadConfig, path: configPath},
 		Daemon: func(ctx context.Context) (cli.Daemon, error) {
 			cfg, err := loadConfig(configPath)
 			if err != nil {
