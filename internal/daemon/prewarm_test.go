@@ -53,3 +53,47 @@ func TestStatusOpJSONHasPrewarm(t *testing.T) {
 		t.Errorf("status op prewarm = %s (err %v), want warm=1", raw, err)
 	}
 }
+
+func TestStatusWarmMapReflectsPrewarm(t *testing.T) {
+	h := newHarness(t)
+	h.deps.Prewarmer = &fakePrewarmer{rec: h.rec, results: []provider.PrewarmResult{
+		{ID: "a", Warm: true},
+		{ID: "b", Warm: true},
+		{ID: "c", Err: errors.New("timeout")},
+	}}
+	d := New(h.cfg, h.deps)
+	start(t, d)
+	waitState(t, d, 2*time.Second, func(s string) bool { return s == "ready" })
+
+	warm := d.Status().Warm
+	for _, id := range []provider.SnapshotID{"a", "b"} {
+		if !warm[id] {
+			t.Errorf("Status().Warm[%q] = %v, want true", id, warm[id])
+		}
+	}
+	if warm["c"] {
+		t.Errorf("Status().Warm[%q] = true, want false", provider.SnapshotID("c"))
+	}
+}
+
+func TestStatusOpJSONHasWarmMap(t *testing.T) {
+	h := newHarness(t)
+	h.deps.Prewarmer = &fakePrewarmer{rec: h.rec, results: []provider.PrewarmResult{
+		{ID: "a", Warm: true},
+		{ID: "c", Err: errors.New("timeout")},
+	}}
+	d := New(h.cfg, h.deps)
+	start(t, d)
+	waitState(t, d, 2*time.Second, func(s string) bool { return s == "ready" })
+
+	resp := call(d, ipc.Request{Op: ipc.OpStatus})
+	var got struct {
+		Warm map[string]bool `json:"Warm"`
+	}
+	if err := json.Unmarshal(resp.Data, &got); err != nil {
+		t.Fatalf("json.Unmarshal(status Data %s) = %v", resp.Data, err)
+	}
+	if !got.Warm["a"] || got.Warm["c"] {
+		t.Errorf("status op Warm = %v, want a=true and c not warm", got.Warm)
+	}
+}
