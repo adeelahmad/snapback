@@ -132,7 +132,9 @@ jobs:
       - name: Integration tests
         run: |
           mkdir -p "$SNAPBACK_EVIDENCE_DIR"
-          go test -race -tags=integration ./...
+          set -o pipefail
+          # test/acceptance needs $SNAPBACK_BIN, built later; its own step runs it.
+          go list -tags=integration ./... | grep -v /test/acceptance | xargs go test -race -tags=integration
 
       - name: Upload evidence
         if: always()
