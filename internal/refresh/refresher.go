@@ -170,6 +170,7 @@ func (r *Refresher) Refresh(ctx context.Context) (Result, error) {
 		}
 		in.Dirs = append(in.Dirs, hd)
 	}
+	in.Dirs, _ = orderForPublish(in.Dirs, allPending)
 	for root, elig := range perRoot {
 		slices.SortStableFunc(elig, func(a, b resolver.Eligible) int { return b.Snapshot.Time.Compare(a.Snapshot.Time) })
 		perRoot[root] = elig
