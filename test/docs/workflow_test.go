@@ -143,3 +143,31 @@ func TestWorkflowTopLevelPermissionsReadOnly(t *testing.T) {
 		t.Errorf("top-level permissions grant write:\n%s", perms)
 	}
 }
+
+// TestWorkflowPublishesInstallScript pins that the build job copies install.sh
+// into site/ after mkdocs builds it and before the Pages artifact is uploaded,
+// so https://snapback.run/install.sh is served.
+func TestWorkflowPublishesInstallScript(t *testing.T) {
+	text := readRepoFile(t, docsWorkflowFile)
+
+	build := indentedBlock(t, text, false, "build:")
+
+	lines := strings.Split(build, "\n")
+	mkdocsAt, copyAt, uploadAt := -1, -1, -1
+	for i, line := range lines {
+		switch {
+		case mkdocsAt < 0 && strings.Contains(line, "mkdocs build"):
+			mkdocsAt = i
+		case copyAt < 0 && strings.Contains(line, "install.sh") && strings.Contains(line, "site"):
+			copyAt = i
+		case uploadAt < 0 && strings.Contains(line, "actions/upload-pages-artifact@"):
+			uploadAt = i
+		}
+	}
+	if copyAt < 0 {
+		t.Fatalf("build job: no step copies install.sh into site/")
+	}
+	if mkdocsAt < 0 || uploadAt < 0 || copyAt < mkdocsAt || copyAt > uploadAt {
+		t.Errorf("build job: install.sh copy at line %d, want after mkdocs build (line %d) and before upload-pages-artifact (line %d)", copyAt, mkdocsAt, uploadAt)
+	}
+}

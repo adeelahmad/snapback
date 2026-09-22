@@ -20,13 +20,13 @@ Snapback is pre-release. It is under active development, there is no tagged rele
 
 ## Install
 
-Once the first release is published, the one-line installer will be:
+The one-line installer:
 
 ```sh
-curl -fsSL https://snapback.example.com/install.sh | sh
+curl -fsSL https://snapback.run/install.sh | sh
 ```
 
-The domain above is a placeholder; the real install URL will be announced with the first release. Snapback targets Linux and macOS, requires the `restic` CLI and FUSE (macFUSE on macOS), and `snapback doctor` will explain anything missing.
+Snapback targets Linux and macOS, requires the `restic` CLI and FUSE (macFUSE on macOS), and `snapback doctor` will explain anything missing.
 
 The planned onboarding is three commands: `snapback config`, `snapback web` and `snapback install service`.
 
@@ -40,4 +40,4 @@ Snapback stands on the shoulders of [httm](https://github.com/kimono-koans/httm)
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the code is organised.
 - [CONTRIBUTING.md](CONTRIBUTING.md): how to build, test and send changes.
 - [SECURITY.md](SECURITY.md): how to report a vulnerability.
-- Docs site: https://adeelahmad.github.io/snapback/
+- Docs site: https://snapback.run/

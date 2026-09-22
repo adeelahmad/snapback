@@ -8,7 +8,8 @@ import (
 
 const (
 	creditHeading = "## Prior art and credit"
-	docsSiteURL   = "https://adeelahmad.github.io/snapback/"
+	docsSiteURL   = "https://snapback.run/"
+	oldDocsURL    = "adeelahmad.github.io/snapback"
 )
 
 func TestReadmeCreditsHttm(t *testing.T) {
@@ -46,7 +47,8 @@ func TestHttmCreditIsProminent(t *testing.T) {
 }
 
 func TestReadmeLinksDocs(t *testing.T) {
-	docs := section(readDoc(t, "README.md"), "## Documentation")
+	readme := readDoc(t, "README.md")
+	docs := section(readme, "## Documentation")
 	if strings.TrimSpace(docs) == "" {
 		t.Fatal(`README "## Documentation" section is missing or empty`)
 	}
@@ -64,5 +66,8 @@ func TestReadmeLinksDocs(t *testing.T) {
 	}
 	if !strings.Contains(docs, docsSiteURL) {
 		t.Errorf(`README "## Documentation" section missing docs site %q`, docsSiteURL)
+	}
+	if strings.Contains(readme, oldDocsURL) {
+		t.Errorf("README still links the old docs site %q, want %q", oldDocsURL, docsSiteURL)
 	}
 }

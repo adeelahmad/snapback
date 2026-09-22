@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-SNAPBACK_BASE_URL="${SNAPBACK_BASE_URL:-https://example.invalid/snapback/releases/latest/download}"
+SNAPBACK_BASE_URL="${SNAPBACK_BASE_URL:-https://github.com/adeelahmad/snapback/releases/latest/download}"
 
 die() {
 	printf 'error: %s\n' "$1" >&2
