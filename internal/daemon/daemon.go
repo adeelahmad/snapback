@@ -138,10 +138,12 @@ type Daemon struct {
 	// mountFailed holds the repos whose mount failed; each carries
 	// errcode.MountFailure until it is ready again or a refresh succeeds.
 	mountFailed map[string]bool
-	cancel      context.CancelFunc // stops Run; nil until Run starts
-	loop        *refresh.Loop      // periodic refresh loop; nil until it starts
-	linkQueued  bool               // a refresh for new links is scheduled
-	linkTimer   *time.Timer        // fires the scheduled link refresh; nil when none
+	// mountLinkGen is the catalog generation whose mount points are linked.
+	mountLinkGen uint64
+	cancel       context.CancelFunc // stops Run; nil until Run starts
+	loop         *refresh.Loop      // periodic refresh loop; nil until it starts
+	linkQueued   bool               // a refresh for new links is scheduled
+	linkTimer    *time.Timer        // fires the scheduled link refresh; nil when none
 	// lastLog holds the attributes of the last refresh line logged, so an
 	// unchanged outcome is not logged again.
 	lastLog string
@@ -256,6 +258,8 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.mergeWarm(res.Warm)
 	d.lastRefresh = d.deps.Clock()
 	d.mu.Unlock()
+
+	d.ensureMountLinks(ctx, res.Generation)
 
 	if err := d.deps.Discovery.Start(ctx); err != nil {
 		d.unmountStarted(context.WithoutCancel(ctx))

@@ -171,6 +171,7 @@ func (d *Daemon) runRefresh(ctx context.Context) error {
 	d.mu.Unlock()
 	d.countLinks()
 	d.logRefresh()
+	d.ensureMountLinks(ctx, res.Generation)
 	return nil
 }
 

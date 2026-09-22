@@ -2,7 +2,10 @@ package daemon
 
 import (
 	"context"
+	"log/slog"
+	"path/filepath"
 
+	"github.com/adeelahmad/snapback/internal/history"
 	"github.com/adeelahmad/snapback/internal/links"
 )
 
@@ -18,7 +21,32 @@ type MountLinker interface {
 }
 
 // ensureMountLinks links the mount point of every repository whose backend
-// mount is ready, at most once per catalog generation.
-//
-// SUB-AGENT-TODO(S5-38/T6 GREEN): implement. RED pins the behaviour.
-func (d *Daemon) ensureMountLinks(context.Context, uint64) {}
+// mount is ready, at most once per catalog generation. A mount point that
+// cannot be published is a warning, never a reason to fail daemon start.
+func (d *Daemon) ensureMountLinks(ctx context.Context, gen uint64) {
+	if d.deps.MountLinker == nil {
+		return
+	}
+	d.mu.Lock()
+	if gen != 0 && gen == d.mountLinkGen {
+		d.mu.Unlock()
+		return
+	}
+	d.mountLinkGen = gen
+	d.mu.Unlock()
+
+	states := d.deps.Supervisor.States()
+	for _, r := range d.cfg.Repositories {
+		if r.MountPoint == "" || states[r.ID] != history.StateReady {
+			continue
+		}
+		target := filepath.Join(d.cfg.BackendMountDir, r.ID)
+		if _, err := d.deps.MountLinker.EnsureMountLink(ctx, r.MountPoint, target); err != nil {
+			d.deps.Log.Warn("mount point link failed",
+				slog.String("repo", r.ID),
+				slog.String("mount_point", r.MountPoint),
+				slog.String("remedy", "sudo mkdir -p "+r.MountPoint),
+				slog.Any("err", err))
+		}
+	}
+}
