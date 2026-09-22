@@ -21,6 +21,19 @@ var wantOwnedFiles = []string{
 	".github/pull_request_template.md",
 }
 
+// SUB-AGENT-TODO: initialize to the fixed list of the six owned community files, in wantOwnedFiles order.
+var ownedFiles []string
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	panic("SUB-AGENT-TODO: walk up from the test's working dir to the directory holding go.mod and return it; t.Fatal if none found")
+}
+
+func readOwned(t *testing.T, rel string) string {
+	t.Helper()
+	panic("SUB-AGENT-TODO: read filepath.Join(repoRoot(t), rel); t.Fatalf naming rel if missing or empty; return contents")
+}
+
 func TestRepoRootHasGoMod(t *testing.T) {
 	root := repoRoot(t)
 
