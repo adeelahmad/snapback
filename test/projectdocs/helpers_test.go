@@ -54,3 +54,12 @@ func TestSectionExtractsBody(t *testing.T) {
 		t.Errorf("section(doc, %q) = %q, want empty", "## Z", got)
 	}
 }
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	panic("SUB-AGENT-TODO: T1 - start at the test's working directory and walk up parent dirs until one contains go.mod; return that dir; t.Fatalf if the filesystem root is reached without finding go.mod")
+}
+
+func section(doc, heading string) string {
+	panic("SUB-AGENT-TODO: T1 - find the line exactly equal to heading (e.g. \"## A\" or \"### Key Files (current shape)\"); return the text after it up to the next heading of the same or higher level (a line of the same or fewer '#' then a space), or end of doc; return \"\" when heading is absent. Must handle ### subheadings (T8 calls section(ws, \"### Key Files (current shape)\")) and must not stop at deeper headings")
+}
