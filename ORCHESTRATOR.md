@@ -4,11 +4,11 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 32
+- **Tick:** 33
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
-- **Phase:** SPRINT 2 EXECUTION — S2-01..S2-04 merged (stage-1 366b1a1); S2-08 T6 GREEN final in flight; wave 3 (S2-06, S2-07) RED started
-- **Last gate:** GREEN on stage-1 @ 366b1a1 (full standards matrix, cov 86.6%; integration suite PASS locally); master @ f0f0d5b green on GitHub
-- **Human gate pending:** none (human chose push+merge to master at 01:37Z)
+- **Phase:** SPRINT 2 EXECUTION — S2-01..S2-04 + S2-08 merged (stage-1 e687157); wave 3 S2-06/S2-07 in GREEN/scaffold; chores C1 (snapback.run) + C2 (Makefile) in flight; awaiting human for gdrive latency run
+- **Last gate:** GREEN on stage-1 @ e687157 (full standards matrix, cov 82.1%); master @ f0f0d5b green on GitHub
+- **Human gate pending:** confirm real latency run `SNAPBACK_RCLONE_REMOTE=gdrive:snapback-stage1 go run ./tools/stage1latency -out docs/reports/stage1/latency.json` (S2-08 merged)
 
 ## Stage table (README §22)
 
@@ -424,6 +424,13 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 32 | C1 domain (human request: README → snapback.run) | red-worker | spawned 03:17Z. Facts: snapback.run 200 on GitHub Pages; /install.sh 404 → docs workflow must publish install.sh; install.sh base → github releases/latest/download | — |
 | 32 | C2 Makefile (human request) | red-worker | spawned 03:17Z | — |
 | 32 | S2-08/fix-cli-id RED, S2-06/T3+T4 RED, S2-07/T3 RED, S2-06 T1+T2 scaffold, S2-07 T1+T2+T4 scaffold | various | spawned 03:17Z (8 running) | — |
+| 33 | S2-08/fix-cli-id | red-worker | passed — CLI fake id → 64 hex; before/after evidence recorded (FAIL at 9d4d630, PASS at 9999a0a); PASS-ON-RED waived by orchestrator | — |
+| 33 | MERGE S2-08 → stage-1 (retry) | orchestrator | e687157; full gate GREEN (cov 82.1%) | S2-08 done except latency run (human-confirmed) |
+| 33 | S2-06 T1+T2 scaffold, T3 RED, T4 RED | scaffolder/red | passed — chain2/s2-06 → 1369260 (T3 5 FAIL, T4 6 FAIL by assertion; darwin+linux vet ok) | — |
+| 33 | S2-07 T1+T2+T4 scaffold, T3 RED | scaffolder/red | passed — chain2/s2-07 → 7bde0d0 (T3 8 FAIL by assertion; JSON tags deliberately absent until GREEN) | — |
+| 33 | C1/T1 RED (domain) | red-worker | passed — 5 FAIL by assertion (README install line, no placeholders, installer base URL, mkdocs site_url, docs workflow publishes install.sh); chain2/c1-domain → 48d9718 | scope ext → C1/T1b (readme_links_test pins github.io docs URL) |
+| 33 | C2/T1 RED (Makefile) | red-worker | passed — 8 FAIL by assertion (Makefile missing; CONTRIBUTING lacks make ci/install); chain2/c2-make → 918f32f | — |
+| 33 | C2 GREEN, C1/T1b RED, S2-07 T1/T2/T4 GREEN, S2-06 T1+T2 GREEN, S2-06 T3+T4 scaffold, S2-07 T3 scaffold | various | spawned 03:21Z (8 running) | — |
 
 ## Plugin issues found
 
