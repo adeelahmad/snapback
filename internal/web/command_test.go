@@ -332,3 +332,48 @@ func TestConfigCommandOpensSetupAndAssetsFlag(t *testing.T) {
 		t.Errorf("Command().Run([--assets /nonexistent]) stderr = %q, want invalid_configuration", bad.stderr.String())
 	}
 }
+
+func TestWebAndConfigUsage(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  cli.Command
+		want []string
+	}{
+		{
+			name: "web",
+			cmd:  Command(),
+			want: []string{"Usage: snapback web [flags]", "Args:", "Example:", "snapback web", "-assets", "-open"},
+		},
+		{
+			name: "config",
+			cmd:  ConfigCommand(),
+			want: []string{"Usage: snapback config [flags]", "Args:", "Example:", "-file"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, arg := range []string{"-h", "--help"} {
+				r := newCmdRun(t, nil)
+				if code := r.run(tt.cmd, []string{arg}, nil); code != 0 {
+					t.Errorf("%s %s = exit %d, want 0; stderr %q", tt.name, arg, code, r.stderr.String())
+				}
+				if out := r.stdout.String(); out != "" {
+					t.Errorf("%s %s stdout = %q, want it empty", tt.name, arg, out)
+				}
+				for _, want := range tt.want {
+					if !strings.Contains(r.stderr.String(), want) {
+						t.Errorf("%s %s stderr = %q, want it to contain %q", tt.name, arg, r.stderr.String(), want)
+					}
+				}
+			}
+
+			bad := newCmdRun(t, nil)
+			if code := bad.run(tt.cmd, []string{"--nope"}, nil); code != 2 {
+				t.Errorf("%s --nope = exit %d, want 2; stderr %q", tt.name, code, bad.stderr.String())
+			}
+			if !strings.Contains(bad.stderr.String(), "Usage: snapback "+tt.name+" [flags]") {
+				t.Errorf("%s --nope stderr = %q, want it to contain the usage", tt.name, bad.stderr.String())
+			}
+		})
+	}
+}
