@@ -9,6 +9,15 @@ import (
 
 const wantModule = "github.com/adeelahmad/snapback"
 
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	panic("SUB-AGENT-TODO: walk up from the working directory to the first dir containing go.mod and return it; t.Fatalf if none is found")
+}
+
+func yamlScalar(text, key string) (string, bool) {
+	panic("SUB-AGENT-TODO: return the value of the first top-level (unindented) `key: value` line in text with surrounding quotes stripped, and ok=true; (\"\", false) if absent")
+}
+
 func readRepoFile(t *testing.T, rel string) string {
 	t.Helper()
 	path := filepath.Join(repoRoot(t), rel)
