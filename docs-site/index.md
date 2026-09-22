@@ -12,6 +12,14 @@ The installer downloads the latest release (v1.4.0) for your operating system an
 
 Before running it you need FUSE (`fuse3` on Linux, [macFUSE](https://macfuse.github.io) on macOS), the `restic` CLI and an existing Restic repository. You can also build from source with `go build ./cmd/snapback`. The [usage guide](usage.md) covers setup, the service and every command.
 
+### Install from GitHub Packages
+
+```sh
+docker pull ghcr.io/adeelahmad/snapback:latest
+```
+
+The image is published by the release workflow and first appears with the next tagged release. See the [Docker page](docker.md) for what the container can and cannot do.
+
 ## How it works
 
 Each directory your backups cover gets a read-only `.snapshot` entry. It lists the Restic snapshots that contain the directory, newest first, plus a `latest` alias. Restore with any program that reads files, for example `cp .snapshot/latest/report.docx .`. Snapback never writes to the Restic repository.
