@@ -13,6 +13,7 @@ jobs:
   smoke:
     name: QEMU smoke linux/${{ matrix.goarch }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -54,4 +55,17 @@ jobs:
             *) echo "expected target linux/${{ matrix.goarch }}"; exit 1 ;;
           esac
 
-      # S5-27/T2 adds the cross-arch unit-test leg here.
+      # The test binaries are built for GOARCH and exec'd; binfmt hands them to
+      # qemu-user-static. The race detector needs cgo and has no runtime on
+      # arm/mips, so it stays off here; ci.yml keeps the race coverage on amd64.
+      # Only pure-Go packages run: no FUSE, no restic, no network.
+      - name: Unit tests under QEMU
+        run: |
+          go test -count=1 \
+            ./internal/config/ \
+            ./internal/setup/ \
+            ./internal/cli/ \
+            ./internal/resolver/ \
+            ./internal/aliases/ \
+            ./internal/errcode/ \
+            ./internal/version/
