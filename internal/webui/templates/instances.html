@@ -1,1 +1,17 @@
-{{/* SUB-AGENT-TODO: define the "instances" card partial */}}
+{{define "instances" -}}
+{{range . -}}
+<article class="instance" data-instance="{{.ID}}">
+<h3 class="instance__title">{{.ID}}</h3>
+<p class="instance__type"><span class="badge badge-muted">{{.Type}}</span></p>
+{{range .Controls}}{{if eq .Kind "select"}}{{template "control-select" .}}
+{{else if eq .Kind "number"}}{{template "control-number" .}}
+{{else if eq .Kind "duration"}}{{template "control-duration" .}}
+{{else if eq .Kind "toggle"}}{{template "control-toggle" .}}
+{{else if eq .Kind "chips"}}{{template "control-chips" .}}
+{{else if eq .Kind "password"}}{{template "control-password" .}}
+{{else}}{{template "control-input" .}}
+{{end}}{{end}}{{template "control-row" .Roots}}
+</article>
+{{end -}}
+<p class="instance-note">Named instances arrive with config schema v2 (SPEC-ADDENDUM-A §2) and are not implemented yet.</p>
+{{- end}}
