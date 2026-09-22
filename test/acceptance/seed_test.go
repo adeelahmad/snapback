@@ -3,6 +3,7 @@
 package acceptance
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -31,6 +32,9 @@ type linkConfig struct {
 	SeedPath string
 	MaxDepth int
 	MaxLinks int
+	// Host, when set, pins the root to snapshots of that host and maps the
+	// whole root onto itself, the shape a resolver needs to find snapshots.
+	Host string
 }
 
 // writeLinkConfig writes a config for one root backed by a disposable repo
@@ -47,10 +51,21 @@ func writeLinkConfig(t *testing.T, e env, c linkConfig) (historyMount string) {
 	if err != nil {
 		t.Fatalf("look up restic: %v", err)
 	}
+	var mapping string
+	if c.Host != "" {
+		mapping = fmt.Sprintf(`    prefix_map:
+      - hostname: %[1]s
+        source_path: %[2]s
+        tree_prefix: %[2]s
+    snapshots:
+      hostname: %[1]s
+`, c.Host, c.Root)
+	}
 	cfg := strings.NewReplacer(
 		"@STATE@", state, "@HIST@", historyMount, "@REPO@", repo, "@PW@", pw,
 		"@RESTIC@", resticBin, "@ROOT@", c.Root, "@SEED@", c.SeedPath,
 		"@DEPTH@", strconv.Itoa(c.MaxDepth), "@MAXLINKS@", strconv.Itoa(c.MaxLinks),
+		"@MAP@", mapping,
 	).Replace(`version: 1
 link_name: .snapshot
 timestamps: utc
@@ -75,7 +90,7 @@ roots:
   - id: work
     local_path: @ROOT@
     repository_id: repo
-    seed_paths:
+@MAP@    seed_paths:
       - path: @SEED@
         max_depth: @DEPTH@
     exclude_relative_paths:

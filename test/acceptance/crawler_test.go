@@ -4,6 +4,9 @@ package acceptance
 
 import (
 	"bufio"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,19 +65,26 @@ func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
 	root := filepath.Join(e.Root, "work")
 	mkdirs(t, root, "proj/src/deep")
 	writeFiles(t, root, map[string]string{"proj/src/deep/a.txt": "x\n"})
-	hist := writeLinkConfig(t, e, linkConfig{Root: root, SeedPath: "proj", MaxDepth: 3})
+	hist := writeLinkConfig(t, e, linkConfig{Root: root, SeedPath: "proj", MaxDepth: 3, Host: histHost})
 	repo := configValue(t, e, "repository")
 	proj := filepath.Join(root, "proj")
-	// newRepo only runs restic init. Without a snapshot of proj the history view
-	// has no entry for it, so proj/.snapshot dangles (ENOENT) and no crawler can
-	// ever reach FUSE, which makes the zero-reads and throttle checks meaningless.
-	resticRun(t, root, repo, configValue(t, e, "password_file"), "backup", proj)
+	// newRepo only runs restic init. Without a snapshot of the root the history
+	// view has no entry for proj, so proj/.snapshot dangles (ENOENT) and no
+	// crawler reaches FUSE, which makes the zero-reads and throttle checks
+	// meaningless. The host and the backed-up path must match the config's
+	// prefix_map, the shape aliases_test.go proves on macOS and Linux.
+	resticRun(t, root, repo, configValue(t, e, "password_file"), "backup", "--host", histHost, root)
 	startDaemon(t, e)
 	if _, stderr, code := runSnapback(t, e, "seed", proj); code != 0 {
 		t.Fatalf("snapback seed exit = %d, want 0 (stderr %q)", code, stderr)
 	}
 	if got := ownedLinks(t, root, hist); len(got) == 0 {
 		t.Fatalf("owned links after seed = %v, want at least one", got)
+	}
+	// restic reloads its snapshot list on about a 60s window, so the refresher
+	// may report no eligible snapshots for a while after the backup.
+	if got, err := pollEligible(t, e); err != nil {
+		t.Fatalf("EligibleCount within %v: %v (last %v)", histPollCap, err, got)
 	}
 
 	// Watch only the pack files. The daemon's own restic processes open config,
@@ -127,6 +137,36 @@ func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
 	hasEvent := strings.Contains(lower, "throttl") || strings.Contains(lower, "deny")
 	if !hasEvent || !strings.Contains(stdout, `"rg"`) {
 		t.Errorf("status --json = %q, want a throttle/deny event naming \"rg\"", stdout)
+	}
+}
+
+// pollEligible polls status --json until some directory has eligible
+// snapshots, and returns the last counts seen.
+func pollEligible(t *testing.T, e env) (map[string]int, error) {
+	t.Helper()
+	deadline := time.Now().Add(histPollCap)
+	var last map[string]int
+	for {
+		stdout, stderr, code := runSnapback(t, e, "status", "--json")
+		if code != 0 {
+			return last, fmt.Errorf("status --json exit = %d (stderr %q)", code, stderr)
+		}
+		var st struct {
+			EligibleCount map[string]int
+		}
+		if err := json.Unmarshal([]byte(stdout), &st); err != nil {
+			return last, fmt.Errorf("decode status --json %q: %w", stdout, err)
+		}
+		last = st.EligibleCount
+		for _, n := range last {
+			if n > 0 {
+				return last, nil
+			}
+		}
+		if time.Now().After(deadline) {
+			return last, errors.New("no directory has an eligible snapshot")
+		}
+		time.Sleep(histPoll)
 	}
 }
 
