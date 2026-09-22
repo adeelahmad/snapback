@@ -1,0 +1,49 @@
+{
+  "measurements": {
+    "cold_first_file_read": {
+      "samples_ms": [
+        3012.379708
+      ],
+      "median_ms": 3012.379708,
+      "min_ms": 3012.379708,
+      "max_ms": 3012.379708
+    },
+    "cold_listing": {
+      "samples_ms": [
+        32.655917
+      ],
+      "median_ms": 32.655917,
+      "min_ms": 32.655917,
+      "max_ms": 32.655917
+    },
+    "warm_listing_after_restart": {
+      "samples_ms": [
+        21.104292,
+        6.385375,
+        4.439875
+      ],
+      "median_ms": 6.385375,
+      "min_ms": 4.439875,
+      "max_ms": 21.104292
+    },
+    "warm_prewarmed_listing": {
+      "samples_ms": [
+        2.191583,
+        1.436,
+        0.660625
+      ],
+      "median_ms": 1.436,
+      "min_ms": 0.660625,
+      "max_ms": 2.191583
+    }
+  },
+  "restic_version": "restic 0.19.0 compiled with go1.26.4 on darwin/arm64",
+  "rclone_version": "rclone v1.75.0",
+  "os": "darwin",
+  "arch": "arm64",
+  "timestamp_utc": "2026-09-22T03:29:15.849239Z",
+  "remote": "gdrive:snapback-stage1",
+  "data_file_count": 100,
+  "data_file_bytes": 4096,
+  "remote_deleted": true
+}
