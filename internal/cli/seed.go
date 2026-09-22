@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -51,8 +50,11 @@ func SeedCommand(d Deps) Command {
 		Name:    "seed",
 		Summary: "pre-create .snapshot links under a directory or the configured roots",
 		Run: func(ctx context.Context, env Env, args []string) int {
-			o, err := parseSeed(args)
-			if err != nil {
+			o, help, err := parseSeed(env, args)
+			switch {
+			case help:
+				return 0
+			case err != nil:
 				return WriteError(env, "seed", o.jsonOut, err)
 			}
 			p, err := seedPlan(d, env, o)
@@ -72,24 +74,42 @@ func SeedCommand(d Deps) Command {
 			for _, f := range rep.Failures {
 				_, _ = fmt.Fprintf(env.Stderr, "snapback seed: %s: %v\n", f.Dir, f.Err)
 			}
-			return WriteOK(env, o.jsonOut, seedResult{Linked: rep.Linked, Existing: rep.Existing, Failed: len(rep.Failures)})
+			linked := seedLinked(p, rep)
+			if !o.jsonOut {
+				for _, dir := range linked {
+					_, _ = fmt.Fprintf(env.Stdout, "linked %s\n", dir)
+				}
+			}
+			code := WriteOK(env, o.jsonOut, seedResult{Linked: rep.Linked, Existing: rep.Existing, Failed: len(rep.Failures)})
+			if code != 0 || o.jsonOut {
+				return code
+			}
+			if err := WriteNext(env.Stdout, seedNext(linked, o.path)); err != nil {
+				return 1
+			}
+			return 0
 		},
 	}
 }
 
-// parseSeed parses args, allowing flags before or after the path.
-func parseSeed(args []string) (seedOpts, error) {
+// parseSeed parses args, allowing flags before or after the path. It reports
+// help when the user asked for the usage.
+func parseSeed(env Env, args []string) (seedOpts, bool, error) {
 	var o seedOpts
-	fs := flag.NewFlagSet("seed", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	fs.IntVar(&o.maxDepth, "max-depth", seedDefaultMaxDepth, "how deep below PATH to seed")
+	fs := NewFlagSet(env, Usage{
+		Synopsis: "seed [flags] DIR",
+		Args:     "DIR  the directory to seed; defaults to the configured roots",
+		Example:  "snapback seed --max-depth 2 ~/work",
+	})
+	fs.IntVar(&o.maxDepth, "max-depth", seedDefaultMaxDepth, "how deep below DIR to seed")
 	fs.BoolVar(&o.dryRun, "dry-run", false, "report the plan without creating links")
 	fs.BoolVar(&o.force, "force", false, "seed even when the inode budget is exceeded")
 	fs.BoolVar(&o.jsonOut, "json", false, "write a JSON envelope")
 	var pos []string
 	for {
-		if err := fs.Parse(args); err != nil {
-			return o, &UsageError{Msg: err.Error()}
+		help, err := ParseWithUsage(fs, args)
+		if help || err != nil {
+			return o, help, err
 		}
 		args = fs.Args()
 		if len(args) == 0 {
@@ -100,12 +120,43 @@ func parseSeed(args []string) (seedOpts, error) {
 	}
 	fs.Visit(func(f *flag.Flag) { o.depthSet = o.depthSet || f.Name == "max-depth" })
 	if len(pos) > 1 {
-		return o, &UsageError{Msg: seedUsage}
+		return o, false, &UsageError{Msg: seedUsage}
 	}
 	if len(pos) == 1 {
 		o.path = pos[0]
 	}
-	return o, nil
+	return o, false, nil
+}
+
+// seedLinked returns the planned directories that now hold a link, in plan
+// order: none when nothing was linked, else those that did not fail.
+func seedLinked(p seed.Plan, rep seed.Report) []string {
+	if rep.Linked == 0 {
+		return nil
+	}
+	failed := make(map[string]bool, len(rep.Failures))
+	for _, f := range rep.Failures {
+		failed[f.Dir] = true
+	}
+	out := make([]string, 0, len(p.Dirs))
+	for _, dir := range p.Dirs {
+		if !failed[dir] {
+			out = append(out, dir)
+		}
+	}
+	return out
+}
+
+// seedNext returns the command to suggest after a seed run: listing the first
+// linked snapshot view, or linking path by hand when nothing was linked.
+func seedNext(linked []string, path string) string {
+	if len(linked) > 0 {
+		return "ls " + filepath.Join(linked[0], ".snapshot")
+	}
+	if path == "" {
+		path = "."
+	}
+	return "snapback link " + path
 }
 
 // seedPlan plans o.path when given, else every configured seed path of
