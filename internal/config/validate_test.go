@@ -103,6 +103,28 @@ func TestValidateFieldErrors(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsCacheDirWithNoCache(t *testing.T) {
+	c := validConfig(t)
+	c.Repositories[0].CacheDir = "/var/cache/restic"
+	c.Repositories[0].NoCache = true
+	err := Validate(c)
+
+	if got := errcode.Of(err); got != errcode.InvalidConfig {
+		t.Fatalf("errcode.Of(Validate(cache_dir and no_cache)) = %q, want %q", got, errcode.InvalidConfig)
+	}
+	fields := validationFields(t, err)
+	f := findField(fields, "repositories[0].no_cache")
+	if f == nil {
+		f = findField(fields, "repositories[0].cache_dir")
+	}
+	if f == nil {
+		t.Fatalf("Validate(cache_dir and no_cache) fields = %+v, want one at repositories[0].no_cache or .cache_dir", fields)
+	}
+	if !strings.Contains(f.Msg, "mutually exclusive") {
+		t.Errorf("Validate(cache_dir and no_cache) %s message = %q, want it to say mutually exclusive", f.Path, f.Msg)
+	}
+}
+
 func TestValidateIDGrammar(t *testing.T) {
 	tests := []struct {
 		id    string
