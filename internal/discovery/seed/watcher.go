@@ -59,7 +59,7 @@ func NewWatcher(l Linker, roots []WatchRoot) (*Watcher, error) {
 		if !fi.IsDir() {
 			return nil, errcode.New(errcode.InvalidConfig, "seed.NewWatcher", fmt.Errorf("watch root %q is not a directory", r.Root))
 		}
-		clean = append(clean, WatchRoot{Root: filepath.Clean(r.Root), Excludes: r.Excludes})
+		clean = append(clean, WatchRoot{Root: filepath.Clean(r.Root), Excludes: r.Excludes, MaxDepth: r.MaxDepth})
 	}
 	return &Watcher{
 		BatchWindow: defaultBatchWindow,
@@ -143,16 +143,25 @@ func (w *Watcher) recordEnsure(failures int, lastErr error) {
 	w.lastEnsureErr = lastErr
 }
 
-// covered reports whether dir lies under a root and is not excluded there.
-// Roots and dirs are compared as given (cleaned, not symlink-resolved), so
-// callers must report paths in the same form as the configured roots.
+// covered reports whether dir lies under a root, within that root's MaxDepth,
+// and is not excluded there. The root itself is depth 0, matching the seed
+// planner; MaxDepth 0 means no limit. Roots and dirs are compared as given
+// (cleaned, not symlink-resolved), so callers must report paths in the same
+// form as the configured roots.
 func (w *Watcher) covered(dir string) bool {
 	for _, r := range w.roots {
 		if !pathutil.Under(r.Root, dir) {
 			continue
 		}
 		rel, err := filepath.Rel(r.Root, dir)
-		if err != nil || slices.Contains(strings.Split(rel, string(filepath.Separator)), ".snapshot") {
+		if err != nil {
+			return false
+		}
+		parts := strings.Split(rel, string(filepath.Separator))
+		if slices.Contains(parts, ".snapshot") {
+			return false
+		}
+		if r.MaxDepth > 0 && rel != "." && len(parts) > r.MaxDepth {
 			return false
 		}
 		return !excluded(r.Root, dir, r.Excludes)

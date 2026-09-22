@@ -117,13 +117,19 @@ func daemonProvider(r config.Repository) (*restic.Provider, error) {
 	return p, nil
 }
 
+// watchRoots returns one watch root per configured seed path, so the daemon
+// watches exactly what it seeds. A root without seed paths is not watched.
 func watchRoots(cfg *config.Config) []seed.WatchRoot {
-	roots := make([]seed.WatchRoot, 0, len(cfg.Roots))
+	var roots []seed.WatchRoot
 	for _, r := range cfg.Roots {
-		roots = append(roots, seed.WatchRoot{
-			Root:     r.LocalPath,
-			Excludes: append(slices.Clone(seed.DefaultExcludes), r.ExcludeRelativePaths...),
-		})
+		excludes := append(slices.Clone(seed.DefaultExcludes), r.ExcludeRelativePaths...)
+		for _, sp := range r.SeedPaths {
+			roots = append(roots, seed.WatchRoot{
+				Root:     filepath.Join(r.LocalPath, sp.Path),
+				Excludes: excludes,
+				MaxDepth: sp.MaxDepth,
+			})
+		}
 	}
 	return roots
 }
