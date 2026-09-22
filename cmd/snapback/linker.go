@@ -2,12 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/ipc"
 	"github.com/adeelahmad/snapback/internal/links"
+	"github.com/adeelahmad/snapback/internal/rawpath"
 	"github.com/adeelahmad/snapback/internal/resolver"
 )
 
@@ -78,7 +84,37 @@ func linkPolicy(cfg config.Config) links.Policy {
 	return pol
 }
 
+// viaDaemon sends req to the running daemon and decodes its data into out.
+// It reports false, with no error, when no daemon answers the dial, so the
+// caller falls back to the registry. A not-OK reply keeps the daemon's code.
+func (l *lazyLinker) viaDaemon(ctx context.Context, req ipc.Request, out any) (bool, error) {
+	cfg, err := l.load(l.path)
+	if err != nil {
+		return true, err
+	}
+	c, err := ipc.Dial(ctx, ipc.SocketPath(os.Getenv, cfg.StateDir))
+	if err != nil {
+		return false, nil
+	}
+	defer func() { _ = c.Close() }()
+	resp, err := c.Call(ctx, req)
+	if err != nil {
+		return true, err
+	}
+	if !resp.OK {
+		return true, errcode.New(resp.Code, "daemon "+req.Op, errors.New(resp.Error))
+	}
+	if err := json.Unmarshal(resp.Data, out); err != nil {
+		return true, fmt.Errorf("decode daemon %s: %w", req.Op, err)
+	}
+	return true, nil
+}
+
 func (l *lazyLinker) Ensure(ctx context.Context, dir string) (links.Result, error) {
+	var res links.Result
+	if ok, err := l.viaDaemon(ctx, ipc.Request{V: 1, Op: ipc.OpEnsureLink, Path: rawpath.Path(dir)}, &res); ok {
+		return res, err
+	}
 	e, err := l.engine()
 	if err != nil {
 		return links.Result{}, err
@@ -87,6 +123,10 @@ func (l *lazyLinker) Ensure(ctx context.Context, dir string) (links.Result, erro
 }
 
 func (l *lazyLinker) List() ([]links.Record, error) {
+	var recs []links.Record
+	if ok, err := l.viaDaemon(context.Background(), ipc.Request{V: 1, Op: ipc.OpLinksList}, &recs); ok {
+		return recs, err
+	}
 	e, err := l.engine()
 	if err != nil {
 		return nil, err
@@ -95,6 +135,10 @@ func (l *lazyLinker) List() ([]links.Record, error) {
 }
 
 func (l *lazyLinker) Repair(ctx context.Context) (links.RepairReport, error) {
+	var rep links.RepairReport
+	if ok, err := l.viaDaemon(ctx, ipc.Request{V: 1, Op: ipc.OpLinksRepair}, &rep); ok {
+		return rep, err
+	}
 	e, err := l.engine()
 	if err != nil {
 		return links.RepairReport{}, err
@@ -103,6 +147,10 @@ func (l *lazyLinker) Repair(ctx context.Context) (links.RepairReport, error) {
 }
 
 func (l *lazyLinker) RemoveManaged(ctx context.Context) (links.RepairReport, error) {
+	var rep links.RepairReport
+	if ok, err := l.viaDaemon(ctx, ipc.Request{V: 1, Op: ipc.OpLinksRemoveManaged}, &rep); ok {
+		return rep, err
+	}
 	e, err := l.engine()
 	if err != nil {
 		return links.RepairReport{}, err
