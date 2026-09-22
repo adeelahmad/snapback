@@ -4,9 +4,10 @@ import "sync"
 
 // Result reports the outcome of ensuring a directory's link.
 type Result struct {
-	Key     string
-	Created bool
-	Path    string
+	Key       string
+	Created   bool
+	Repointed bool
+	Path      string
 }
 
 // Engine creates and removes managed links, serialising work per key.
