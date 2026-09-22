@@ -14,7 +14,7 @@ import (
 const v01ReportPath = "docs/reports/v0.1-acceptance.md"
 
 var (
-	v01BannedPhrases = []string{"production-ready", "cross-platform", "finder integrated", "finder-integrated"}
+	v01BannedPhrases = []string{"production-ready", "cross-platform", "finder integrated", "finder-integrated", "multi-backend"}
 	v01OtherBackend  = regexp.MustCompile(`(?i)\b(zfs|btrfs|nilfs2?|borg|borgbackup|kopia|duplicity|duplicati|tarsnap|bup|snapper|rsnapshot)\b`)
 	v01SentenceEnd   = regexp.MustCompile(`[.!?](\s|$)|\n\s*\n`)
 	helpCommand      = regexp.MustCompile(`(?m)^  ([a-z][a-z-]*)  `)
@@ -78,6 +78,29 @@ func snapbackHelp(t *testing.T) string {
 	return string(out)
 }
 
+// unplannedBackendLines returns, keyed by 1-based line number, each line of
+// text that names another backend, except lines inside a `## Roadmap` section
+// that say "planned". Any "## " heading ends the section. It mirrors
+// test/docs/honesty_test.go::TestOnlyResticBackendNamed; the two _test
+// packages cannot share code, so the rule is duplicated here.
+func unplannedBackendLines(text string) map[int]string {
+	hits := map[int]string{}
+	inRoadmap := false
+	for i, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(line, "## ") {
+			inRoadmap = strings.TrimSpace(line) == "## Roadmap"
+		}
+		if !v01OtherBackend.MatchString(line) {
+			continue
+		}
+		if inRoadmap && strings.Contains(strings.ToLower(line), "planned") {
+			continue
+		}
+		hits[i+1] = strings.TrimSpace(line)
+	}
+	return hits
+}
+
 func sentences(text string) []string {
 	return v01SentenceEnd.Split(text, -1)
 }
@@ -99,8 +122,8 @@ func TestPublicDocsMakeNoUnbackedClaims(t *testing.T) {
 				t.Errorf("%s contains %q", name, banned)
 			}
 		}
-		if m := v01OtherBackend.FindString(text); m != "" {
-			t.Errorf("%s names another backend %q", name, m)
+		for n, line := range unplannedBackendLines(text) {
+			t.Errorf("%s:%d names another backend outside a planned Roadmap line: %s", name, n, line)
 		}
 		for _, s := range sentences(lower) {
 			if strings.Contains(s, "static") && !strings.Contains(s, "linux") {
