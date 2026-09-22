@@ -12,7 +12,7 @@ import (
 
 var bannedHonestyWords = []string{"production-ready", "cross-platform", "static", "finder-integrated"}
 
-var otherBackendRe = regexp.MustCompile(`(?i)\b(borg|borgbackup|kopia|duplicity|duplicati|tarsnap)\b`)
+var otherBackendRe = regexp.MustCompile(`(?i)\b(zfs|btrfs|borg|borgbackup|kopia|duplicity|duplicati|tarsnap)\b`)
 
 var agentFrontmatterRe = regexp.MustCompile(`^type:\s*(tasks|validate|plan|stories)\s*$`)
 
@@ -85,12 +85,22 @@ func TestNoBannedHonestyWords(t *testing.T) {
 	}
 }
 
+// TestOnlyResticBackendNamed allows other backend names only on lines inside
+// a `## Roadmap` section that say "planned".
 func TestOnlyResticBackendNamed(t *testing.T) {
 	root, files := publishedFiles(t)
 	for _, rel := range files {
 		t.Run(rel, func(t *testing.T) {
+			inRoadmap := false
 			scanLines(t, filepath.Join(root, rel), func(line string) string {
-				return otherBackendRe.FindString(line)
+				if strings.HasPrefix(line, "## ") {
+					inRoadmap = strings.TrimSpace(line) == "## Roadmap"
+				}
+				hit := otherBackendRe.FindString(line)
+				if hit != "" && inRoadmap && strings.Contains(strings.ToLower(line), "planned") {
+					return ""
+				}
+				return hit
 			})
 		})
 	}
