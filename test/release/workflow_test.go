@@ -235,3 +235,31 @@ func TestWorkflowActionlint(t *testing.T) {
 		t.Errorf("actionlint %s: err=%v output:\n%s", workflowPath, err, out)
 	}
 }
+
+func TestWorkflowReleaseCommitsAuthoredByUser(t *testing.T) {
+	sr := jobBlock(t, readWorkflow(t), "semantic-release")
+	idx := strings.Index(sr, "id: semrel")
+	if idx < 0 {
+		t.Fatalf("semantic-release job has no step with id: semrel")
+	}
+	env := yamlBlock(sr[idx:], "env")
+	if env == "" {
+		t.Fatalf("semrel step has no env: block")
+	}
+	want := map[string]string{
+		"GIT_AUTHOR_NAME":     "Adeel Ahmad",
+		"GIT_COMMITTER_NAME":  "Adeel Ahmad",
+		"GIT_AUTHOR_EMAIL":    "adeelahmad99@gmail.com",
+		"GIT_COMMITTER_EMAIL": "adeelahmad99@gmail.com",
+	}
+	for key, val := range want {
+		m := regexp.MustCompile(`(?m)^\s*` + key + `:\s*(.*?)\s*$`).FindStringSubmatch(env)
+		if m == nil {
+			t.Errorf("semrel step env lacks %s", key)
+			continue
+		}
+		if got := strings.Trim(m[1], `"'`); got != val {
+			t.Errorf("semrel step env %s = %q, want %q", key, got, val)
+		}
+	}
+}
