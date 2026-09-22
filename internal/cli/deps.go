@@ -1,4 +1,3 @@
-// agentic:shim
 package cli
 
 import (
@@ -29,14 +28,4 @@ type Deps struct {
 	Daemon func(ctx context.Context) (Daemon, error)
 	Getwd  func() (string, error)
 	Exec   func(ctx context.Context, name string, args []string) error
-}
-
-// LinkCommand returns the link command.
-func LinkCommand(_ Deps) Command {
-	return Command{Name: "shim", Run: func(context.Context, Env, []string) int { return 99 }}
-}
-
-// LinksCommand returns the links command.
-func LinksCommand(_ Deps) Command {
-	return Command{Name: "shim", Run: func(context.Context, Env, []string) int { return 99 }}
 }
