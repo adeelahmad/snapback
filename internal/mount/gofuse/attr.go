@@ -18,6 +18,7 @@ const (
 	AttrTimeout  time.Duration = time.Second
 	DirPerm      uint32        = 0o555
 	SymlinkPerm  uint32        = 0o555
+	FilePerm     uint32        = 0o444
 )
 
 func typeBits(k mount.Kind) uint32 {
