@@ -62,7 +62,7 @@ func startDrain(t *testing.T, w *Watcher) {
 	})
 }
 
-func newTestWatcher(t *testing.T, l watchLinker, roots []WatchRoot) *Watcher {
+func newTestWatcher(t *testing.T, l Linker, roots []WatchRoot) *Watcher {
 	t.Helper()
 	w, err := NewWatcher(l, roots)
 	if err != nil {
