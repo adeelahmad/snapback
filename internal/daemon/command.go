@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/cli"
@@ -18,9 +19,17 @@ import (
 // callTimeout bounds one client round trip to the daemon.
 const callTimeout = 5 * time.Second
 
+// Builder builds the daemon's Deps for cfg, serving IPC on ln. The composition
+// root in cmd/snapback supplies the production Builder; tests pass fakes.
+type Builder func(ctx context.Context, cfg *config.Config, ln net.Listener) (Deps, error)
+
 // Command returns the "snapback run" command, which runs the daemon in the
 // foreground until its context is canceled or a shutdown request arrives.
-func Command(_ Builder) cli.Command {
+func Command(build Builder) cli.Command {
+	// SUB-AGENT-TODO: call build after config validation and the lock; report its
+	// error code (default prerequisite_missing), releasing lock and socket; a nil
+	// build exits 1 with internal_error.
+	_ = build
 	return cli.Command{
 		Name:    "run",
 		Summary: "run the daemon in the foreground",
