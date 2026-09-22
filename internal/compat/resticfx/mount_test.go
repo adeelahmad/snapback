@@ -48,7 +48,8 @@ func TestMountHelperProcess(t *testing.T) {
 		os.Exit(0)
 	case "hang":
 		signal.Ignore(os.Interrupt)
-		select {}
+		time.Sleep(time.Hour)
+		os.Exit(0)
 	case "exit":
 		os.Exit(0)
 	default:
@@ -140,5 +141,35 @@ func TestMountStopIdempotent(t *testing.T) {
 	}
 	if got := unmounts.Load(); got > 1 {
 		t.Errorf("unmount invoked %d times across two Stops, want at most 1", got)
+	}
+}
+
+func TestMountWaitReadyReturnsWhenProcessExits(t *testing.T) {
+	t.Setenv("GO_WANT_HELPER_PROCESS", "1")
+	mnt := t.TempDir()
+	var unmounts atomic.Int32
+	starter := MountStarter{Unmount: countingUnmount(&unmounts), Grace: mountTestGrace}
+
+	m, err := StartMount(starter, os.Args[0], mountHelperArgs("exit"), mnt)
+	if err != nil {
+		t.Fatalf("StartMount: %v", err)
+	}
+	t.Cleanup(func() { _ = m.Stop() })
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	got := make(chan error, 1)
+	go func() { got <- m.WaitReady(ctx) }()
+
+	select {
+	case err := <-got:
+		if err == nil {
+			t.Fatal("WaitReady = nil, want an error when the mount process exits before <mnt>/ids exists")
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("WaitReady = %v, want a process-exit error, not context.DeadlineExceeded", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("WaitReady still blocked 2s after the mount process exited, want it to return a process-exit error promptly")
 	}
 }
