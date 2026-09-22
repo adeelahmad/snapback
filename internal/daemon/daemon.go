@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"maps"
 	"net"
 	"os"
@@ -77,14 +78,16 @@ type Prewarmer interface {
 
 // Deps are the daemon's collaborators.
 type Deps struct {
-	Supervisor      Supervisor
-	History         HistoryMount
-	Refresher       Refresher
-	Linker          Linker
-	Recoverer       Recoverer
-	Discovery       Discovery
-	Prewarmer       Prewarmer
-	Listener        net.Listener
+	Supervisor Supervisor
+	History    HistoryMount
+	Refresher  Refresher
+	Linker     Linker
+	Recoverer  Recoverer
+	Discovery  Discovery
+	Prewarmer  Prewarmer
+	Listener   net.Listener
+	// agentic:shim LOG-1 — declaration only, the daemon does not use it yet.
+	Log             *slog.Logger
 	Throttle        func() []readerpolicy.ThrottleEvent
 	Clock           func() time.Time
 	ShutdownTimeout time.Duration
