@@ -36,6 +36,10 @@ func allPresent() fakeEnv {
 func TestMissingPrereqNamesEach(t *testing.T) {
 	noEnv := allPresent()
 	noEnv.env = map[string]string{}
+	envZero := allPresent()
+	envZero.env = map[string]string{"SNAPBACK_FUSE_TESTS": "0"}
+	envYes := allPresent()
+	envYes.env = map[string]string{"SNAPBACK_FUSE_TESTS": "yes"}
 	noRestic := allPresent()
 	noRestic.bins = map[string]bool{}
 	noDevFuse := allPresent()
@@ -50,6 +54,8 @@ func TestMissingPrereqNamesEach(t *testing.T) {
 		want string
 	}{
 		{"env unset", noEnv, "linux", "SNAPBACK_FUSE_TESTS not set: fidelity tests skipped"},
+		{"env set to 0", envZero, "linux", "SNAPBACK_FUSE_TESTS not set: fidelity tests skipped"},
+		{"env set to yes", envYes, "linux", "SNAPBACK_FUSE_TESTS not set: fidelity tests skipped"},
 		{"restic missing", noRestic, "darwin", "restic not on PATH: fidelity tests skipped"},
 		{"linux without /dev/fuse", noDevFuse, "linux", "fuse3 device /dev/fuse not present"},
 		{"darwin without macFUSE", noMacFUSE, "darwin", "macFUSE not installed: /Library/Filesystems/macfuse.fs missing"},

@@ -3,7 +3,7 @@ package fidelity
 // MissingPrereq returns "" when every fidelity prerequisite is present,
 // otherwise the skip message for the first missing one.
 func MissingPrereq(getenv func(string) string, lookPath func(string) (string, error), exists func(string) bool, goos string) string {
-	if getenv("SNAPBACK_FUSE_TESTS") == "" {
+	if getenv("SNAPBACK_FUSE_TESTS") != "1" {
 		return "SNAPBACK_FUSE_TESTS not set: fidelity tests skipped"
 	}
 	if _, err := lookPath("restic"); err != nil {
