@@ -75,21 +75,37 @@ func keyOwner(rec Record) []byte {
 
 // Put stores rec under rec.Key.
 func (r *Registry) Put(rec Record) error {
-	data, err := json.Marshal(rec)
-	if err != nil {
-		return fmt.Errorf("links: encode record %s: %w", rec.Key, err)
+	return r.PutAll([]Record{rec})
+}
+
+// PutAll stores every record in one write transaction; either all are
+// stored or none are.
+func (r *Registry) PutAll(recs []Record) error {
+	data := make([][]byte, len(recs))
+	for i, rec := range recs {
+		d, err := json.Marshal(rec)
+		if err != nil {
+			return fmt.Errorf("links: encode record %s: %w", rec.Key, err)
+		}
+		data[i] = d
 	}
-	owner := keyOwner(rec)
 	return r.db.Update(func(tx *bbolt.Tx) error {
-		key := []byte(rec.Key)
 		keys := tx.Bucket(keysBucket)
-		if existing := keys.Get(key); existing != nil && !bytes.Equal(existing, owner) {
-			return fmt.Errorf("%w: %s", ErrKeyCollision, rec.Key)
+		links := tx.Bucket(linksBucket)
+		for i, rec := range recs {
+			key := []byte(rec.Key)
+			owner := keyOwner(rec)
+			if existing := keys.Get(key); existing != nil && !bytes.Equal(existing, owner) {
+				return fmt.Errorf("%w: %s", ErrKeyCollision, rec.Key)
+			}
+			if err := keys.Put(key, owner); err != nil {
+				return err
+			}
+			if err := links.Put(key, data[i]); err != nil {
+				return err
+			}
 		}
-		if err := keys.Put(key, owner); err != nil {
-			return err
-		}
-		return tx.Bucket(linksBucket).Put(key, data)
+		return nil
 	})
 }
 
