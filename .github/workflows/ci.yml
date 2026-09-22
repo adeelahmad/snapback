@@ -135,3 +135,33 @@ jobs:
           name: stage1-evidence-linux
           path: ${{ env.SNAPBACK_EVIDENCE_DIR }}
           if-no-files-found: warn
+
+  site:
+    name: Site build and test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: No third-party origins in dist
+        run: "! grep -rEl 'https?://(fonts\\.googleapis|fonts\\.gstatic|cdn\\.|unpkg|jsdelivr)' dist"
