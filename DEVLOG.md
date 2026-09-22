@@ -1,69 +1,94 @@
 # Snapback Dev Log
 
 ## Working State
-**Session:** 1 | **Date:** 2026-09-22
+**Session:** 2 | **Date:** 2026-09-23
 
 ### Active Task
-Sprint 1 / Stage 0: scaffolding (repository furniture, CI, lint, race tests,
-semantic release, docs site pipeline, installer skeleton). Exit evidence is green
-CI on an empty binary and a docs site that deploys. No product feature exists yet.
-- [x] Planning: intake, standards, 8 stories (S1-01..S1-08), human approval
-- [x] S1-01 foundation: go.mod, `internal/version`, `cmd/snapback` stub (merged)
-- [x] S1-02 CI workflow, S1-04 commitlint, S1-06 release config (merged)
-- [x] S1-03 installer skeleton (merged)
-- [ ] S1-05 community files, S1-07 docs site, S1-08 project docs <-- CURRENT
-- [ ] Structural reviews, final gate, retrospective
+Sprint 5 (adoption): make the first install frictionless — a measured action
+count, real packaging, debug logging, explicit file modes, a restore mount point
+and a configurable web UI. Chain 5 waves w1-w3 are merged on `chain5/w3`; the
+structural review of that chain is being worked off before the final gate.
+- [x] Rulings 1-7 on the intake and the web UI plan (docs/agents/sprint5-adoption/rulings.md)
+- [x] S5-09 action counts measured by acceptance tests: 3 on Linux, 4 on macOS
+- [x] S5-36 logging, S5-37 file modes, S5-38 mount point, S5-30..S5-34 web UI
+- [x] S5-35 pinned Dockerfile and ghcr.io images; S5-27 QEMU smoke for arm/mips
+- [ ] Structural review fixes: S5-36/T16 wiring, CLEAN-1, CLEAN-2, CLEAN-3 <-- CURRENT
+- [ ] Final gate, retrospective, then the Telemetry sprint
 
 ### Key Files (current shape)
-**`SPEC.md`** (MOVED from README.md, Revision 2)
-The full product spec, byte-identical to the old README (sha256 verified). Every
-design decision and the stage table (§22) live here.
+**`cmd/snapback/daemondeps.go`** (MODIFIED)
+Builds every daemon dependency: providers, reader policy, catalog, refresher,
+mount linker. `daemonBuilder` still takes no `*slog.Logger`, which is why the
+four S5-36 debug decorators are unwired; S5-36/T16 threads the logger in.
 
-**`README.md`** (NEW)
-User-facing entry point. States plainly that Snapback is pre-release, has no
-tagged release, and that the restore workflow is a design goal; links SPEC.md.
+**`internal/logging/options.go`** (NEW, S5-36)
+Parses level and format, builds the slog logger and the appending file sink that
+`snapback run`, `snapback web` and the doctor bundle all share.
 
-**`.github/workflows/ci.yml`** (NEW)
-Go race tests, vet, gofmt/goimports, golangci-lint, govulncheck, coverage.
-Tool installs are pinned (goimports v0.50.0, govulncheck v1.8.0), never `@latest`.
+**`internal/daemon/mountpoint.go`** (NEW, S5-38)
+Ensures the managed `.snapshot` link at a repository mount point once per
+generation and removes it on teardown, keeping the directory (ruling 7).
 
-**`install.sh`** (NEW)
-POSIX installer skeleton: OS/arch detection, download plus sha256 verification,
-`~/.local/bin` fallback. FUSE hints are printed as instructions, never executed.
+**`internal/web/bindpolicy.go`** (NEW, S5-34)
+Decides loopback versus remote binds and refuses a remote bind without
+`--allow-remote`. It disagrees with `server.go`'s inline check on `"localhost"`
+(CLEAN-1).
 
-**`test/projectdocs/`** (NEW)
-Go tests that pin the shape and honesty of the project docs (README, SPEC,
-ARCHITECTURE, CLAUDE.md, DEVLOG.md, NOTICE).
+**`test/acceptance/actioncount_linux_test.go`** (NEW, S5-09)
+Runs the counted zero-to-`ls .snapshot` script and compares the `# action` lines
+with the count the script prints, so the README number cannot drift.
 
 ### Decisions (active)
-- Spec moved from README.md to SPEC.md: the README must speak to users about what
-  works today; the spec describes a future product and would overclaim if it
-  stayed as the landing page.
-- Strict TDD per task (RED, SCAFFOLD, GREEN) with one worktree per worker; the
-  orchestrator re-runs `go test` itself because plugin gates skip Go.
-- Intermediate GREENs run with GATE_RUN_MATRIX=0; the full matrix is enforced at
-  each story's merge into `stage-0`.
-- Human enabled auto-approve after reviewing the plan (including the rsnapshot ban).
+- Bar for adoption: 3 actions on Linux, 4 on macOS, and a test must measure it
+  before any doc may claim the number (ruling: intake, S5-09).
+- `setup` never writes to the repository; on an empty repository it detects
+  "no snapshots" and prints the next command.
+- The release image bundles restic, pinned by version and SHA256, on a
+  digest-pinned alpine base, published to `ghcr.io/adeelahmad/snapback`.
+- `snapback web --with-daemon` is opt-in; `snapback web` alone starts no daemon.
+- The mount point is one prompt or flag with one default (`/mnt/<instance>` on
+  Linux), no picker and no repository browser.
+- The backend view is `ids/` only: the mount point promises
+  `<mount_point>/.snapshot/ids/<snapshot id>` and nothing else (ruling 6).
 
 ### Next Steps
-1. Finish S1-08 (T3-T8), S1-05 (T5-T6), S1-07 (T5) and merge into `stage-0`.
-2. Run structural review per story, then the sprint final gate.
-3. Run the retrospective; report plugin gate issues upstream.
-4. Stage 1: compatibility milestone (pin deps, Restic path-template, FUSE catalog).
+1. S5-36/T16: thread the daemon logger into `daemonBuilder` and wrap the restic
+   runner, catalog, reader policy and refresher with their `Log*` decorators.
+2. CLEAN-1 loopback disagreement, CLEAN-2 dead `configControls`, CLEAN-3 setup
+   template partials.
+3. Re-run the structural review, then the sprint final gate and the retrospective.
+4. Record and commit `docs-site/img/demo.gif`, then start the Telemetry sprint.
 
 ### Blockers
-- None hard. Disk hit 100% at tick 10 (Go caches 3.1 GB); finished worktrees
-  were removed. The human should free disk before Stage 1.
+- None hard. The launch checklist's outward-facing steps (social preview,
+  Discussions, first posts) need the human.
 
 ### Watch Out
-- Keep the shell at the repo root: the transcripts hook writes relative to cwd.
-- `STANDARDS_FILE` must be absolute in task.env, else gates fall back to cargo.
-- gate-structural-integrity flags Go `_test.go` local duplicates as HIGH (false positive).
+- commitlint rejects `build:` subjects and checks the PR title as well.
+- `snapback setup` refuses a project under `/tmp`, so acceptance projects must
+  live elsewhere.
+- Workers have a 5-minute cap; a task that touches several templates has to be
+  split before it is dispatched.
 
 ---
 ---
 
 ## Session Archive
+
+### Session 2 -- 2026-09-23: Sprint 5 (adoption)
+**What we did:** Planned Sprint 5 and ran chain 5 (waves w1-w3, ~91 commits on top of
+`stage-5`): measured the action count (3 Linux, 4 macOS), debug logging end to end
+(S5-36), explicit file and directory modes (S5-37), a repository mount point for
+restore onto another machine (S5-38), the sectioned web UI with setup, instances,
+daemon control and bind policy (S5-30..S5-34), a pinned restic-bundling image on
+ghcr.io (S5-35), and QEMU smoke tests that retired the "unverified" arm/mips label
+(S5-27). Sprints 2-4 were not journaled here; this entry starts again at Sprint 5.
+**Files:** internal/logging, internal/fsmode wiring in internal/daemon, internal/web,
+internal/webui/templates, cmd/snapback/daemondeps.go, Dockerfile, .goreleaser.yaml,
+test/acceptance, docs-site, docs/reports/sprint5/actions.md.
+**Decisions:** rulings 1-7 (docs/agents/sprint5-adoption/rulings.md) — pinned image with
+bundled restic, opt-in `--with-daemon`, refuse remote binds, one mount point question,
+`ids/`-only backend view, teardown keeps the directory.
 
 ### Session 1 -- 2026-09-22: Sprint 1 planning and Stage 0 scaffolding
 **What we did:** Planned Sprint 1 (8 stories) and ran two-phase TDD across parallel
@@ -114,7 +139,67 @@ because the shell cwd was there.
 **How we fixed it:** Kept T1 as the chain base and merged it with T2.
 **Lesson:** Every task must leave the repo buildable on its own.
 
+### 2026-09-23 - commitlint rejected `build:` subjects and the PR title
+**What happened:** Commits and a pull request using a `build:` type failed the
+commit lint job twice.
+**Root cause:** `.commitlintrc.json` allows only feat, fix, docs, test, ci, chore,
+refactor and perf, and the workflow lints the PR title as well as the commits.
+**How we fixed it:** Reworded the subjects to `chore:` and renamed the PR title.
+**Lesson:** The allowed type list is the whole list; it binds PR titles too.
+
+### 2026-09-23 - The Linux action-count test put its project under /tmp
+**What happened:** `TestActionCountLinux` failed because `snapback setup` refused
+the directory it was pointed at.
+**Root cause:** The script created the counted project inside the test's temp dir,
+and setup declines to manage paths under `/tmp`.
+**How we fixed it:** ACC-LINUX-1 moved the counted project outside the temp dir.
+**Lesson:** Acceptance harnesses must respect the product's own refusals rather
+than work around them.
+
+### 2026-09-23 - S5-30/T7 exceeded the 5-minute worker cap
+**What happened:** The GREEN worker for the every-section config save ran past the
+5-minute limit and was killed mid-task.
+**Root cause:** One task covered the form model, the control partials and the save
+path across several templates — far more than a single worker can finish.
+**How we fixed it:** A planner split it into T7a (retire the flat form tests and fix
+the fixture), T7b (load the partials, section the config view) and T7c (save every
+section with field errors); all three landed inside the cap.
+**Lesson:** Size a task by what fits in the cap, and split before dispatching, not
+after a kill.
+
+### 2026-09-23 - The setup form had no typed-password control
+**What happened:** The web setup form could not accept a repository password typed
+by the user; only a pre-existing password file worked.
+**Root cause:** The form model mirrored config keys only, and no test asked for the
+end-to-end path from a typed password to a started daemon.
+**How we fixed it:** The S5-30/T10 acceptance test pinned a typed-password setup
+starting the daemon, and the form now writes a 0600 credential file.
+**Lesson:** A pinned end-to-end path finds the missing control that a field-by-field
+test never asks for.
+
+### 2026-09-23 - The S5-38 design promised mount point views that do not exist
+**What happened:** The mount point design text said a user would find
+`ids/`, `hosts/`, `snapshots/` and `tags/` under the mount point.
+**Root cause:** It described Restic's mount layout, but our backend is mounted with
+`--path-template ids/%I`, pinned in `internal/provider/restic/args_test.go`, so only
+`ids/` is ever published.
+**How we fixed it:** Ruling 6 fixed the promise at `ids/` only, and the T9 acceptance
+test and the docs were corrected to match.
+**Lesson:** A design may only promise what the pinned arguments actually produce.
+
 ## Technical Debt & Future Ideas
+- `demo.gif` is not recorded or committed yet: the tape lives at the quick-start
+  path and the docs workflow's demo job uploads an artifact, but
+  `docs-site/img/demo.gif` is still missing from the tree.
+- The web UI screenshots in the docs are stale after the sectioned form landed
+  (S5-30/T9b).
+- `USAGE-DASH`: single-dash help (`-help`) renders differently from `--help`.
+- `NEXT-1`: the next-step line after `setup` is chosen per platform and service and
+  needs one more pass for the no-service path.
+- Log-record test helpers (`decodeRecords` and the JSON logger builder) are
+  reimplemented in three test packages; one shared internal test package would do.
+- SPEC wording: "unverified" for arm and mips was replaced with QEMU smoke coverage
+  once S5-27/T3 landed; keep the wording in step with what CI really runs.
 - Test-helper consolidation: `repoRoot`, `section`, `indentOf` and similar helpers
   are duplicated across Go test packages (test/projectdocs, S1-05, S1-07). Go test
   packages cannot share unexported code; a small shared internal test package
