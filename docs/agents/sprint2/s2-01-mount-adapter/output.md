@@ -184,3 +184,69 @@ Filled the four constants (EntryTimeout/AttrTimeout = 1s, DirPerm/SymlinkPerm = 
 
 ### Next
 Orchestrator: add a scoped fix for NOTICE (list github.com/hanwen/go-fuse/v2 and golang.org/x/sys with their licenses) so test/projectdocs passes, then structural review and merge of af79267.
+
+## S2-01/fix-notice · attempt 1 · green-worker · 2026-09-22T02:42:07Z
+status: ok
+### Summary
+Added `github.com/hanwen/go-fuse/v2` and `golang.org/x/sys` to NOTICE in the existing `- <name> — <licence> (<url>)` format, keeping the "updated as dependencies are added" sentence. Both licences were checked against the LICENSE files in the module cache (go-fuse v2.11.0: "New BSD License", three clauses; x/sys v0.28.0: Go Authors three-clause BSD), so both are BSD-3-Clause. NOTICE was the only file changed. Commit 968e890 on top of 36dd8a7, authored by Adeel Ahmad with no AI trailers.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/projectdocs::TestNoticeListsGoStdlib` | PASS | green |
+| `test/projectdocs::TestNoticeSaysListIsMaintained` | PASS | green |
+| `test/projectdocs::TestNoticeCoversGoModRequires` | PASS | was red, now green |
+| gofmt / goimports | PASS | no output |
+| `CGO_ENABLED=0 go build ./...` | PASS | |
+| `go vet ./...` | PASS | |
+| `golangci-lint run` | PASS | 0 issues |
+| `go test -race ./...` | PASS | all packages ok |
+| coverage | PASS | 96.9% total (>=80%) |
+| `govulncheck ./...` | PASS | 0 called vulnerabilities (1 in a required module, not reachable from our code) |
+| actionlint / shellcheck -s sh install.sh | PASS | |
+| `mkdocs build --strict` | PASS | |
+| `goreleaser check` | PASS | config validated |
+### Next
+Structural review, then the S2-01 final gate / merge.
+
+## S2-01/structural · attempt 1 · structural-reviewer · 2026-09-22T02:56:46Z
+
+status: ok
+
+### Summary
+Reviewed `internal/mount/mount.go`, `internal/mount/gofuse/attr.go` and their tests plus the go.mod/go.sum/NOTICE deltas against `e83fd2f` using `git grep` and `go vet`. The mount seam and gofuse attribute translator are each defined exactly once, no shim/TODO leftovers remain in `internal/`, `go vet ./internal/mount/...` is clean, and the go-fuse/x-sys dependency additions are mirrored correctly in NOTICE. `mount.Adapter`, `mount.Observer`, `mount.Catalog` and `mount.Event`/`mount.Op` are not yet consumed by any production code outside `internal/mount` itself (only exercised via test-only fakes and a structural shape-pin in `internal/projection`), but this matches S2-01's stated scope as a seam-definition story consumed by later sprint-2 tasks (S2-02/S2-04), so it is noted as informational, not a defect.
+
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| orphan / unused-exported symbols | PASS (informational) | `mount.Adapter`/`Observer`/`Catalog`/`Event`/`Op` have no production consumer yet outside `internal/mount`'s own tests and `internal/projection/contract_test.go`'s structural shape-pin comment; expected for a seam-only story per init.md (T2 mandate: "mount.go types + Catalog/Adapter/Observer interfaces" ahead of consumers). `mount.Entry`/`mount.Kind` are consumed by `internal/mount/gofuse/attr.go`. No dead/unreachable code found. |
+| parallel implementations | PASS | No second FUSE-attribute or catalog-seam implementation found elsewhere in the repo (`internal/compat`, `internal/version`, `internal/projection` do not duplicate this abstraction; projection's catalog interface is a local structural pin, not a competing implementation). |
+| duplicate helpers | PASS | `goModRequireLines` (mount_test.go), `typeBits`, `DaemonOwner`, and the EntryTimeout/AttrTimeout/DirPerm/SymlinkPerm/EROFS constants are each defined exactly once repo-wide (`git grep` confirms no second definition). |
+| shim / TODO leftovers | PASS | No `zz_agentic_shim`, `agentic:shim`, or `SUB-AGENT-TODO` matches anywhere under `internal/` (file search and content grep both empty). |
+| EROFS / timeout constants defined once | PASS | `ReadOnlyErrno()` returns `syscall.EROFS` (single definition, attr.go:72); `EntryTimeout`, `AttrTimeout`, `DirPerm`, `SymlinkPerm` each declared once in the attr.go const block (lines 17-20) and referenced only, never redeclared. |
+| go vet | PASS | `go vet ./internal/mount/...` produced no output. |
+
+### Findings
+none
+
+### Next
+continue
+
+## S2-01/structural · attempt 1 · structural-reviewer · 2026-09-22T02:59:47Z
+
+status: ok
+
+### Summary
+Ran the mandatory `selfcheck` (`gate-structural-integrity`) after the manual git-grep/go-vet review above. It exited 2, but the failure is dominated by scope mismatch, not a defect introduced by S2-01: `BASE_REF=e83fd2f` predates the merge of S2-01, S2-02 and S2-03 alike (45 commits ahead), so `ctx-symbols conflicts --tree` diffs the whole merged worktree against a tree that has none of sprint 2, making every sprint-2 symbol collision (across three different stories) look "new." Manually triaging the reported HIGH lines that touch an S2-01 file: `Lookup`/`ReadDir`/`Readlink` (mount_test.go's `fakeCatalog` vs. projection's real `Generation`) and `Mount` (mount_test.go's `fakeAdapter` vs. resticfx's real adapter) are expected — a fake and a real implementation of the same interface necessarily share method names; `String` (mount.go's `Op.String` vs. internal/version's `String`) is the ordinary `fmt.Stringer` idiom; bare-identifier collisions (`_`, `out`, `unmounts`) are coincidental local-variable names in unrelated functions, not shared implementations. One finding is a genuine duplicate worth flagging: `RootIno uint64 = 1` is declared verbatim in both `internal/mount/mount.go:22` (S2-01, in scope) and `internal/projection/spec.go:12` (S2-02, out of scope) — projection re-declares the constant instead of importing `mount.RootIno`, so the two can drift silently. This is a downstream-consumer choice in S2-02, not a defect S2-01 introduced, so it does not change S2-01's own status, but it is exactly the "duplicate helper under a different name" this audit watches for and should be raised to whoever reviews S2-02/S2-04 (the gofuse-catalog wiring is the natural place to import `mount.RootIno` instead).
+
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| selfcheck / gate-structural-integrity | FAIL (exit 2), triaged as non-blocking for S2-01 | `BASE_REF=e83fd2f` predates all of sprint 2 (S2-01+S2-02+S2-03, 45 commits), so the baseline diff cannot isolate S2-01-only introductions; every cross-story HIGH line reported is either (a) an interface/fake pair, (b) the Stringer idiom, (c) a coincidental local-variable name, or (d) the genuine `RootIno` duplicate below. |
+| duplicate helper (RootIno) | FAIL (cross-story, out of S2-01's write scope) | `internal/mount/mount.go:22` and `internal/projection/spec.go:12` both declare `const RootIno uint64 = 1` independently instead of projection importing `mount.RootIno`. |
+
+### Findings
+- MEDIUM `internal/projection/spec.go:12` duplicates `internal/mount/mount.go:22`'s `RootIno uint64 = 1` instead of importing it — flag for S2-02/S2-04 follow-up, not an S2-01 defect.
+- (all other findings from this review's earlier block still stand: none within S2-01's own files)
+
+### Next
+continue — S2-01 itself is clean; route the RootIno duplicate finding to the S2-02/S2-04 chain (projection/gofuse-catalog) as a follow-up so a later task imports `mount.RootIno` instead of redeclaring it. Re-run `gate-structural-integrity` with a `BASE_REF` at or after the sprint-2 merge point once available, since the current baseline cannot distinguish this story's introductions from its siblings'.

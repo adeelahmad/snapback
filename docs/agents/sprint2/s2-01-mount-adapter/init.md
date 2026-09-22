@@ -162,3 +162,24 @@ Target tests PASS under `go test -race`; previously passing tests still pass; ac
 ### Memory
 - all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
 - green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S2-01/fix-notice · attempt 1 · green-worker · 2026-09-22T02:39:29Z
+
+### Mandate
+Implement S2-01 fix-notice per `tasks.md` § fix-notice with the least change that makes exactly test/projectdocs TestNoticeCoversGoModRequires plus all S2-01 tests pass. S2-01's final gate is red only because NOTICE (S1-08 guard) lacks the new go.mod modules github.com/hanwen/go-fuse/v2 (BSD-3-Clause) and golang.org/x/sys (BSD-3-Clause) — verify licences from the module cache LICENSE files. Full matrix runs.
+
+### Scope
+#### May
+- `NOTICE` (add go-fuse v2 and golang.org/x/sys with their licences) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § fix-notice, `plan-ready.md` § fix-notice, `validate.md` § fix-notice. Chain base `chain/s2-01` @ 36dd8a7.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`NOTICE`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.

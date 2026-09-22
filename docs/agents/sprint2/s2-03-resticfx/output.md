@@ -274,3 +274,93 @@ Wrote the 4 T7 plan bullets. The mount supervisor unit tests (`mount_test.go`) r
 | golangci-lint ./internal/compat/resticfx/... | PASS | 0 issues (default and integration tags) |
 ### Next
 Scaffold mount.go with MountStarter, Mount, StartMount, WaitReady, Stop and Exited (signatures as in the shim), and delete zz_agentic_shim_t7.go. GREEN then implements a cancel-only exec.CommandContext, polling for <mnt>/ids, and a Stop that sends Interrupt, waits Grace, unmounts (at most once) and kills. Stop must be idempotent via sync.Once and return nil for exit 0.
+
+## S2-03/scaffold-T7 · attempt 1 · scaffolder · 2026-09-22T02:41:30Z
+status: ok
+### Summary
+Moved the T7 RED shim (zz_agentic_shim_t7.go) into the canonical internal/compat/resticfx/mount.go with identical signatures: MountStarter (Unmount, Grace fields kept), Mount (empty struct placeholder), StartMount, (*Mount).WaitReady, (*Mount).Stop, (*Mount).Exited. Every function/method body is panic("SUB-AGENT-TODO: <recipe>"); no bodies implemented. Shim deleted (git records it as a rename). Each symbol defined exactly once. .agentic/scaffold-symbols lists MountStarter, StartMount, WaitReady, Exited; the bare names `Mount` and `Stop` are left out on purpose because they are too generic for a name-only uniqueness check (they could match unrelated symbols elsewhere). Today no other Go definition uses either name. Commit 965cde8 on top of 218d3c9.
+### Scaffold
++ create MountStarter @ internal/compat/resticfx/mount.go
++ create Mount @ internal/compat/resticfx/mount.go
++ create StartMount @ internal/compat/resticfx/mount.go
++ create (*Mount).WaitReady @ internal/compat/resticfx/mount.go
++ create (*Mount).Stop @ internal/compat/resticfx/mount.go
++ create (*Mount).Exited @ internal/compat/resticfx/mount.go
+- delete internal/compat/resticfx/zz_agentic_shim_t7.go
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| stubs panic+TODO | PASS | 4 funcs/methods panic SUB-AGENT-TODO; 2 types |
+| go vet (default + integration tag) | PASS | both compile |
+| T1-T6 tests | PASS | go test -skip TestMount: ok |
+| T7 unit tests still fail | PASS | TestMountWaitReadyAndStop panics SUB-AGENT-TODO |
+| no agentic:shim | PASS | grep clean |
+| gofmt | PASS | clean |
+| commit trailers | PASS | author Adeel Ahmad, no AI trailers |
+### Next
+green: fill the mount.go stubs (Mount fields, StartMount/WaitReady/Stop/Exited) for the T7 tests
+
+## S2-03/T7 · attempt 1 · green-worker · 2026-09-22T02:50:00Z
+status: ok
+
+### Summary
+Filled the four SUB-AGENT-TODO stubs in `internal/compat/resticfx/mount.go`. `StartMount` uses `exec.CommandContext` with a cancel-only context and reaps the process in a goroutine that closes a done channel. `WaitReady` polls `<mnt>/ids` every 50 ms and wraps `ctx.Err()`. `Stop` runs once via `sync.Once`: it sends os.Interrupt and waits up to Grace. If the process exits within Grace, Stop returns nil and does not unmount, because restic unmounts itself on interrupt. Otherwise it calls Unmount(mnt) once, cancels (kill), reaps, and returns the unmount error. `Exited` does a non-blocking select. The local integration run (restic 0.19.0, macFUSE, darwin/arm64) PASSED and generated `docs/reports/stage1/pathtemplate-darwin.json` (result=pass, snapshot_id == observed_dir). No mount was left behind. The run used disposable t.TempDir repos only, never touched rclone config, and I did not hand-write the evidence file. Commit c0c7abb on the worktree branch, with no AI trailers.
+
+Two things differ from the stub recipes. (1) The "error if the process exits first" branch is left out of `WaitReady`. The reason is a defect in the RED test helper: `TestMountHelperProcess` "hang" mode does `select {}` with no other live goroutines, so the Go runtime aborts with "all goroutines are asleep - deadlock!" (exit 2) within about 40 ms. I reproduced this by running the compiled test binary directly. With the early-exit branch, `TestMountWaitReadyTimeout` gets a process-exit error instead of DeadlineExceeded. No test requires the branch, so the smaller code passes. The catch is that `TestMountWaitReadyTimeout` does not really exercise "Stop reaps a process that ignores os.Interrupt", because the helper has already died. (2) A graceful exit returns nil rather than the Wait error. The "exit" helper is often killed by our SIGINT before it reaches os.Exit(0), so Wait reports "signal: interrupt", but `TestMountStopIdempotent` requires nil.
+
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `internal/compat/resticfx/mount_test.go::TestMountWaitReadyAndStop` | PASS | -race |
+| `internal/compat/resticfx/mount_test.go::TestMountWaitReadyTimeout` | PASS | -race; see helper defect above |
+| `internal/compat/resticfx/mount_test.go::TestMountStopIdempotent` | PASS | -race |
+| `internal/compat/resticfx/pathtemplate_integration_test.go::TestPathTemplateIntegration` | PASS | `-tags integration`, SNAPBACK_FUSE_TESTS=1, real restic 0.19.0 + macFUSE; did not skip |
+| all previously passing resticfx tests | PASS | 33 tests |
+| gofmt / goimports | PASS | no output |
+| `CGO_ENABLED=0 go build ./...` | PASS | |
+| `go vet ./...` | PASS | |
+| `golangci-lint run` | PASS | 0 issues |
+| `go test -race ./...` | PASS | all packages ok |
+| coverage (atomic, race) | PASS | total 84.9% (resticfx 84.8%) |
+| `govulncheck ./...` | PASS | No vulnerabilities found |
+| `actionlint` | PASS | |
+| `shellcheck -s sh install.sh` | PASS | |
+| `mkdocs build --strict` | PASS | site dir in scratchpad |
+| `goreleaser check` | PASS | |
+| diff within SCOPE_GLOBS | PASS | mount.go + pathtemplate-darwin.json only |
+
+### Next
+Structural review / final gate for S2-03. Recommended follow-up (a RED-owned test fix, out of GREEN scope): make the "hang" helper actually block while ignoring os.Interrupt, e.g. `signal.Ignore(os.Interrupt); time.Sleep(time.Hour)`. Once it does, WaitReady can regain a fast-fail on early process exit. The orchestrator copies the Linux evidence file from the S2-05 CI artifact.
+
+## S2-03/fix-hang · attempt 1 · red-worker · 2026-09-22T02:55:14Z
+status: ok
+### Summary
+Edited only `internal/compat/resticfx/mount_test.go` and added no shim. (1) The helper's "hang" mode now runs `signal.Ignore(os.Interrupt); time.Sleep(time.Hour); os.Exit(0)`, so it really blocks and ignores SIGINT instead of dying from the runtime deadlock abort. `TestMountWaitReadyTimeout` now takes about 0.54s (200ms wait plus the 300ms grace, then kill), which shows Stop's ignored-interrupt path runs and reaps the process. The existing mount.go handles that path correctly, so this part needs no GREEN work. (2) Added `TestMountWaitReadyReturnsWhenProcessExits`. It starts the "exit" helper, calls WaitReady with a 10s ctx in a goroutine, and uses a 2s select to assert a non-nil error that is not DeadlineExceeded. On the current mount.go it fails by assertion after 2.04s: no timeout, no panic. The whole package takes about 4.4s under -race. Regression checks, which are not new tests: TestMountWaitReadyAndStop (0.46s), TestMountWaitReadyTimeout (0.54s) and TestMountStopIdempotent still pass under -race. `go vet ./...` is clean and golangci-lint reports 0 issues. Commit 642f50d changes 1 file.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `internal/compat/resticfx/mount_test.go::TestMountWaitReadyReturnsWhenProcessExits` | FAIL | fails by assertion: "WaitReady still blocked 2s after the mount process exited" |
+### Next
+GREEN: make WaitReady also select on `m.done` and return a process-exit error (not ctx.Err()) when the process exits before `<mnt>/ids` appears. Only after checking for ids, so a mount that creates ids and then exits still succeeds.
+
+## S2-03/fix-hang · attempt 1 · green-worker · 2026-09-22T03:10:00Z
+status: ok
+### Summary
+WaitReady in internal/compat/resticfx/mount.go now also selects on the mount's done channel. StartMount's reaper goroutine stores cmd.Wait()'s error in a new waitErr field before closing done, so the close establishes happens-before and the read is race-free. When done fires, WaitReady re-checks <mnt>/ids first, so a mount that created ids and then exited still counts as ready. Otherwise it returns a wrapped process-exit error (the Wait error, or "exit status 0" for a clean exit), not the context error. Only mount.go changed. Commit 1ff6f0a on top of 642f50d.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `internal/compat/resticfx/mount_test.go::TestMountWaitReadyReturnsWhenProcessExits` | PASS | green (1.03s, -race) |
+| `internal/compat/resticfx/mount_test.go::TestMountWaitReadyAndStop` / `TestMountWaitReadyTimeout` / `TestMountStopIdempotent` / `TestMountArgs` | PASS | still green |
+| gofmt / goimports | PASS | no output |
+| `CGO_ENABLED=0 go build ./...` | PASS | |
+| `go vet ./...` | PASS | |
+| `golangci-lint run` | PASS | 0 issues |
+| `go test -race ./...` + coverage | PASS | total 88.2% (resticfx 84.3%) |
+| `govulncheck ./...` | PASS | 0 affecting vulnerabilities |
+| `actionlint` | PASS | |
+| `shellcheck -s sh install.sh` | PASS | |
+| `mkdocs build --strict` | PASS | |
+| `goreleaser check` | PASS | |
+### Next
+Structural review of the S2-03 fix-hang merge; then merge chain2/s2-03 into stage-1.

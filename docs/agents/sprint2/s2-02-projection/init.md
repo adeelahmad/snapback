@@ -214,3 +214,45 @@ Target tests PASS under `go test -race`; previously passing tests still pass; ac
 ### Memory
 - all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
 - green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S2-02/T5 · attempt 1 · green-worker · 2026-09-22T02:39:29Z
+
+### Mandate
+Implement S2-02 T5 per `tasks.md` § T5 with the least change that makes exactly the 4 T5 tests in readdir_test.go pass. Names in ascending byte order, fresh copy each call, empty dir → empty non-nil. Readlink stays a stub (T6). Anchor -run regexes. Report any remaining lint findings in test files.
+
+### Scope
+#### May
+- `internal/projection/catalog.go` (ReadDir only) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § T5, `plan-ready.md` § T5, `validate.md` § T5. Chain base `chain/s2-02` @ b98f8d1.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`internal/projection/catalog.go`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S2-02/T6 · attempt 1 · green-worker · 2026-09-22T02:41:30Z
+
+### Mandate
+Implement S2-02 T6 per `tasks.md` § T6 with the least change that makes exactly the T6 tests (readlink_test.go, contract_test.go); ALL S2-02 tests must pass pass. This is S2-02's LAST task: FULL standards matrix runs, plus package coverage >= 80% (go test -cover ./internal/projection/). Readlink returns the stored target byte-for-byte; not found for dirs/unknown inodes.
+
+### Scope
+#### May
+- `internal/projection/catalog.go` (Readlink only) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § T6, `plan-ready.md` § T6, `validate.md` § T6. Chain base `chain/s2-02` @ ce4c091.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`internal/projection/catalog.go`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.

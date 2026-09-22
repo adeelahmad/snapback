@@ -230,3 +230,40 @@ The v1.0.0 semantic-release run rewrote CHANGELOG.md without its title. The fix 
 | scope | PASS | diff only touches .releaserc.json and CHANGELOG.md |
 ### Next
 Structural review, then merge into chain/s1-06-fix and master.
+
+## S1-06/author-fix · attempt 1 · red-worker · 2026-09-22T02:41:12Z
+status: ok
+### Summary
+Appended `TestWorkflowReleaseCommitsAuthoredByUser` to `test/release/workflow_test.go`, reusing `readWorkflow`, `jobBlock` and `yamlBlock`. It locates the `id: semrel` step in the semantic-release job, takes its `env:` block and asserts GIT_AUTHOR_NAME/GIT_COMMITTER_NAME = "Adeel Ahmad" and GIT_AUTHOR_EMAIL/GIT_COMMITTER_EMAIL = "adeelahmad99@gmail.com". It fails by assertion today (release.yml sets only GITHUB_TOKEN). No shim needed. Commit 38fa995 is authored by Adeel Ahmad and carries no AI trailers.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/release/workflow_test.go::TestWorkflowReleaseCommitsAuthoredByUser` | FAIL | fails by assertion: "semrel step env lacks GIT_AUTHOR_NAME" (and the other 3 keys) |
+| other `./test/release/` tests | PASS | 34 pass, including TestGoreleaserCheck and TestWorkflowActionlint |
+| `golangci-lint run ./test/release/...` | PASS | 0 issues |
+| commit trailers | PASS | no Co-Authored-By / Claude-Session |
+### Next
+green-worker: add the four GIT_AUTHOR_*/GIT_COMMITTER_* entries to the semrel step env in `.github/workflows/release.yml`.
+
+
+## S1-06/author-fix · attempt 1 · green-worker · 2026-09-22T02:44:27Z
+status: ok
+### Summary
+Added GIT_AUTHOR_NAME/GIT_COMMITTER_NAME ("Adeel Ahmad") and GIT_AUTHOR_EMAIL/GIT_COMMITTER_EMAIL ("adeelahmad99@gmail.com") to the semrel step env in `.github/workflows/release.yml` so semantic-release's changelog/git commits are authored by the repository owner. No other change. Commit 7f7a40c on `worktree-agent-a997a004ceb0fa7fa` (base 38fa995), authored by Adeel Ahmad, no AI attribution trailers.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/release/workflow_test.go::TestWorkflowReleaseCommitsAuthoredByUser` | PASS | green |
+| `go test ./test/release/ -v` | PASS | all 35 tests pass |
+| gofmt / goimports | PASS | no output |
+| `CGO_ENABLED=0 go build ./...` / `go vet ./...` | PASS | |
+| `golangci-lint run` | PASS | 0 issues |
+| `go test -race ./...` | PASS | |
+| coverage | PASS | 87.5% (>=80%) |
+| `govulncheck ./...` | PASS | no vulnerabilities |
+| `actionlint` | PASS | clean |
+| `shellcheck -s sh install.sh` | PASS | |
+| `mkdocs build --strict --site-dir site` | PASS | |
+| `goreleaser check` | PASS | |
+### Next
+structural review, then merge into stage-1

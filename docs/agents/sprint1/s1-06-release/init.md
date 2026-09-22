@@ -238,3 +238,22 @@ Target tests PASS under `go test -race`; previously passing tests still pass; ac
 ### Memory
 - all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
 - green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S1-06/author-fix · attempt 1 · red-worker · 2026-09-22T02:39:43Z
+
+### Mandate
+Human decision (2026-09-22): release commits must be authored by the user, not semantic-release-bot. Write ONE failing test in `test/release/workflow_test.go` (append; reuse helpers) named `TestWorkflowReleaseCommitsAuthoredByUser`: in `.github/workflows/release.yml`'s semantic-release step env, assert `GIT_AUTHOR_NAME` and `GIT_COMMITTER_NAME` equal "Adeel Ahmad" and `GIT_AUTHOR_EMAIL` and `GIT_COMMITTER_EMAIL` equal "adeelahmad99@gmail.com". Must fail by assertion now (release.yml has none of these). No shim needed.
+
+### Acceptance
+New test FAILs by assertion; the other test/release tests still pass (TestGoreleaserCheck runs — goreleaser installed); lint clean; commit has NO AI attribution trailers.
+
+### Memory
+- all: commit only as the configured git user; no Co-Authored-By / Claude-Session trailers.
+
+## S1-06/author-fix · attempt 1 · green-worker · 2026-09-22T02:41:49Z
+
+### Mandate
+Add to the `semrel` step's `env:` in `.github/workflows/release.yml`: GIT_AUTHOR_NAME and GIT_COMMITTER_NAME = "Adeel Ahmad", GIT_AUTHOR_EMAIL and GIT_COMMITTER_EMAIL = "adeelahmad99@gmail.com", so semantic-release commits are authored by the user. Nothing else.
+
+### Acceptance
+All test/release tests PASS (incl. TestWorkflowReleaseCommitsAuthoredByUser); actionlint clean; full standards matrix green; commit has NO AI attribution trailers.

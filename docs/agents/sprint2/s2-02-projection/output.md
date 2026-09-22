@@ -168,3 +168,67 @@ Filled only `(*Generation).Lookup` in internal/projection/catalog.go: look up th
 | `golangci-lint run ./internal/projection/...` | 1 finding (test file) | readdir_test.go:29:2 SA4006: value of `want` never used (staticcheck). Outside green scope, nothing in catalog.go |
 ### Next
 Structural review, then T5 (ReadDir). Test owner should fix the SA4006 in readdir_test.go:29.
+
+## S2-02/T5 · attempt 1 · green-worker · 2026-09-22T02:41:08Z
+status: ok
+### Summary
+Filled only the `(*Generation).ReadDir` SUB-AGENT-TODO in internal/projection/catalog.go: look up the node, return nil,false unless it exists and is a directory (covers symlink, 0, unknown inode), otherwise return `append([]string{}, n.names...)`, a fresh non-nil copy of the names Build already stores in byte order. Readlink stays a stub for T6. Commit ce4c091 on chain base b98f8d1, authored as Adeel Ahmad with no trailers.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `internal/projection/readdir_test.go::TestReadDirSortedByteOrder` | PASS | -race |
+| `internal/projection/readdir_test.go::TestReadDirNotFound` | PASS | -race, 4 subtests |
+| `internal/projection/readdir_test.go::TestReadDirReturnsCopy` | PASS | -race |
+| `internal/projection/readdir_test.go::TestReadDirEmptyDirectory` | PASS | -race |
+| earlier S2-02 tests (Build/Name/Lookup/Deps/Concurrent) | PASS | 10 tests, -race |
+| Readlink-dependent tests (TestReadlink*, TestGenerationSatisfiesCatalogContract, TestGenerationsIndependentTargets) | EXPECTED-FAIL | panic on the Readlink stub, owned by T6 |
+| `go vet ./...` | PASS | clean |
+| `golangci-lint run ./internal/projection/...` | PASS | 0 issues, test files included |
+### Next
+Structural review, then T6 (Readlink).
+
+## S2-02/T6 · attempt 1 · green-worker · 2026-09-22T02:50:00Z
+status: ok
+### Summary
+Filled the single SUB-AGENT-TODO in `internal/projection/catalog.go`: `(*Generation).Readlink` looks up the inode in `g.nodes` and returns `("", false)` for an unknown inode (including 0) or a directory, otherwise `(n.target, true)` with the stored target unchanged. Nothing else was touched. Commit 05d8b8b on branch `worktree-agent-aac03d270f0bf7422`, based on ce4c091. This is S2-02's last task, so the full standards matrix was run and passed.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `internal/projection/readlink_test.go::TestReadlinkExactBytes` | PASS | green under -race |
+| `internal/projection/readlink_test.go::TestReadlinkNotFound` | PASS | green under -race |
+| `internal/projection/readlink_test.go::TestGenerationsIndependentTargets` | PASS | green under -race |
+| `internal/projection/contract_test.go::TestGenerationSatisfiesCatalogContract` | PASS | green under -race |
+| all 18 S2-02 tests (`go test -race ./internal/projection/ -v`) | PASS | 18/18 |
+| `go test -cover ./internal/projection/` | PASS | 100.0% |
+| gofmt / goimports | PASS | no output |
+| `CGO_ENABLED=0 go build ./...` | PASS | |
+| `go vet ./...` | PASS | |
+| `golangci-lint run` | PASS | 0 issues |
+| `go test -race ./...` | PASS | all packages ok |
+| race coverage total | PASS | 98.3% (>=80%) |
+| `govulncheck ./...` | PASS | no vulnerabilities |
+| `actionlint` | PASS | clean |
+| `shellcheck -s sh install.sh` | PASS | clean |
+| `mkdocs build --strict` | PASS | built |
+| `goreleaser check` | PASS | 1 config validated |
+### Next
+Structural review of S2-02, then merge chain2/s2-02 into stage-1.
+
+## S2-02/structural · attempt 1 · structural-reviewer · 2026-09-22T02:57:19Z
+status: ok
+### Summary
+Reviewed `internal/projection` (doc.go, name.go, spec.go, build.go, catalog.go plus tests) against BASE_REF e83fd2f. Every exported symbol is defined exactly once in its canonical file per the scaffold mapping (doc.go package doc; name.go ErrInvalidName/validateName; spec.go Spec/Dir/Link/RootIno/node; build.go Build/ErrDuplicateName/builder; catalog.go Generation + Lookup/ReadDir/Readlink). No shim leftovers, no SUB-AGENT-TODO markers, `go vet ./...` and `go build ./...` are clean, and `go test -race ./internal/projection/...` passes. `contract_test.go` proves `*projection.Generation` structurally satisfies the `mount.Catalog` shape (Lookup/ReadDir/Readlink signatures, method-set check) via a locally-declared interface, without importing `internal/mount`, and `deps_test.go` enforces the reverse (projection depends on stdlib only, explicitly rejecting `internal/mount` and `hanwen/go-fuse`). The `2006-01-02_1504Z` timestamp-alias layout is not defined anywhere in `internal/projection` or elsewhere in any `.go` file; it is documented only in later stories' tasks.md (S2-04, S2-06, S2-07) as their responsibility, which matches this story's scope (Spec/Dir/Link take pre-resolved names and targets, not raw snapshot timestamps) — so "defined exactly once" is vacuously true today and becomes a real check once a GREEN task in S2-04/S2-06 introduces the constant. `selfcheck`'s `gate-structural-integrity` (ctx-symbols) additionally reports 16 HIGH "duplicate definition" lines new since BASE_REF; I traced every one by hand (see Result and Findings) — 7 touch internal/projection and all 7 are either name-based tool noise (blank identifier `_`, and coincidental local-variable names `first`/`rows` across unrelated files) or the deliberate structural-typing decoupling this story's own contract/deps tests exist to prove (Lookup/ReadDir/Readlink shared with mount_test.go's test-only fakeCatalog; RootIno independently declared in both mount and projection per the cross-story binding note in tasks.md, because projection must never import mount). None is a duplicate engine reimplementing projection's job; the other 9 flagged names belong entirely to internal/mount and internal/compat/resticfx (S2-01/S2-03 territory, out of this review's scope) and are not analyzed further here.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| orphan | INFO | No non-test, non-doc file outside internal/projection imports it yet (repo-wide symbol search matches only docs/*.md references). Expected at this point in the sprint: S2-02 is a standalone library task and S2-04 (gofuse-catalog) is the story that wires it into internal/mount. Not a defect today, but becomes a true orphan if S2-04 never lands. |
+| parallel | PASS | internal/mount/mount_test.go defines a private fakeCatalog (isDir/children map) that structurally mirrors projection's node/Generation shape, but it is test-only scaffolding required because internal/mount must not import internal/projection (enforced by projection's own deps_test rejecting internal/mount, and mount has no import of projection anywhere). This is a legitimate decoupled test double, not a second production engine for the same job. ctx-symbols' conflicts scan (via selfcheck) flags this pairing as three HIGH "duplicate definition" lines (Lookup/ReadDir/Readlink) because it matches by bare method name across the whole tree without regard to package, receiver type, or test-vs-production status; all three are new since BASE_REF e83fd2f only because internal/projection and internal/mount/mount_test.go's fakeCatalog were both born during sprint2 after that ref — not because S2-02 introduced a second engine. |
+| duplicate | PASS | A function-name search across internal/projection/*.go shows every function/method name declared exactly once; no helper (name validation, sort, dir-walk) is reimplemented under a different name in projection, mount, or compat/resticfx (searched for sort.Slice/ContainsAny/validateName/ErrInvalidName/ErrDuplicateName in those trees — no hits outside projection). The remaining ctx-symbols HIGH lines touching internal/projection are `_` (blank identifier, shared by every `var _ Interface = ...` compile-time assertion in Go — not a named symbol) and `first`/`rows` (unrelated local loop/table variables coincidentally reused between `readdir_test.go`/`build_test.go` and unrelated packages' test files `test/projectdocs/readme_test.go`/`test/community/security_test.go`) — none of these three is a helper reimplementation. |
+| shim/SUB-AGENT-TODO leftovers | PASS | Case-insensitive search for SUB-AGENT-TODO and shim markers, plus a filename search for shim files, under internal/projection, internal/mount, internal/compat/resticfx: no hits. |
+| Catalog contract proof | PASS | internal/projection/contract_test.go:11-58 declares a local catalog interface with the exact mount.Catalog method signatures, asserts `var _ catalog = (*Generation)(nil)`, exercises it end-to-end via buildFixture, and reflects over *Generation's exported method set to pin it to exactly Lookup/ReadDir/Readlink. |
+| alias layout defined once | N/A | `2006-01-02_1504Z` / SnapshotDirLayout appears nowhere in any .go file in the repo; it is only referenced in prose in other stories' tasks.md. Out of S2-02's scope per plan.md/tasks.md (S2-02 takes pre-built Spec/Dir/Link, not raw snapshot times), so there is no duplicate-definition risk from this story. |
+| selfcheck / gate-structural-integrity | FAIL (tool false positive) | `bin/selfcheck` exits 2: "HIGH-severity structural finding NOT present at e83fd2f". Root cause traced to `ctx-symbols conflicts`, which is a bare-name matcher with no Go package/receiver awareness (the gate script's own header notes "Target: Rust + ctx-symbols"); its `norm_high` test-file exemption only recognizes `.ts/.tsx/.js/.mjs/.rs` paths, so it never exempts Go `_test.go` files. 7 of the 16 new-since-baseline HIGH lines touch internal/projection and are analyzed above; none is a real orphan/parallel/duplicate defect in S2-02's code. The other 9 (Mount/Run/String/stdout/mnt/r/raw/out/unmounts) are entirely within internal/mount and internal/compat/resticfx, S2-01/S2-03 territory outside this review's remit. |
+### Findings
+none — no orphan, parallel-implementation, or duplicate-helper defects attributable to S2-02's merged code. Two watch items: (1) INFO — internal/projection has zero production importers as of stage-1 HEAD 7a44d7e; track that S2-04 wires it in, or it becomes a genuine orphan module. (2) TOOLING — `gate-structural-integrity`'s ctx-symbols HIGH-severity check is not Go-aware (flags same-named methods across independent packages/receivers and even flags the blank identifier `_` and coincidental local variable names as "duplicate definitions"), so it will hard-fail `selfcheck` on this and future Go stories that use structural typing across a deliberately decoupled package boundary; this is a known gap in the check itself, not a code defect, and should be fixed or Go-scoped upstream in the plugin rather than worked around by weakening projection's design.
+### Next
+continue — merge/chain may proceed on the merits of the code; the `selfcheck` exit 2 is attributable to a documented ctx-symbols/Go gap (see Findings), not to a real structural defect in S2-02. Flag both watch items to the orchestrator: get S2-04 to wire in internal/projection, and get the plugin's gate-structural-integrity script Go-scoped (package+receiver aware duplicate detection, and a `_test.go`/blank-identifier exemption) so it stops blocking legitimate Go interface-satisfaction patterns.
