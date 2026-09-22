@@ -394,3 +394,18 @@ Merged chain2/c3-site (af00edb) then chain2/c3-t7 (17054ed) into the stage-1 lin
 | Pages assembly dry run | PASS | _site/index.html, _site/docs/index.html and _site/install.sh present; build outputs removed afterwards |
 ### Next
 Structural review, then fast-forward stage-1 to 17054ed.
+
+## S2-12/rename · attempt 1 · red-worker · 2026-09-22T04:14:52Z
+status: ok
+### Summary
+Final-gate fix. Ran `git mv test/site/zz_agentic_shim_t2_test.go test/site/contrast_helpers_test.go` and changed nothing inside the file (100% rename similarity). This task has no new tests, and the FAIL rule is waived. The test/site package still passes and vet is clean. Commit af90d5d on top of chain2/fg-rename (c07c6bc).
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `GOTOOLCHAIN=auto go test ./test/site/` | PASS | ok, 0.041s |
+| `go vet ./...` | PASS | clean |
+| tracked files named zz_agentic_shim* | PASS | `git ls-files` shows none |
+| `git grep -l zz_agentic_shim` over code (*.go, *.yml, *.yaml, *.sh, *.json) | PASS | no matches |
+| `git grep -l zz_agentic_shim` over the whole repo | NOTE | still matches, but only in historical process logs: ORCHESTRATOR.md and committed docs/agents/** init/output files that describe the shim convention. These are outside this task's scope and were left untouched |
+### Next
+Merge af90d5d into stage-1. The orchestrator decides whether to scope the final-gate grep to code, or to clean ORCHESTRATOR.md and docs/agents under its own task.

@@ -205,3 +205,37 @@ Filled `## Requirement matrix` with the eight SPEC §22 row 1 items, all `implem
 | scope | PASS | `git show --stat HEAD`: only docs/reports/stage1-measurements.md |
 ### Next
 Structural review of S2-09, then merge chain2/s2-09 into stage-1. S2-09 complete (T6 was the last task).
+
+## sprint2/final-gate · attempt 1 · final-gate · 2026-09-22T04:11:45Z
+status: reject
+### Summary
+Reset worktree to `stage-1` @ c07c6bc, copied `docs/agents/sprint2/` in (identical to what was already tracked at HEAD; rsync produced no diff), wrote `.agentic/task.env`. Ran the full standards matrix, the web gate set, the FUSE integration suite, and the honesty/authorship/leftover/plan-ready checks below. The cross-cutting matrix, web gates, and integration suite are all green. Two items fail the certification bar: one plan-ready checkbox is unticked despite its test existing and passing, and one tracked filename still matches the banned `zz_agentic_shim` leftover pattern (its content was cleaned to real production-test code under a documented orchestrator exception in `docs/agents/sprint2/c3-site/init.md`, but the filename itself was never renamed, and the task brief requires zero matches anywhere in tracked files, no exceptions). Commit-subject nonconformance is reported per instructions as known/non-blocking.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test -z "$(gofmt -l .)"` | PASS | no output |
+| `test -z "$(goimports -l .)"` | PASS | no output |
+| `CGO_ENABLED=0 go build ./...` | PASS | |
+| `go vet ./...` | PASS | |
+| `golangci-lint run` | PASS | 0 issues |
+| `go test -race ./...` | PASS | all packages ok |
+| coverage (`go test -race -covermode=atomic ...`) | PASS | 84.0% (>=80%) |
+| `govulncheck ./...` | PASS | 0 vulnerabilities in called code (1 in a required-but-uncalled module, does not fail the gate) |
+| `actionlint` | PASS | exit 0 |
+| `shellcheck -s sh install.sh` | PASS | exit 0 |
+| `mkdocs build --strict --site-dir site` | PASS | built in 0.70s |
+| `goreleaser check` | PASS | config valid |
+| Web gates (`npm ci && npm test && npm run lint && npm run build`) | PASS | 21/21 vitest, tsc clean, vite build ok; `node_modules`/`dist` deleted after |
+| Integration suite (`SNAPBACK_FUSE_TESTS=1 GOTOOLCHAIN=auto go test -count=1 -tags=integration ./internal/...`) | PASS | 8 packages ok |
+| `mount \| grep -ci snapback` post-integration | PASS | 0 |
+| Suppressions (`nolint`/`//go:build ignore`/`t.Skip(`) | PASS | 15 `t.Skip(` hits, all named-prerequisite skips per standards.md discipline; 0 `nolint`; 0 `//go:build ignore` |
+| Leftovers (`SUB-AGENT-TODO`/`agentic:shim`/`zz_agentic_shim`) | FAIL | 0 marker-text hits outside `docs/agents/**` planning logs, but `test/site/zz_agentic_shim_t2_test.go` is a tracked filename match; content is real (WCAG `contrastRatio`/`relativeLuminance`, no marker, no TODO) per the orchestrator exception in `docs/agents/sprint2/c3-site/init.md:172`, which authorized keeping the file and dropping only the in-body marker, not renaming it — the file was never renamed |
+| plan-ready boxes (`docs/agents/sprint2/*/plan-ready.md`) | FAIL | 1 unticked box: `docs/agents/sprint2/s2-02-projection/plan-ready.md:16` (`TestDepsStdlibOnly`); the test exists at `internal/projection/deps_test.go:11` and passed in this run, but the checkbox was never ticked. All other 9 plan-ready.md files (c3-site, s2-01, s2-03..s2-09) are fully ticked. c1-domain/c2-makefile/c4-launch have no plan-ready.md (init/output only) |
+| Honesty — `docs/reports/stage1-measurements.md` | PASS | only verdict-like phrase (`go/no-go`) is inside `## Open items`; no banned words elsewhere |
+| Honesty — `README.md` | PASS | Status section names only `snapback version` as working; rest is framed as design/plan |
+| Authorship (`git log ... \| grep -ciE 'co-authored\|claude-session'`) | PASS | 0 |
+| Commit subjects (`f0f0d5b..HEAD`) | INFO (not a failure per instructions) | 11 subjects fail `^(feat\|fix\|refactor\|docs\|test\|chore\|perf\|ci)(\(.+\))?: [a-z]`: `dbfa7c8` merge: C2 Makefile into stage-1; `a3c617d` merge: C1 snapback.run domain into stage-1; `0c2505c` build: add Makefile for build, install and dev gates (C2); `e687157` merge: S2-08 rclone latency harness into stage-1; `366b1a1` merge: S2-04 go-fuse history catalog into stage-1; `bc2a030` merge: S2-03 fix-hang (WaitReady returns on mount exit) into stage-1; `e893fea` merge: S2-03 restic compatibility fixtures into stage-1; `4376285` merge: release commits authored by repository owner (S1-06 author-fix) into stage-1; `248099a` merge: S2-02 projection catalog into stage-1; `f8e74c7` merge: S2-01 go-fuse mount adapter into stage-1; `0e7012b` merge: S2-05 fuse-linux CI job (T1-T2) into stage-1 — all are `merge:`/`build:` types outside the allowed list |
+### Next
+REJECT. Two concrete, narrow fixes before re-running final-gate: (1) tick `docs/agents/sprint2/s2-02-projection/plan-ready.md:16` now that `TestDepsStdlibOnly` is verified passing, or explain why it stays unticked; (2) rename `test/site/zz_agentic_shim_t2_test.go` to a name without `zz_agentic_shim` (its content needs no other change) and re-run `git grep`/`git ls-files` for the pattern to confirm zero. The 11 non-conforming commit subjects are the orchestrator's to rewrite next, per the task brief; not a blocker for this gate. No suppressions found; no code changes made; nothing committed by this run.
+
+_selfcheck: `bin/selfcheck final-gate` (gate-final) run against this worktree independently reproduced the plan-ready failure: `BLOCK[gate-final]: an unticked plan-ready.md box remains (sprint not GREEN-complete)`, exit 2. Its suppression check (`assert_no_suppression`) only greps `*.rs` files (a known Rust-only gate gap for this Go repo per prior memory), so the Go suppression/leftover findings above were verified manually instead._

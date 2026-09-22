@@ -401,3 +401,26 @@ Integrate C3 into the stage-1 line on branch `chain2/c3-int` (= stage-1): `git m
 
 ### Acceptance
 Full standards matrix green; `GOTOOLCHAIN=auto go test ./...` (incl. test/site, test/ci, test/docs, test/projectdocs); in web/: npm ci, npm test, npm run lint, npm run build; actionlint clean; local dry run of the Pages assembly: `mkdocs build --strict --site-dir site && (cd web && npm run build) && rm -rf _site && mkdir -p _site/docs && cp -R web/dist/. _site/ && cp -R site/. _site/docs/ && cp install.sh _site/install.sh && test -f _site/index.html && test -f _site/docs/index.html && test -f _site/install.sh`, then delete _site/ site/ web/dist web/node_modules. Merge commits authored by the repo user, no AI trailers.
+
+## S2-12/rename · attempt 1 · red-worker · 2026-09-22T04:13:50Z
+
+### Mandate
+Write every rename test bullet in `plan.md` § rename at the exact path::fn so each FAILS BY ASSERTION (compiles, runs, assertion or t.Fatal on a missing/incorrect artifact) — never by a compile error or missing symbol. Final-gate finding: the file name matches the banned zz_agentic_shim pattern although its body is real test-support code (WCAG contrast helpers). git mv it to test/site/contrast_helpers_test.go; no content change. All test/site tests must still PASS (PASS-ON-RED waived). Confirm git grep -l zz_agentic_shim returns nothing.
+
+### Scope
+#### May
+- Create the test files named for rename in `tasks.md`: test/site/zz_agentic_shim_t2_test.go → test/site/contrast_helpers_test.go (git mv only)
+- Test helpers that a rename test itself exercises (e.g. `repoRoot`, `readRepoFile`, `yamlBlock`, `runInstaller`) go in a marked shim `zz_agentic_shim_test.go` in the same test package (first line `// agentic:shim`) with deliberately WRONG bodies so those tests fail by assertion; helpers NOT under test may be real and live in the named helpers file.
+#### May Not
+- Create or edit any non-test artifact (workflow YAML, JSON config, install.sh, .goreleaser.yaml, SPEC.md/README.md, go.mod) — those are GREEN's job; touch other stories' files; suppress/skip tests (except the tool-absent `t.Skip` cases plan.md explicitly allows).
+
+### Inputs
+- `plan.md` § rename, `tasks.md` § rename (contracts), `validate.md` § rename. Chain base: the story chain branch named in your prompt (stage-1 @ 2158ade = master + sprint2 plan).
+
+### Acceptance
+`go test ./test/...` for this story's package compiles; every new test FAILS by assertion; `go vet ./...` clean; diff vs BASE_REF = only this task's test files (+ shim); output.md block appended; selfcheck PASS.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
+- red-worker: make shim bodies differ so comparison tests cannot pass by accident.
+- all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.

@@ -13,7 +13,7 @@ The contracts under test are fixed in `tasks.md`. All tests are in-package (`pac
 
 ## T1 — Package skeleton and dependency guard
 
-- [ ] `internal/projection/deps_test.go::TestDepsStdlibOnly` — input package `github.com/adeelahmad/snapback/internal/projection`; action: run `go list -deps` (fatal with the output if it fails) and split the output into lines; assertion: the list is non-empty and contains the projection package itself (M-002 guard); no line contains `hanwen/go-fuse` or `internal/mount`; every line other than the projection package has no `.` in its first path element (standard library only).
+- [x] `internal/projection/deps_test.go::TestDepsStdlibOnly` — input package `github.com/adeelahmad/snapback/internal/projection`; action: run `go list -deps` (fatal with the output if it fails) and split the output into lines; assertion: the list is non-empty and contains the projection package itself (M-002 guard); no line contains `hanwen/go-fuse` or `internal/mount`; every line other than the projection package has no `.` in its first path element (standard library only).
 
 ## T2 — Name validation
 
