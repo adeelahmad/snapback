@@ -5,14 +5,55 @@ the current build. Restic is the only backend.
 
 ## Getting started
 
-1. **Install.** Run `curl -fsSL https://snapback.run/install.sh | sh`. The installer fetches the
-   latest release for your platform. Building from source with `go build ./cmd/snapback` also works.
-2. **Configure.** Write `~/.config/snapback/config.yaml` with your Restic repository, then run
-   `snapback config`. It starts the local web UI and opens its setup page. `snapback web` serves
-   the same UI without jumping to setup. See [Configuration](configuration.md) for every key,
-   `snapback config --file` and `snapback config validate`.
-3. **Install the service.** Run `snapback install service`. The default scope is the current user.
-4. **Check.** Run `snapback doctor` to check prerequisites and repository health.
+You need FUSE (fuse3 on Linux, macFUSE on macOS), the `restic` command on your `PATH`, and a
+Restic repository that already holds at least one snapshot of the directory you want to browse.
+
+### 1. Install
+
+```
+curl -fsSL https://snapback.run/install.sh | sh
+```
+
+The installer fetches the latest release for your platform. Building from source with
+`go build ./cmd/snapback` also works.
+
+### 2. Run `snapback setup`
+
+```
+cd ~/project
+snapback setup
+```
+
+Setup reads the machine instead of asking you to describe it. It takes the repository from
+`RESTIC_REPOSITORY` and the password file from `RESTIC_PASSWORD_FILE`, finds `restic` on your
+`PATH`, takes the directory you ran it in as the backup root, and asks the repository for the
+snapshot host and paths with a read-only `restic snapshots`. It prints each fact it found, then
+writes the configuration file for you — you never edit YAML to get started.
+
+Override any of it: `--repo` and `--password-file` name the repository and its password file,
+`--no-service` skips installing the background service, `--dry-run` prints the configuration
+instead of writing it, and `--force` overwrites a configuration that already exists. Pass
+directories as arguments to use roots other than the working directory.
+
+On Linux, setup also creates the `.snapshot` entry in the root and installs the login service, so
+the daemon is already running when it finishes. On macOS it writes the configuration only; start
+the daemon yourself with `snapback run`, which runs in the foreground — the login service is
+Linux-only for now.
+
+### 3. Browse and restore
+
+```
+ls ~/project/.snapshot
+cp ~/project/.snapshot/latest/report.docx .
+```
+
+`latest` points at the newest snapshot of that directory; the timestamp entries beside it hold the
+older ones. Copying out of `.snapshot` is the whole restore — it is an ordinary file copy.
+
+Optional from here: `snapback status` prints what the daemon is doing, `snapback doctor` checks
+prerequisites and repository health, and `snapback web` serves the local web UI. See
+[Configuration](configuration.md) for every configuration key, `snapback config --file` and
+`snapback config validate`.
 
 ## Command reference
 
@@ -30,7 +71,8 @@ These are the commands `snapback --help` lists, with their own summaries.
 | `snapback refresh` | ask the running daemon to refresh its snapshot view |
 | `snapback run` | run the daemon in the foreground |
 | `snapback seed` | pre-create .snapshot links under a directory or the configured roots |
-| `snapback service` | start, stop, restart, inspect or uninstall the service |
+| `snapback service` | start, stop, restart, status or uninstall the service |
+| `snapback setup` | detect this machine and write a working configuration |
 | `snapback shell-hook` | (no summary in help) |
 | `snapback snap` | take an ad-hoc snapshot of a directory now |
 | `snapback status` | print the running daemon's status |
