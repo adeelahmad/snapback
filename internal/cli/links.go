@@ -1,6 +1,117 @@
 package cli
 
+import (
+	"context"
+	"flag"
+	"fmt"
+	"io"
+	"strings"
+
+	"github.com/adeelahmad/snapback/internal/links"
+	"github.com/adeelahmad/snapback/internal/rawpath"
+)
+
+type linkRecord struct {
+	Key    string       `json:"key"`
+	RootID string       `json:"root_id"`
+	Dir    rawpath.Path `json:"dir"`
+	Target string       `json:"target"`
+}
+
+type repairEntry struct {
+	Key  string       `json:"key"`
+	Dir  rawpath.Path `json:"dir"`
+	Code string       `json:"code,omitempty"`
+}
+
+type repairReport struct {
+	Completed []repairEntry `json:"completed"`
+	Repaired  []repairEntry `json:"repaired"`
+	Removed   []repairEntry `json:"removed"`
+	Preserved []repairEntry `json:"preserved"`
+}
+
 // LinksCommand returns the links command.
 func LinksCommand(d Deps) Command {
-	panic("SUB-AGENT-TODO: T2 - return Command{Name: \"links\"} whose Run maps list->d.Linker.List, repair->d.Linker.Repair, remove --managed->d.Linker.RemoveManaged, reporting via WriteOK/WriteError; anything else is usage (exit 2)")
+	return Command{
+		Name:    "links",
+		Summary: "list, repair or remove managed .snapshot links",
+		Run: func(ctx context.Context, env Env, args []string) int {
+			usage := &UsageError{Msg: "usage: snapback links list|repair|remove --managed [--json]"}
+			if len(args) == 0 {
+				return WriteError(env, "links", false, usage)
+			}
+			fs := flag.NewFlagSet("links", flag.ContinueOnError)
+			fs.SetOutput(io.Discard)
+			managed := fs.Bool("managed", false, "remove every registry-owned link")
+			jsonOut, pos, err := ParseFlags(fs, args[1:])
+			if err == nil && len(pos) != 0 {
+				err = usage
+			}
+			if err != nil {
+				return WriteError(env, "links", jsonOut, err)
+			}
+			switch args[0] {
+			case "list":
+				recs, err := d.Linker.List()
+				if err != nil {
+					return WriteError(env, "links", jsonOut, err)
+				}
+				return writeRecords(env, jsonOut, recs)
+			case "repair":
+				rep, err := d.Linker.Repair(ctx)
+				if err != nil {
+					return WriteError(env, "links", jsonOut, err)
+				}
+				return writeReport(env, jsonOut, rep)
+			case "remove":
+				if !*managed {
+					return WriteError(env, "links", jsonOut, usage)
+				}
+				rep, err := d.Linker.RemoveManaged(ctx)
+				if err != nil {
+					return WriteError(env, "links", jsonOut, err)
+				}
+				return writeReport(env, jsonOut, rep)
+			}
+			return WriteError(env, "links", jsonOut, usage)
+		},
+	}
+}
+
+// writeRecords reports recs; Dir marshals as a string or {"b64":...}.
+func writeRecords(env Env, jsonOut bool, recs []links.Record) int {
+	out := make([]linkRecord, 0, len(recs))
+	var b strings.Builder
+	for _, r := range recs {
+		out = append(out, linkRecord{Key: r.Key, RootID: r.RootID, Dir: r.Dir, Target: r.Target})
+		fmt.Fprintf(&b, "%s  %q\n", r.Key, string(r.Dir))
+	}
+	if jsonOut {
+		return WriteOK(env, true, out)
+	}
+	return WriteOK(env, false, strings.TrimSuffix(b.String(), "\n"))
+}
+
+// writeReport reports what a Repair or RemoveManaged pass did.
+func writeReport(env Env, jsonOut bool, rep links.RepairReport) int {
+	var b strings.Builder
+	conv := func(label string, es []links.RepairEntry) []repairEntry {
+		out := make([]repairEntry, 0, len(es))
+		for _, e := range es {
+			out = append(out, repairEntry{Key: e.Key, Dir: e.Dir, Code: string(e.Code)})
+			fmt.Fprintf(&b, "%s  %s  %q  %s\n", label, e.Key, string(e.Dir), e.Code)
+		}
+		return out
+	}
+	out := repairReport{
+		Completed: conv("completed", rep.Completed),
+		Repaired:  conv("repaired", rep.Repaired),
+		Removed:   conv("removed", rep.Removed),
+		Preserved: conv("preserved", rep.Preserved),
+	}
+	if jsonOut {
+		return WriteOK(env, true, out)
+	}
+	return WriteOK(env, false, strings.TrimRight(b.String(), " \n"))
 }
