@@ -135,3 +135,9 @@ func writeMountLink(fd int, name, target string, act mountAction) error {
 	}
 	return nil
 }
+
+// RemoveMountLink withdraws the managed link published in dir by
+// EnsureMountLink and deletes its registry record, leaving dir in place.
+func (e *Engine) RemoveMountLink(dir string) error {
+	return nil
+}

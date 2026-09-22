@@ -18,6 +18,10 @@ import (
 // configured file modes, and mounting FUSE is not the daemon's business here.
 type MountLinker interface {
 	EnsureMountLink(ctx context.Context, dir, target string) (links.Result, error)
+
+	// RemoveMountLink withdraws the managed link published in dir, leaving
+	// the mount point directory itself in place.
+	RemoveMountLink(ctx context.Context, dir string) error
 }
 
 // ensureMountLinks links the mount point of every repository whose backend

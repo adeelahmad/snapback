@@ -24,9 +24,11 @@ type mountCall struct {
 // fakeMountLinker records every EnsureMountLink call and can fail them all,
 // standing in for the links engine so no real symlink or FUSE mount is made.
 type fakeMountLinker struct {
-	mu    sync.Mutex
-	calls []mountCall
-	err   error
+	mu        sync.Mutex
+	calls     []mountCall
+	removes   []string
+	err       error
+	removeErr error
 }
 
 func (f *fakeMountLinker) EnsureMountLink(_ context.Context, dir, target string) (links.Result, error) {
@@ -34,6 +36,19 @@ func (f *fakeMountLinker) EnsureMountLink(_ context.Context, dir, target string)
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, mountCall{dir: dir, target: target})
 	return links.Result{}, f.err
+}
+
+func (f *fakeMountLinker) RemoveMountLink(_ context.Context, dir string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.removes = append(f.removes, dir)
+	return f.removeErr
+}
+
+func (f *fakeMountLinker) removed() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.removes)
 }
 
 func (f *fakeMountLinker) list() []mountCall {

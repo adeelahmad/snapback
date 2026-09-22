@@ -18,3 +18,7 @@ type mountLinker struct {
 func (m mountLinker) EnsureMountLink(_ context.Context, dir, target string) (links.Result, error) {
 	return m.eng.EnsureMountLink(dir, target, m.mode)
 }
+
+func (m mountLinker) RemoveMountLink(_ context.Context, dir string) error {
+	return m.eng.RemoveMountLink(dir)
+}
