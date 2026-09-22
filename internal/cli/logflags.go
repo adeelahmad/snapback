@@ -3,6 +3,7 @@ package cli
 import (
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/logging"
@@ -22,8 +23,10 @@ type LogFlags struct {
 // which means "use the logging section of the config, then the defaults".
 func AddLogFlags(fs *flag.FlagSet) *LogFlags {
 	f := &LogFlags{}
-	fs.StringVar(&f.Level, "log-level", "", "log level, one of debug, info, warn, error; overrides logging.level")
-	fs.StringVar(&f.Format, "log-format", "", "log format, one of text, json; overrides logging.format")
+	fs.StringVar(&f.Level, "log-level", "",
+		fmt.Sprintf("log level, one of %s; overrides logging.level", strings.Join(logging.LevelNames(), ", ")))
+	fs.StringVar(&f.Format, "log-format", "",
+		fmt.Sprintf("log format, one of %s; overrides logging.format", strings.Join(logging.FormatNames(), ", ")))
 	fs.StringVar(&f.File, "log-file", "", "write logs to this file; overrides logging.file")
 	return f
 }
