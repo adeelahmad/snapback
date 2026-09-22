@@ -198,6 +198,12 @@ func (s *Server) browse(v *webui.HistoryView, b snapshotBrowser, root, p string,
 		return nil
 	}
 	snaps, _ := b.Snapshots(root, dir)
+	var warm map[provider.SnapshotID]bool
+	if s.opts.Backend != nil {
+		if st, ok := s.opts.Backend.Status().(status.Snapshot); ok {
+			warm = st.Warm
+		}
+	}
 	for _, sn := range snaps {
 		v.Timeline = append(v.Timeline, webui.SnapshotTick{
 			ID:       string(sn.ID),
@@ -205,6 +211,7 @@ func (s *Server) browse(v *webui.HistoryView, b snapshotBrowser, root, p string,
 			Alias:    sn.Alias,
 			Host:     sn.Host,
 			URL:      historyURL(root, p) + "&snapshot=" + url.QueryEscape(string(sn.ID)),
+			Warm:     warm[sn.ID],
 			Selected: sn.ID == id,
 		})
 	}

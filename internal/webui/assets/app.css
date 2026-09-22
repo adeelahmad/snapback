@@ -217,8 +217,9 @@ main {
 }
 
 .badge-muted {
+  background: var(--surface);
   color: var(--ink-muted);
-  border-style: dashed;
+  border: 1px solid var(--line-strong);
 }
 
 .caution {
