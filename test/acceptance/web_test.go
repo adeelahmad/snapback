@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -192,6 +193,10 @@ func TestAcc16WebCLIParityAndSecurity(t *testing.T) {
 		t.Errorf("GET /api/config body %q HTML-escapes the root name, want it JSON-encoded only", cfgBody)
 	}
 
+	t.Run("typed password setup starts the daemon", func(t *testing.T) {
+		typedPasswordSetup(t)
+	})
+
 	startDaemon(t, e)
 	var upCode int
 	var upBody string
@@ -224,4 +229,130 @@ func jsonStringContains(v any, sub string) bool {
 		}
 	}
 	return false
+}
+
+// csrfInputRE finds the CSRF token a server-rendered form carries.
+var csrfInputRE = regexp.MustCompile(`name="csrf_token" value="([^"]*)"`)
+
+// csrfToken returns the CSRF token of a rendered form page.
+func csrfToken(t *testing.T, html string) string {
+	t.Helper()
+	m := csrfInputRE.FindStringSubmatch(html)
+	if m == nil || m[1] == "" {
+		t.Fatalf("rendered form carries no csrf_token, want a hidden input; page:\n%s", html)
+	}
+	return m[1]
+}
+
+// yamlValue returns the value of the first `key: value` line of a config file,
+// at any indentation. The keys this test reads are written once each.
+func yamlValue(t *testing.T, yaml, key string) string {
+	t.Helper()
+	for _, line := range strings.Split(yaml, "\n") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), key+":"); ok {
+			return strings.Trim(strings.TrimSpace(v), `"'`)
+		}
+	}
+	t.Fatalf("config names no %s, want one; config:\n%s", key, yaml)
+	return ""
+}
+
+// typedPasswordSetup drives a first run with no configuration at all: the
+// whole config is written through POST /setup with the repository password
+// typed into the form, and the daemon then starts from what was written. The
+// secret must live in a 0600 credential file under the state dir, never in
+// config.yaml.
+func typedPasswordSetup(t *testing.T) {
+	t.Helper()
+	e := newEnv(t)
+	repo, pwFile := newRepo(t)
+	secretBytes, err := os.ReadFile(pwFile)
+	if err != nil {
+		t.Fatalf("read repo password file: %v", err)
+	}
+	secret := string(secretBytes)
+	if secret == "" {
+		t.Fatal("repo password file is empty, want a password to type")
+	}
+	resticBin, err := exec.LookPath("restic")
+	if err != nil {
+		t.Fatalf("look up restic: %v", err)
+	}
+	root := filepath.Join(e.Root, "work")
+	mkdirs(t, root, "proj")
+
+	cfgPath := filepath.Join(e.Config, "snapback", "config.yaml")
+	if _, err := os.Stat(cfgPath); !os.IsNotExist(err) {
+		t.Fatalf("stat %s before setup = %v, want it not to exist", cfgPath, err)
+	}
+
+	u := startWeb(t, e)
+	base := "http://" + u.Host
+	jar, _ := cookiejar.New(nil)
+	c := &http.Client{Jar: jar, CheckRedirect: noRedirect}
+	if code, _ := do(t, c, "GET", u.String(), nil, ""); code >= 400 {
+		t.Fatalf("GET bootstrap URL = %d, want a session", code)
+	}
+	code, page := do(t, c, "GET", base+"/setup", nil, "")
+	if code != http.StatusOK {
+		t.Fatalf("GET /setup with no config = %d, want 200", code)
+	}
+
+	form := url.Values{
+		"csrf_token":                    {csrfToken(t, page)},
+		"restic_path":                   {resticBin},
+		"rclone_path":                   {""},
+		"repo_uri":                      {repo},
+		"credential_file":               {""},
+		"repositories[0].password_mode": {"typed"},
+		"repositories[0].password":      {secret},
+		"repositories[0].mount_point":   {""},
+		"roots":                         {root},
+	}
+	hdr := map[string]string{"Content-Type": "application/x-www-form-urlencoded"}
+	code, body := do(t, c, "POST", base+"/setup", hdr, form.Encode())
+	if code != http.StatusSeeOther {
+		t.Fatalf("POST /setup with a typed password = %d, want 303; body:\n%s", code, body)
+	}
+
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatalf("read the config POST /setup wrote: %v", err)
+	}
+	yaml := string(data)
+	if strings.Contains(yaml, secret) {
+		t.Errorf("config written by POST /setup contains the typed password, want only a password_file path; config:\n%s", yaml)
+	}
+	stateDir := yamlValue(t, yaml, "state_dir")
+	credPath := yamlValue(t, yaml, "password_file")
+	if !isUnder(credPath, stateDir) {
+		t.Errorf("config password_file = %q, want a path under the state dir %q", credPath, stateDir)
+	}
+	fi, err := os.Stat(credPath)
+	if err != nil {
+		t.Fatalf("stat the credential file %q: %v", credPath, err)
+	}
+	if got := fi.Mode().Perm(); got != 0o600 {
+		t.Errorf("credential file %q mode = %04o, want 0600", credPath, got)
+	}
+	stored, err := os.ReadFile(credPath)
+	if err != nil {
+		t.Fatalf("read the credential file %q: %v", credPath, err)
+	}
+	if string(stored) != secret {
+		t.Errorf("credential file %q holds %d bytes that differ from the typed password, want the password verbatim", credPath, len(stored))
+	}
+
+	startDaemon(t, e)
+	var upCode int
+	var upBody string
+	elapsed, ok := waitFor(30*time.Second, func() bool {
+		upCode, upBody = do(t, c, "GET", base+"/api/status", nil, "")
+		return upCode == http.StatusOK
+	})
+	if !ok {
+		t.Errorf("daemon started from the setup-written config did not reach ready within %s, last /api/status = %d %s", elapsed, upCode, upBody)
+		return
+	}
+	t.Logf("evidence: setup-written config (typed password), daemon ready after %s, /api/status = %d %s", elapsed.Round(time.Millisecond), upCode, upBody)
 }
