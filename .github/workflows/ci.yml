@@ -100,6 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SNAPBACK_FUSE_TESTS: "1"
+      SNAPBACK_SYSTEMD_TESTS: "1"
       SNAPBACK_EVIDENCE_DIR: ${{ github.workspace }}/stage1-evidence
       SNAPBACK_BIN: ${{ github.workspace }}/bin/snapback
     steps:
@@ -112,7 +113,10 @@ jobs:
       - name: Install FUSE and crawler tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y fuse3 ripgrep fd-find rsync
+          sudo apt-get install -y fuse3 ripgrep fd-find rsync inotify-tools
+
+      - name: Expose fdfind as fd
+        run: sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd
 
       - name: Install restic 0.19.0
         run: |
@@ -140,6 +144,20 @@ jobs:
 
       - name: Build snapback for acceptance
         run: go build -o "$SNAPBACK_BIN" ./cmd/snapback
+
+      - name: Start the user systemd manager
+        run: |
+          sudo loginctl enable-linger "$USER"
+          bus="/run/user/$(id -u)/bus"
+          for _ in $(seq 30); do
+            [ -S "$bus" ] && break
+            sleep 1
+          done
+          if [ ! -S "$bus" ]; then
+            echo "::warning::user bus $bus did not appear; systemd tests will skip"
+          fi
+          echo "XDG_RUNTIME_DIR=/run/user/$(id -u)" >> "$GITHUB_ENV"
+          echo "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus" >> "$GITHUB_ENV"
 
       # The acceptance suite lands in a later task; skip until its sources exist.
       - name: Acceptance tests
