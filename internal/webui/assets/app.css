@@ -278,6 +278,43 @@ button,
   border-color: var(--line-strong);
 }
 
+.has-icon::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: var(--space-2);
+  vertical-align: -3px;
+  background-color: var(--ink-muted);
+  mask: center / contain no-repeat;
+}
+
+.icon-list::before { mask-image: url(icons/list.svg); }
+.icon-activity::before { mask-image: url(icons/activity.svg); }
+.icon-settings-2::before { mask-image: url(icons/settings-2.svg); }
+.icon-plug::before { mask-image: url(icons/plug.svg); }
+.icon-layers::before { mask-image: url(icons/layers.svg); }
+.icon-folder-open::before { mask-image: url(icons/folder-open.svg); }
+.icon-download::before { mask-image: url(icons/download.svg); }
+.icon-undo-2::before { mask-image: url(icons/undo-2.svg); }
+
+.icon-lg::before {
+  width: 20px;
+  height: 20px;
+}
+
+.has-icon:hover::before {
+  background-color: var(--ink);
+}
+
+.has-icon[aria-current]::before {
+  background-color: var(--blue);
+}
+
+.button.has-icon::before {
+  background-color: currentColor;
+}
+
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
