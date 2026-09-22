@@ -80,3 +80,46 @@ func TestPackageDoesNotExec(t *testing.T) {
 		}
 	}
 }
+
+func TestDetectAssembledResult(t *testing.T) {
+	wd := t.TempDir()
+	sibling := filepath.Join(filepath.Dir(wd), "sibling")
+	const (
+		repo     = "sftp:backup@example.com:/srv/restic"
+		password = "/etc/snapback/restic-password"
+		restic   = "/opt/snapback/bin/restic"
+		host     = "media-01"
+	)
+
+	env := map[string]string{
+		"RESTIC_REPOSITORY":    repo,
+		"RESTIC_PASSWORD_FILE": password,
+	}
+	deps := Deps{
+		Getenv: func(name string) string { return env[name] },
+		LookPath: func(name string) (string, error) {
+			if name == "restic" {
+				return restic, nil
+			}
+			return "", os.ErrNotExist
+		},
+		Getwd:    func() (string, error) { return wd, nil },
+		Excluded: []string{sibling},
+		Hostname: func() (string, error) { return host, nil },
+	}
+
+	got, err := Detect(deps)
+	if err != nil {
+		t.Fatalf("Detect(assembled) error = %v, want nil", err)
+	}
+	want := Result{
+		RepoURI:        repo,
+		CredentialFile: password,
+		ResticPath:     restic,
+		Roots:          []string{wd},
+		Hostname:       host,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Detect(assembled) = %+v, want %+v", got, want)
+	}
+}
