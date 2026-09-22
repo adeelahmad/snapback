@@ -84,6 +84,10 @@ func New(opts Options) (*Server, error) {
 	if err != nil {
 		return nil, errcode.New(errcode.InvalidConfig, "web.New", err)
 	}
+	if opts.Log == nil {
+		opts.Log = slog.New(slog.DiscardHandler)
+	}
+	opts.Log.Info("web listening", "addr", ln.Addr().String())
 	s := &Server{opts: opts, ln: ln, urlFile: filepath.Join(opts.StateDir, "web.url"), sess: newSessions(opts.Token)}
 	s.handler = s.guard(s.routes())
 

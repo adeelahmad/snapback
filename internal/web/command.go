@@ -19,6 +19,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/ipc"
 	"github.com/adeelahmad/snapback/internal/links"
+	"github.com/adeelahmad/snapback/internal/logging"
 	"github.com/adeelahmad/snapback/internal/webui"
 )
 
@@ -87,9 +88,7 @@ func Command() cli.Command {
 			allowRemote := fs.Bool("allow-remote", false, "allow a bind address that is not loopback")
 			var origins originList
 			fs.Var(&origins, "allow-origin", "also accept browser requests from this origin (repeatable)")
-			// SUB-AGENT-TODO: resolve these over cfg.Logging and give the
-			// resolved logger to the server (S5-36/T12).
-			_ = cli.AddLogFlags(fs)
+			logFlags := cli.AddLogFlags(fs)
 			help, err := cli.ParseWithUsage(fs, args)
 			if err != nil {
 				return cli.WriteError(env, "web", false, err)
@@ -97,7 +96,7 @@ func Command() cli.Command {
 			if help {
 				return 0
 			}
-			return serve(ctx, env, "web", *assets, *open, "", *withDaemon, *bind, *allowRemote, origins)
+			return serve(ctx, env, "web", *assets, *open, "", *withDaemon, *bind, *allowRemote, origins, logFlags)
 		},
 	}
 }
@@ -120,7 +119,7 @@ func ConfigCommand() cli.Command {
 			if *file != "" {
 				return saveFile(env, *file)
 			}
-			return serve(ctx, env, "config", "", true, "/setup", false, "", false, nil)
+			return serve(ctx, env, "config", "", true, "/setup", false, "", false, nil, &cli.LogFlags{})
 		},
 	}
 }
@@ -170,12 +169,31 @@ func loadOrDefault(path string) (*config.Config, config.Revision, error) {
 // serve starts the server for cmd, opens it at next when open allows and
 // serves until ctx is done. With withDaemon it also owns a daemon for that
 // whole time: started before the listener binds, stopped once serving ends.
-func serve(ctx context.Context, env cli.Env, cmd, assets string, open bool, next string, withDaemon bool, bind string, allowRemote bool, origins []string) int {
+func serve(ctx context.Context, env cli.Env, cmd, assets string, open bool, next string, withDaemon bool, bind string, allowRemote bool, origins []string, logFlags *cli.LogFlags) int {
 	cfg, _, err := loadOrDefault(env.ConfigPath)
 	if err != nil {
 		return cli.WriteError(env, cmd, false, err)
 	}
+	logOpts, err := logFlags.Resolve(cfg.Logging)
+	if err != nil {
+		return cli.WriteError(env, cmd, false, err)
+	}
+	modes, err := cfg.Files.Modes()
+	if err != nil {
+		return cli.WriteError(env, cmd, false, err)
+	}
+	w, closer, err := logging.Open(logOpts.File, modes.Dir, modes.File, env.Stderr)
+	if err != nil {
+		return cli.WriteError(env, cmd, false, err)
+	}
+	defer func() { _ = closer.Close() }()
+	logOpts.Writer = w
+	log, err := logging.New(logOpts, env.Stderr)
+	if err != nil {
+		return cli.WriteError(env, cmd, false, err)
+	}
 	opts := productionOptions(cfg, env.ConfigPath)
+	opts.Log = log
 	if bind == "" {
 		bind = cfg.Web.Bind
 	}
