@@ -30,6 +30,7 @@ type Mount struct {
 	done    chan struct{}
 	once    sync.Once
 	stopErr error
+	waitErr error
 }
 
 // StartMount starts name with args under a cancel-only context.
@@ -42,13 +43,15 @@ func StartMount(r MountStarter, name string, args []string, mnt string) (*Mount,
 	}
 	m := &Mount{cmd: cmd, cancel: cancel, mnt: mnt, starter: r, done: make(chan struct{})}
 	go func() {
-		_ = cmd.Wait()
+		m.waitErr = cmd.Wait()
 		close(m.done)
 	}()
 	return m, nil
 }
 
-// WaitReady polls until <mnt>/ids is a directory or ctx is done.
+// WaitReady polls until <mnt>/ids is a directory, the mount process exits or
+// ctx is done. ids is checked first so a mount that became ready and then
+// exited still counts as ready.
 func (m *Mount) WaitReady(ctx context.Context) error {
 	ids := filepath.Join(m.mnt, "ids")
 	ticker := time.NewTicker(readyPollInterval)
@@ -60,9 +63,23 @@ func (m *Mount) WaitReady(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("wait for %s: %w", ids, ctx.Err())
+		case <-m.done:
+			if fi, err := os.Stat(ids); err == nil && fi.IsDir() {
+				return nil
+			}
+			return fmt.Errorf("mount process exited before %s appeared: %w", ids, m.exitErr())
 		case <-ticker.C:
 		}
 	}
+}
+
+// exitErr is only valid after done is closed; a clean exit still means the
+// mount never became ready.
+func (m *Mount) exitErr() error {
+	if m.waitErr != nil {
+		return m.waitErr
+	}
+	return errors.New("exit status 0")
 }
 
 // Stop interrupts, unmounts and reaps the mount process; idempotent.
