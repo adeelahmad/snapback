@@ -71,6 +71,8 @@ func logUserService(t *testing.T) {
 		return
 	}
 	for _, args := range [][]string{
+		{"systemctl", "--user", "cat", "--no-pager", "snapback.service"},
+		{"systemctl", "--user", "show", "snapback.service", "-p", "ExecMainStatus,ExecMainCode,Result"},
 		{"systemctl", "--user", "status", "--no-pager", "snapback.service"},
 		{"journalctl", "--user", "-u", "snapback.service", "-n", "50", "--no-pager"},
 	} {
