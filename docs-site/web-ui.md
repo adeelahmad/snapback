@@ -93,7 +93,7 @@ configuration, grouped into these sections in this order.
 | General | the file's schema version, the `.snapshot` link name, whether times are shown in UTC or local time, and the state, history-mount and backend-mount directories |
 | Web | whether the local web UI runs, the listen and bind addresses, extra allowed browser origins, whether a browser is opened, and an assets directory |
 | Catalog | how often the snapshot catalog is refreshed, how many snapshots are prewarmed and with what concurrency, the presence cache size and lifetime, and the reader policy that throttles processes which enumerate snapshots |
-| Views | whether the rsnapshot-style view is offered, and how many hourly, daily, weekly and monthly snapshots it shows |
+| Views | whether the optional `daily.N`/`weekly.N` view names are offered, and how many hourly, daily, weekly and monthly snapshots they show |
 | Discovery | whether `.snapshot` links are seeded or created on access, the shell helper, the seed thresholds, and the processes and timeout on-access discovery answers |
 | Repositories | one row per Restic repository: its id, the repository URI, the restic and rclone binaries, the password file, the cache directory, the lock mode, an optional mount point and extra environment variables |
 | Roots | one row per local directory tree: its id, the local path, the repository it reads, the host-to-tree prefix map, which snapshots it shows, the seed paths, the relative paths it excludes and the tags ad-hoc snapshots get |
