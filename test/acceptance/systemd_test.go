@@ -158,6 +158,14 @@ func TestAcc17SystemdUserUnitVisibleAndClean(t *testing.T) {
 		t.Errorf("snapback link proj exit = %d, want 0; stderr: %s", code, stderr)
 	}
 
+	// link only registers the dir and the symlink; the aliases appear after the
+	// daemon's debounced refresh, so wait for the view before reading it.
+	if names, err := pollHistory(t, h.proj, func(n []string) bool {
+		return len(aliasesOnly(n)) > 0
+	}); err != nil || len(aliasesOnly(names)) == 0 {
+		t.Errorf("list proj/.snapshot within %v = %q, %v, want at least one alias", histPollCap, names, err)
+	}
+
 	// An independent shell, outside the daemon's process tree, lists the view.
 	out, err := exec.CommandContext(t.Context(), "/bin/sh", "-c", `ls -1 "$1/.snapshot/"`, "sh", h.proj).Output()
 	if names := strings.Fields(string(out)); err != nil || len(aliasesOnly(names)) == 0 {
