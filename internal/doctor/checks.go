@@ -90,12 +90,13 @@ func checkRclone(ctx context.Context, cfg *config.Config, p Probes) Check {
 	return Check{Name: "rclone", Status: statusOK, Detail: firstLine(out)}
 }
 
+// osReleasePath names the file that identifies the running Linux distribution.
+// Tests override it to point at a fixture.
+var osReleasePath = "/etc/os-release"
+
 // fuseFix explains the platform prerequisite; doctor never installs it.
 func fuseFix() string {
-	if runtime.GOOS == "darwin" {
-		return "install macFUSE yourself; snapback doctor never installs it"
-	}
-	return "install the fuse3 package with your distribution's package manager; snapback doctor never installs it"
+	return fuseFixText(runtime.GOOS, osReleasePath)
 }
 
 func checkFuseDevice(p Probes) Check {

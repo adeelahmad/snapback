@@ -234,3 +234,21 @@ func TestNeverStatsThroughMounts(t *testing.T) {
 		t.Errorf("inode_headroom with 5%% free and threshold 0.90 = %q, want warn", c.Status)
 	}
 }
+
+func TestFuseFixUsesOSRelease(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "os-release")
+	if err := os.WriteFile(path, []byte("ID=debian\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(%q) = %v, want no error", path, err)
+	}
+	saved := osReleasePath
+	osReleasePath = path
+	t.Cleanup(func() { osReleasePath = saved })
+
+	want := "sudo apt install fuse3"
+	if runtime.GOOS == "darwin" {
+		want = "install macFUSE yourself; snapback doctor never installs it"
+	}
+	if got := fuseFix(); got != want {
+		t.Errorf("fuseFix() = %q, want %q", got, want)
+	}
+}
