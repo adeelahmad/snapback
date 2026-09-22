@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -222,5 +223,58 @@ func TestSeedConfiguredPaths(t *testing.T) {
 		if got.root != w.root || got.seedPath != w.seedPath || got.maxDepth != w.maxDepth {
 			t.Errorf("seed PlanPath call %d = (%q, %q, %d), want (%q, %q, %d)", i, got.root, got.seedPath, got.maxDepth, w.root, w.seedPath, w.maxDepth)
 		}
+	}
+}
+
+func TestSeedHelpExitsZero(t *testing.T) {
+	cfg := seedFixture(t)
+
+	code, _, stderr := runSeed(seedDeps(&seedRig{}, cfg), "-h")
+
+	if code != 0 {
+		t.Fatalf("seed -h = %d, want 0 (stderr %q)", code, stderr)
+	}
+	for _, want := range []string{"Usage: snapback seed [flags] DIR", "Args:", "Example:", "-max-depth", "-dry-run", "-force"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("seed -h stderr = %q, want it to contain %q", stderr, want)
+		}
+	}
+}
+
+func TestSeedNamesLinkedPathsAndNextStep(t *testing.T) {
+	cfg := seedFixture(t)
+	r := cfg.Roots[0].LocalPath
+	docs, src := filepath.Join(r, "docs"), filepath.Join(r, "src")
+	rig := &seedRig{plan: seed.Plan{Dirs: []string{docs, src}, Count: 2}}
+
+	code, stdout, stderr := runSeed(seedDeps(rig, cfg), r)
+
+	if code != 0 {
+		t.Fatalf("seed R = %d, want 0 (stderr %q)", code, stderr)
+	}
+	lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
+	for _, want := range []string{"linked " + docs, "linked " + src, "linked 2, existing 0, failed 0"} {
+		if !slices.Contains(lines, want) {
+			t.Errorf("seed R stdout = %q, want a line %q", stdout, want)
+		}
+	}
+	if got, want := lines[len(lines)-1], "next: ls "+filepath.Join(docs, ".snapshot"); got != want {
+		t.Errorf("seed R last line = %q, want %q", got, want)
+	}
+}
+
+func TestSeedNothingLinkedNextStepIsLink(t *testing.T) {
+	cfg := seedFixture(t)
+	r := cfg.Roots[0].LocalPath
+	rig := &seedRig{plan: seed.Plan{}}
+
+	code, stdout, stderr := runSeed(seedDeps(rig, cfg), r)
+
+	if code != 0 {
+		t.Fatalf("seed R (nothing linked) = %d, want 0 (stderr %q)", code, stderr)
+	}
+	lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
+	if got, want := lines[len(lines)-1], "next: snapback link "+r; got != want {
+		t.Errorf("seed R (nothing linked) last line = %q, want %q", got, want)
 	}
 }
