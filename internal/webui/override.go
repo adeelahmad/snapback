@@ -9,16 +9,6 @@ import (
 	"strings"
 )
 
-// requiredOverrideFiles are the templates an override tree must carry.
-var requiredOverrideFiles = []string{
-	"templates/layout.html",
-	"templates/setup.html",
-	"templates/config.html",
-	"templates/history.html",
-	"templates/status.html",
-	"templates/integrations.html",
-}
-
 // Load parses the templates from override, or from the embedded files when
 // override is empty.
 func Load(override string) (*Pages, error) {
@@ -58,7 +48,12 @@ func loadOverride(override string) (*Pages, error) {
 	default:
 		return nil, fmt.Errorf("webui: override %s: not a directory or .zip file", override)
 	}
-	for _, name := range requiredOverrideFiles {
+	// An override must carry every template the embedded UI ships.
+	required, err := fs.Glob(embedded, "templates/*.html")
+	if err != nil {
+		return nil, fmt.Errorf("webui: list templates: %w", err)
+	}
+	for _, name := range required {
 		if _, err := fs.Stat(fsys, name); err != nil {
 			return nil, fmt.Errorf("webui: override %s: missing %s", override, name)
 		}
