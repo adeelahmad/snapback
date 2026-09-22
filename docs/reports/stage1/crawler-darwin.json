@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "goos": "darwin",
+  "goarch": "arm64",
+  "seed": {
+    "Depth": 3,
+    "Fanout": 3
+  },
+  "positive_control_hits": 4,
+  "rows": [
+    {
+      "tool": "rg",
+      "argv": [
+        "rg",
+        "--files",
+        "--hidden",
+        "--no-ignore",
+        "/var/folders/5z/jzg0v2j51d945mf6f6zbfqyr0000gn/T/TestCrawlerToolMatrix843868097/001/tree/live"
+      ],
+      "follows": false,
+      "status": "tested",
+      "hits": 0,
+      "ops": {},
+      "version": "ripgrep 15.1.0",
+      "exit_code": 0,
+      "duration": 42128458,
+      "reason": ""
+    },
+    {
+      "tool": "rg -L",
+      "argv": [
+        "rg",
+        "--files",
+        "--hidden",
+        "--no-ignore",
+        "-L",
+        "/var/folders/5z/jzg0v2j51d945mf6f6zbfqyr0000gn/T/TestCrawlerToolMatrix843868097/001/tree/live"
+      ],
+      "follows": true,
+      "status": "tested",
+      "hits": 761,
+      "ops": {
+        "lookup": 40,
+        "readdir": 1,
+        "readlink": 720
+      },
+      "version": "ripgrep 15.1.0",
+      "exit_code": 0,
+      "duration": 198692334,
+      "reason": ""
+    },
+    {
+      "tool": "fd",
+      "argv": [
+        "fd",
+        "-H",
+        "-I",
+        ".",
+        "/var/folders/5z/jzg0v2j51d945mf6f6zbfqyr0000gn/T/TestCrawlerToolMatrix843868097/001/tree/live"
+      ],
+      "follows": false,
+      "status": "tested",
+      "hits": 0,
+      "ops": {},
+      "version": "fd 10.5.0",
+      "exit_code": 0,
+      "duration": 29394625,
+      "reason": ""
+    },
+    {
+      "tool": "fd -L",
+      "argv": [
+        "fd",
+        "-H",
+        "-I",
+        "-L",
+        ".",
+        "/var/folders/5z/jzg0v2j51d945mf6f6zbfqyr0000gn/T/TestCrawlerToolMatrix843868097/001/tree/live"
+      ],
+      "follows": true,
+      "status": "tested",
+      "hits": 481,
+      "ops": {
+        "readdir": 1,
+        "readlink": 480
+      },
+      "version": "fd 10.5.0",
+      "exit_code": 0,
+      "duration": 141148000,
+      "reason": ""
+    },
+    {
+      "tool": "find",
+      "argv": [
+        "find",
+        "/var/folders/5z/jzg0v2j51d945mf6f6zbfqyr0000gn/T/TestCrawlerToolMatrix843868097/001/tree/live"
+      ],
+      "follows": false,
+      "status": "tested",
+      "hits": 0,
+      "ops": {},
+      "version": "",
+      "exit_code": 0,
+      "duration": 22357459,
+      "reason": ""
+    },
+    {
+      "tool": "find -L",
+      "argv": [
+        "find",
+        "-L",
+        "/var/folders/5z/jzg0v2j51d945mf6f6zbfqyr0000gn/T/TestCrawlerToolMatrix843868097/001/tree/live"
+      ],
+      "follows": true,
+      "status": "tested",
+      "hits": 400,
+      "ops": {
+        "readdir": 40,
+        "readlink": 360
+      },
+      "version": "",
+      "exit_code": 0,
+      "duration": 162552875,
+      "reason": ""
+    },
+    {
+      "tool": "rsync -a",
+      "argv": [
+        "rsync",
+        "-a",
+        "/var/folders/5z/jzg0v2j51d945mf6f6zbfqyr0000gn/T/TestCrawlerToolMatrix843868097/001/tree/live",
+        "/var/folders/5z/jzg0v2j51d945mf6f6zbfqyr0000gn/T/TestCrawlerToolMatrixrsync_-a3304704471/001/"
+      ],
+      "follows": false,
+      "status": "tested",
+      "hits": 0,
+      "ops": {},
+      "version": "rsync  version 3.3.0  protocol version 31",
+      "exit_code": 0,
+      "duration": 101597833,
+      "reason": ""
+    },
+    {
+      "tool": "vscode search",
+      "argv": null,
+      "follows": false,
+      "status": "not-tested-here",
+      "ops": null,
+      "version": "",
+      "exit_code": 0,
+      "duration": 0,
+      "reason": "VS Code search needs a GUI session; it follows symlinks only when search.followSymlinks is true (the default)"
+    }
+  ]
+}
