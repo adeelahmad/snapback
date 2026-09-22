@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,10 +17,24 @@ import (
 )
 
 const (
-	installUsage        = "usage: snapback install service [--scope user|system] [--user U] [--manager auto|systemd|launchd|openrc]"
-	serviceUsage        = "usage: snapback service start|stop|restart|status|uninstall"
 	defaultReadyTimeout = 30 * time.Second
+	// serviceNext is the next step both install service and service start print.
+	serviceNext = "snapback status"
 )
+
+// installUsage is the help text printed for install service -h and a bad flag.
+var installUsage = cli.Usage{
+	Synopsis: "install service [flags]",
+	Args:     "install service takes no positional arguments beyond the word \"service\".",
+	Example:  "snapback install service --scope user --manager systemd --user alice",
+}
+
+// serviceUsage is the help text printed for service -h and a bad verb or flag.
+var serviceUsage = cli.Usage{
+	Synopsis: "service <start|stop|restart|status|uninstall> [flags]",
+	Args:     "start|stop|restart|status|uninstall  the lifecycle action to take",
+	Example:  "snapback service status --scope user",
+}
 
 // errSystemScope refuses --scope system: v0.1 ships the systemd user unit only.
 func errSystemScope(op string) error {
@@ -122,31 +135,44 @@ func installCommand(d commandDeps) cli.Command {
 		Name:    "install",
 		Summary: "install the Snapback background service",
 		Run: func(ctx context.Context, env cli.Env, args []string) int {
-			if len(args) == 0 || args[0] != "service" {
-				_, _ = fmt.Fprintln(env.Stderr, installUsage)
-				return 2
-			}
-			fs := flag.NewFlagSet("install service", flag.ContinueOnError)
-			fs.SetOutput(env.Stderr)
+			fs := cli.NewFlagSet(env, installUsage)
+			jsonOut := fs.Bool("json", false, "write a JSON envelope")
 			scope := fs.String("scope", "user", "service scope: user or system")
 			user := fs.String("user", "", "run a system-scope service as this user")
 			manager := fs.String("manager", "auto", "service manager: auto, systemd, launchd or openrc")
-			jsonOut, pos, err := cli.ParseFlags(fs, args[1:])
-			if err == nil && (len(pos) != 0 || (*scope != "user" && *scope != "system")) {
-				err = &cli.UsageError{Msg: installUsage}
+			if len(args) == 0 || args[0] != "service" {
+				fs.Usage()
+				if len(args) != 0 && (args[0] == "-h" || args[0] == "--help") {
+					return 0
+				}
+				return 2
 			}
+			help, err := cli.ParseWithUsage(fs, args[1:])
 			if err != nil {
-				_, _ = fmt.Fprintln(env.Stderr, installUsage)
-				return cli.WriteError(env, "install service", jsonOut, err)
+				return cli.WriteError(env, "install service", *jsonOut, err)
+			}
+			if help {
+				return 0
+			}
+			if fs.NArg() != 0 || (*scope != "user" && *scope != "system") {
+				fs.Usage()
+				return cli.WriteError(env, "install service", *jsonOut,
+					&cli.UsageError{Msg: "install service takes no positional arguments and --scope must be user or system"})
 			}
 			if *scope == "system" {
-				return cli.WriteError(env, "install service", jsonOut, errSystemScope("install service"))
+				return cli.WriteError(env, "install service", *jsonOut, errSystemScope("install service"))
 			}
 			unitPath, err := install(ctx, d, env, UnitOptions{Scope: *scope, User: *user}, Manager(*manager))
 			if err != nil {
-				return cli.WriteError(env, "install service", jsonOut, err)
+				return cli.WriteError(env, "install service", *jsonOut, err)
 			}
-			return cli.WriteOK(env, jsonOut, fmt.Sprintf("installed %s; daemon ready", unitPath))
+			if code := cli.WriteOK(env, *jsonOut, fmt.Sprintf("installed %s; daemon ready", unitPath)); code != 0 || *jsonOut {
+				return code
+			}
+			if err := cli.WriteNext(env.Stdout, serviceNext); err != nil {
+				return 1
+			}
+			return 0
 		},
 	}
 }
@@ -186,25 +212,30 @@ func install(ctx context.Context, d commandDeps, env cli.Env, o UnitOptions, m M
 func serviceCommand(d commandDeps) cli.Command {
 	return cli.Command{
 		Name:    "service",
-		Summary: "start, stop, restart, inspect or uninstall the service",
+		Summary: "start, stop, restart, status or uninstall the service",
 		Run: func(ctx context.Context, env cli.Env, args []string) int {
-			if len(args) == 0 {
-				_, _ = fmt.Fprintln(env.Stderr, serviceUsage)
+			fs := cli.NewFlagSet(env, serviceUsage)
+			scope := fs.String("scope", "user", "service scope: user or system")
+			verb := ""
+			if len(args) != 0 && !strings.HasPrefix(args[0], "-") {
+				verb, args = args[0], args[1:]
+			}
+			help, err := cli.ParseWithUsage(fs, args)
+			if err != nil {
 				return 2
 			}
-			fs := flag.NewFlagSet("service "+args[0], flag.ContinueOnError)
-			fs.SetOutput(env.Stderr)
-			scope := fs.String("scope", "user", "service scope: user or system")
-			if err := fs.Parse(args[1:]); err != nil || fs.NArg() != 0 {
-				_, _ = fmt.Fprintln(env.Stderr, serviceUsage)
+			if help {
+				return 0
+			}
+			if fs.NArg() != 0 {
+				fs.Usage()
 				return 2
 			}
 			if *scope == "system" {
-				return cli.WriteError(env, "service "+args[0], false, errSystemScope("service "+args[0]))
+				return cli.WriteError(env, "service "+verb, false, errSystemScope("service "+verb))
 			}
 			s := &Systemd{UnitDir: d.unitDir, Run: d.run}
-			var err error
-			switch args[0] {
+			switch verb {
 			case "start":
 				err = s.Start(ctx)
 			case "stop":
@@ -225,11 +256,16 @@ func serviceCommand(d commandDeps) cli.Command {
 				}
 				err = s.Uninstall(ctx)
 			default:
-				_, _ = fmt.Fprintln(env.Stderr, serviceUsage)
+				fs.Usage()
 				return 2
 			}
 			if err != nil {
-				return cli.WriteError(env, "service "+args[0], false, err)
+				return cli.WriteError(env, "service "+verb, false, err)
+			}
+			if verb == "start" {
+				if err := cli.WriteNext(env.Stdout, serviceNext); err != nil {
+					return 1
+				}
 			}
 			return 0
 		},
