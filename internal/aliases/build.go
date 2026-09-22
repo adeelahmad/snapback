@@ -1,5 +1,3 @@
-// agentic:shim
-
 package aliases
 
 import "github.com/adeelahmad/snapback/internal/provider"
@@ -18,7 +16,7 @@ type Set struct {
 	Rsnapshot map[string]provider.SnapshotID
 }
 
-// Build is a RED compile shim; it deliberately returns an empty Set.
-func Build(_ []provider.Snapshot, _ Options) Set {
-	return Set{}
+// Build renders the alias names, per-date groups and rsnapshot views for snaps.
+func Build(snaps []provider.Snapshot, opts Options) Set {
+	panic("SUB-AGENT-TODO: T2 render baseName/dateOf per snapshot in renderZone(opts), resolve name collisions deterministically, group into ByDate; leave Rsnapshot nil")
 }
