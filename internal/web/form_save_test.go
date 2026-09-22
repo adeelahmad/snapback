@@ -3,8 +3,12 @@ package web
 import (
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/adeelahmad/snapback/internal/config"
 )
 
 // formHeader returns the headers of a logged-in HTML form post.
@@ -163,5 +167,53 @@ func TestSetupFormSavesAndRedirectsToStatus(t *testing.T) {
 	}
 	if got, want := b.saved[0].Roots[0].LocalPath, "/home/edited"; got != want {
 		t.Errorf("POST /setup: root local path = %q, want %q", got, want)
+	}
+}
+
+// TestSetupFormFirstRunSavesConfigWithDefaults pins the first-run contract:
+// a config assembled by the Setup form on a machine with no config file
+// carries the same defaults as a parsed one, so it validates and is written.
+func TestSetupFormFirstRunSavesConfigWithDefaults(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("XDG_STATE_HOME", filepath.Join(tmp, "state"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmp, "xdgconfig"))
+	pass := filepath.Join(tmp, "password")
+	if err := os.WriteFile(pass, []byte("pw\n"), 0o600); err != nil {
+		t.Fatalf("os.WriteFile(password) error = %v", err)
+	}
+	repo, root := filepath.Join(tmp, "repo"), filepath.Join(tmp, "home")
+	for _, d := range []string{repo, root} {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			t.Fatalf("os.MkdirAll(%q) error = %v", d, err)
+		}
+	}
+	cfgPath := filepath.Join(tmp, "xdgconfig", "snapback", "config.yaml")
+	srv, cookie, csrf := newTestServer(t, Options{Backend: fileBackend{path: cfgPath}})
+
+	form := url.Values{
+		csrfField:         {csrf},
+		"restic_path":     {"/usr/local/bin/restic"},
+		"repo_uri":        {repo},
+		"credential_file": {pass},
+		"roots":           {root + "\n"},
+	}
+	w := do(t, srv, http.MethodPost, "/setup", strings.NewReader(form.Encode()), formHeader(cookie))
+
+	if got, want := w.Code, http.StatusSeeOther; got != want {
+		t.Fatalf("POST /setup on first run: status = %d, want %d (body %q)", got, want, w.Body.String())
+	}
+	saved, _, err := config.Load(cfgPath)
+	if err != nil {
+		t.Fatalf("config.Load(saved config) error = %v", err)
+	}
+	if err := config.Validate(saved); err != nil {
+		t.Errorf("config.Validate(saved config) = %v, want nil", err)
+	}
+	if len(saved.Repositories) == 0 {
+		t.Fatalf("saved repositories = 0, want 1")
+	}
+	if got, want := saved.Repositories[0].LockMode, "normal"; got != want {
+		t.Errorf("saved repositories[0].lock_mode = %q, want %q", got, want)
 	}
 }
