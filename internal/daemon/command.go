@@ -43,7 +43,7 @@ func Command(build Builder) cli.Command {
 			if err := os.MkdirAll(cfg.StateDir, 0o700); err != nil {
 				return cli.WriteError(env, "run", false, errcode.New(errcode.PermissionDenied, "create state dir", err))
 			}
-			unlock, err := Lock(cfg.StateDir)
+			unlock, err := lockFunc(cfg.StateDir)
 			if err != nil {
 				return cli.WriteError(env, "run", false, err)
 			}
@@ -63,9 +63,7 @@ func Command(build Builder) cli.Command {
 				_, _ = fmt.Fprintf(env.Stderr, "snapback run: %s: %v\n", code, err)
 				return 1
 			}
-			// Daemon.Run takes the lock itself; flock is per open file, so
-			// release ours first.
-			unlock()
+			deps.Unlock = unlock
 			if err := New(cfg, deps).Run(ctx); err != nil {
 				return cli.WriteError(env, "run", false, err)
 			}

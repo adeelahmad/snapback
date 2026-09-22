@@ -86,6 +86,10 @@ type Deps struct {
 	// Trace, when set, is called with the daemon's own startup steps
 	// ("lock", "ipc") so tests can check their order.
 	Trace func(step string)
+	// Unlock, when set, releases a daemon lock the caller already holds for
+	// the state dir. Run then uses that lock instead of taking its own and
+	// calls Unlock once on return.
+	Unlock func()
 }
 
 // defaultShutdownTimeout bounds shutdown when Deps leaves it unset.
@@ -144,13 +148,20 @@ func (d *Daemon) trace(step string) {
 
 // Run starts the daemon and blocks until ctx is done.
 func (d *Daemon) Run(ctx context.Context) error {
+	unlock := d.deps.Unlock
 	if d.cfg == nil || len(d.cfg.Repositories) == 0 || len(d.cfg.Roots) == 0 {
+		if unlock != nil {
+			unlock()
+		}
 		return errcode.New(errcode.InvalidConfig, "daemon run", errors.New("config needs repositories and roots"))
 	}
 
-	unlock, err := Lock(d.cfg.StateDir)
-	if err != nil {
-		return err
+	if unlock == nil {
+		var err error
+		unlock, err = lockFunc(d.cfg.StateDir)
+		if err != nil {
+			return err
+		}
 	}
 	defer unlock()
 	d.trace("lock")
