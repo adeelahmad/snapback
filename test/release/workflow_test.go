@@ -263,3 +263,34 @@ func TestWorkflowReleaseCommitsAuthoredByUser(t *testing.T) {
 		}
 	}
 }
+
+// TestReleaseNotesRenderCommitBodies pins S5-28: squash merges collapse a range into one
+// commit, so the release body must render that commit's body, not just its subject line.
+func TestReleaseNotesRenderCommitBodies(t *testing.T) {
+	opts := loadReleaserc(t).pluginOptions(t, pluginNotesGenerator)
+	writer, ok := opts["writerOpts"].(map[string]any)
+	if !ok {
+		t.Fatalf("%s %s has no writerOpts; commit bodies would be dropped", releasercFile, pluginNotesGenerator)
+	}
+	partial, _ := writer["commitPartial"].(string)
+	if !strings.Contains(partial, "{{body}}") {
+		t.Errorf("%s commitPartial = %q, want it to render {{body}}", pluginNotesGenerator, partial)
+	}
+	if !strings.Contains(partial, "subject") && !strings.Contains(partial, "header") {
+		t.Errorf("%s commitPartial = %q, want it to keep the commit subject too", pluginNotesGenerator, partial)
+	}
+}
+
+// TestWorkflowFooterNamesArchives pins the release footer naming the darwin universal
+// archive and the all-arch tarball whenever goreleaser produced them.
+func TestWorkflowFooterNamesArchives(t *testing.T) {
+	gr := jobBlock(t, readWorkflow(t), "goreleaser")
+	for _, want := range []string{"darwin_universal", "all_arch"} {
+		if !strings.Contains(gr, want) {
+			t.Errorf("goreleaser job does not name %q in the release footer", want)
+		}
+	}
+	if !regexp.MustCompile(`gh release edit`).MatchString(gr) {
+		t.Errorf("goreleaser job has no step that assembles the release body")
+	}
+}
