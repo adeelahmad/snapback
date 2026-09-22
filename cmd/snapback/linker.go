@@ -20,25 +20,45 @@ import (
 	"github.com/adeelahmad/snapback/internal/resolver"
 )
 
-// lazyLinker is a cli.Linker that builds the links engine from the
-// configuration on its first call and reuses it afterwards.
+// daemonProbe reports whether a daemon holds the state dir lock. The linker
+// calls it at most once per process.
+var daemonProbe = daemon.Running
+
+// lazyLinker is a cli.Linker that loads the configuration and decides its
+// route, daemon or direct, on its first call and reuses both afterwards.
 type lazyLinker struct {
 	load func(path string) (config.Config, error)
 	path string
 
-	mu  sync.Mutex
-	eng *links.Engine
+	mu        sync.Mutex
+	loaded    bool
+	cfg       config.Config
+	cfgErr    error
+	decided   bool
+	useDaemon bool
+	client    *ipc.Client
+	eng       *links.Engine
 }
 
-// engine returns the cached engine, building it on first use. A config or
-// registry error is returned and nothing is cached, so a later call retries.
+// config returns the configuration, loading it once, errors included. The
+// caller holds l.mu.
+func (l *lazyLinker) config() (config.Config, error) {
+	if !l.loaded {
+		l.cfg, l.cfgErr = l.load(l.path)
+		l.loaded = true
+	}
+	return l.cfg, l.cfgErr
+}
+
+// engine returns the cached engine, building it on first use. A registry
+// error is returned and no engine is cached, so a later call retries.
 func (l *lazyLinker) engine() (*links.Engine, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.eng != nil {
 		return l.eng, nil
 	}
-	cfg, err := l.load(l.path)
+	cfg, err := l.config()
 	if err != nil {
 		return nil, err
 	}
@@ -99,24 +119,33 @@ const (
 // holds the state dir lock, so the caller falls back to the registry. While
 // a daemon holds the lock it keeps dialling for daemonDialWait and then fails
 // with PrereqMissing rather than open the registry the daemon owns. A not-OK
-// reply keeps the daemon's code.
+// reply keeps the daemon's code. The route is decided once; the daemon route
+// reuses one connection and redials once if it breaks.
 func (l *lazyLinker) viaDaemon(ctx context.Context, req ipc.Request, out any) (bool, error) {
-	cfg, err := l.load(l.path)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	cfg, err := l.config()
 	if err != nil {
 		return true, err
 	}
 	sock := ipc.SocketPath(os.Getenv, cfg.StateDir)
-	c, err := ipc.Dial(ctx, sock)
-	if err != nil {
-		if !daemon.Running(cfg.StateDir) {
-			return false, nil
+	if !l.decided {
+		c, err := ipc.Dial(ctx, sock)
+		if err != nil {
+			if !daemonProbe(cfg.StateDir) {
+				l.decided = true
+				return false, nil
+			}
+			if c, err = dialWait(ctx, sock); err != nil {
+				return true, errcode.New(errcode.PrereqMissing, "daemon holds the state lock but its socket did not answer", err)
+			}
 		}
-		if c, err = dialWait(ctx, sock); err != nil {
-			return true, errcode.New(errcode.PrereqMissing, "daemon holds the state lock but its socket did not answer", err)
-		}
+		l.decided, l.useDaemon, l.client = true, true, c
 	}
-	defer func() { _ = c.Close() }()
-	resp, err := c.Call(ctx, req)
+	if !l.useDaemon {
+		return false, nil
+	}
+	resp, err := l.call(ctx, sock, req)
 	if err != nil {
 		return true, err
 	}
@@ -127,6 +156,25 @@ func (l *lazyLinker) viaDaemon(ctx context.Context, req ipc.Request, out any) (b
 		return true, fmt.Errorf("decode daemon %s: %w", req.Op, err)
 	}
 	return true, nil
+}
+
+// call sends req on the cached connection, redialling once if it is missing
+// or broken. The caller holds l.mu.
+func (l *lazyLinker) call(ctx context.Context, sock string, req ipc.Request) (ipc.Response, error) {
+	if l.client != nil {
+		resp, err := l.client.Call(ctx, req)
+		if err == nil {
+			return resp, nil
+		}
+		_ = l.client.Close()
+		l.client = nil
+	}
+	c, err := ipc.Dial(ctx, sock)
+	if err != nil {
+		return ipc.Response{}, err
+	}
+	l.client = c
+	return c.Call(ctx, req)
 }
 
 // dialWait retries ipc.Dial on sock every daemonDialBackoff until it answers
