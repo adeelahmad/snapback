@@ -10,6 +10,7 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/fsmode"
 )
 
 // Save writes cfg to path through the configuration layer, so setup and the
@@ -37,12 +38,12 @@ func Save(cfg *config.Config, path string) error {
 	if len(old) == 0 {
 		return nil
 	}
-	return mergeUnknownKeys(path, old)
+	return mergeUnknownKeys(path, old, fsmode.SecureFile)
 }
 
 // mergeUnknownKeys rewrites path with the top-level keys of old that the
 // freshly written configuration does not carry.
-func mergeUnknownKeys(path string, old []byte) error {
+func mergeUnknownKeys(path string, old []byte, mode fs.FileMode) error {
 	var oldDoc, newDoc yaml.Node
 	if err := yaml.Unmarshal(old, &oldDoc); err != nil {
 		return fmt.Errorf("setup.save: previous config: %w", err)
@@ -84,7 +85,7 @@ func mergeUnknownKeys(path string, old []byte) error {
 	if err := enc.Close(); err != nil {
 		return fmt.Errorf("setup.save: merge: %w", err)
 	}
-	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
+	if err := os.WriteFile(path, buf.Bytes(), mode); err != nil {
 		return fmt.Errorf("setup.save: %w", err)
 	}
 	return nil
