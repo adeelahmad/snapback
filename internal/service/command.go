@@ -16,6 +16,7 @@ import (
 
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/errcode"
 )
 
 const (
@@ -23,6 +24,12 @@ const (
 	serviceUsage        = "usage: snapback service start|stop|restart|status|uninstall"
 	defaultReadyTimeout = 30 * time.Second
 )
+
+// errSystemScope refuses --scope system: v0.1 ships the systemd user unit only.
+func errSystemScope(op string) error {
+	return errcode.New(errcode.UnsupportedServiceManager, op,
+		errors.New("v0.1 supports systemd user scope only; use --scope user"))
+}
 
 // commandDeps is the seam the install service and service commands run on.
 type commandDeps struct {
@@ -155,6 +162,9 @@ func installCommand(d commandDeps) cli.Command {
 				_, _ = fmt.Fprintln(env.Stderr, installUsage)
 				return cli.WriteError(env, "install service", jsonOut, err)
 			}
+			if *scope == "system" {
+				return cli.WriteError(env, "install service", jsonOut, errSystemScope("install service"))
+			}
 			unitPath, err := install(ctx, d, env, UnitOptions{Scope: *scope, User: *user}, Manager(*manager))
 			if err != nil {
 				return cli.WriteError(env, "install service", jsonOut, err)
@@ -201,9 +211,19 @@ func serviceCommand(d commandDeps) cli.Command {
 		Name:    "service",
 		Summary: "start, stop, restart, inspect or uninstall the service",
 		Run: func(ctx context.Context, env cli.Env, args []string) int {
-			if len(args) != 1 {
+			if len(args) == 0 {
 				_, _ = fmt.Fprintln(env.Stderr, serviceUsage)
 				return 2
+			}
+			fs := flag.NewFlagSet("service "+args[0], flag.ContinueOnError)
+			fs.SetOutput(env.Stderr)
+			scope := fs.String("scope", "user", "service scope: user or system")
+			if err := fs.Parse(args[1:]); err != nil || fs.NArg() != 0 {
+				_, _ = fmt.Fprintln(env.Stderr, serviceUsage)
+				return 2
+			}
+			if *scope == "system" {
+				return cli.WriteError(env, "service "+args[0], false, errSystemScope("service "+args[0]))
 			}
 			s := &Systemd{UnitDir: d.unitDir, Run: d.run}
 			var err error
