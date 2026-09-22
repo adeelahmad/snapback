@@ -145,7 +145,23 @@ func (r *runner) prepareRepo(ctx context.Context) (string, error) {
 	if len(snaps) == 0 || snaps[len(snaps)-1].ID == "" {
 		return "", errors.New("restic snapshots: no snapshot ID")
 	}
-	return snaps[len(snaps)-1].ID, nil
+	id := snaps[len(snaps)-1].ID
+	if !isFullSnapshotID(id) {
+		return "", fmt.Errorf("restic snapshots: snapshot id %q is not 64 lowercase hex chars", id)
+	}
+	return id, nil
+}
+
+func isFullSnapshotID(id string) bool {
+	if len(id) != 64 {
+		return false
+	}
+	for _, c := range id {
+		if !strings.ContainsRune("0123456789abcdef", c) {
+			return false
+		}
+	}
+	return true
 }
 
 func writeDataFiles(dir string) error {
