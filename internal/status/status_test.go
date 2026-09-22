@@ -5,9 +5,12 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/provider"
+	"github.com/adeelahmad/snapback/internal/refresh"
 )
 
 func TestDeriveReadyAndDegraded(t *testing.T) {
@@ -117,5 +120,39 @@ func TestSnapshotJSONHasNoCredentials(t *testing.T) {
 		if _, ok := reposJSON[0][key]; !ok {
 			t.Errorf("Repos[0] JSON = %s, want key %q", top["Repos"], key)
 		}
+	}
+}
+
+func TestFromRefreshCopiesFields(t *testing.T) {
+	idA := provider.SnapshotID(strings.Repeat("a", 64))
+	idB := provider.SnapshotID(strings.Repeat("b", 64))
+	at := time.Date(2026, 9, 22, 6, 0, 0, 0, time.UTC)
+	newInput := func() refresh.Result {
+		return refresh.Result{
+			Generation:    3,
+			At:            at,
+			Stale:         true,
+			Failed:        []string{"repoA"},
+			Pending:       []provider.SnapshotID{idB},
+			EligibleCount: map[string]int{"k": 2},
+			Warm:          map[provider.SnapshotID]bool{idA: true},
+		}
+	}
+	in := newInput()
+	want := newInput()
+
+	got := FromRefresh(in)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("FromRefresh(%+v) = %+v, want %+v", in, got, want)
+	}
+
+	in.Failed[0] = "mutated"
+	in.Pending[0] = idA
+	in.EligibleCount["k"] = 99
+	in.EligibleCount["extra"] = 1
+	in.Warm[idA] = false
+	in.Warm[idB] = true
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("FromRefresh result after mutating its input = %+v, want %+v (input not copied)", got, want)
 	}
 }
