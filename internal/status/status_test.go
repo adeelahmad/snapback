@@ -156,3 +156,51 @@ func TestFromRefreshCopiesFields(t *testing.T) {
 		t.Errorf("FromRefresh result after mutating its input = %+v, want %+v (input not copied)", got, want)
 	}
 }
+
+func TestSnapshotCarriesRecoverySummary(t *testing.T) {
+	b, err := json.Marshal(Snapshot{State: "ready"})
+	if err != nil {
+		t.Fatalf("json.Marshal(snapshot without recovery) error = %v", err)
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(b, &top); err != nil {
+		t.Fatalf("json.Unmarshal(%s) error = %v", b, err)
+	}
+	for _, key := range []string{"recovery", "Recovery"} {
+		if _, ok := top[key]; ok {
+			t.Errorf("json.Marshal(snapshot with nil Recovery) = %s, want no %q key", b, key)
+		}
+	}
+
+	want := &RecoverySummary{
+		Unmounted: []string{"/run/snapback/mnt/repoA"},
+		Foreign:   []string{"/home/u/.snapshot"},
+	}
+	snap := Snapshot{State: "ready", Recovery: want}
+	b, err = json.Marshal(snap)
+	if err != nil {
+		t.Fatalf("json.Marshal(%+v) error = %v", snap, err)
+	}
+	top = nil
+	if err := json.Unmarshal(b, &top); err != nil {
+		t.Fatalf("json.Unmarshal(%s) error = %v", b, err)
+	}
+	raw, ok := top["recovery"]
+	if !ok {
+		t.Fatalf("json.Marshal(snapshot with Recovery) = %s, want key %q", b, "recovery")
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		t.Fatalf("json.Unmarshal(recovery %s) error = %v", raw, err)
+	}
+	if len(fields) != 2 {
+		t.Errorf("recovery JSON = %s, want only the Unmounted and Foreign path lists", raw)
+	}
+	var got RecoverySummary
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("json.Unmarshal(recovery %s) error = %v", raw, err)
+	}
+	if !reflect.DeepEqual(&got, want) {
+		t.Errorf("recovery JSON round trip = %+v, want %+v", got, *want)
+	}
+}

@@ -137,12 +137,13 @@ func (f *fakeLinker) total() int {
 }
 
 type fakeRecoverer struct {
-	rec *recorder
+	rec    *recorder
+	report recovery.Report
 }
 
 func (f *fakeRecoverer) Recover(context.Context) (recovery.Report, error) {
 	f.rec.add("recover")
-	return recovery.Report{}, nil
+	return f.report, nil
 }
 
 type fakeDiscovery struct {

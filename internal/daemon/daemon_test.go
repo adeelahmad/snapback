@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -14,6 +15,8 @@ import (
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/history"
+	"github.com/adeelahmad/snapback/internal/ipc"
+	"github.com/adeelahmad/snapback/internal/recovery"
 	"github.com/adeelahmad/snapback/internal/status"
 )
 
@@ -156,5 +159,22 @@ func TestStartupDoesNotWalkRoots(t *testing.T) {
 	waitState(t, d, 2*time.Second, func(s string) bool { return s == "ready" })
 	if got := h.linker.total(); got != 0 {
 		t.Errorf("Linker.Ensure calls during startup = %d, want 0", got)
+	}
+}
+
+func TestStartupRecoveryReportedInStatus(t *testing.T) {
+	h := newHarness(t)
+	h.deps.Recoverer = &fakeRecoverer{rec: h.rec, report: recovery.Report{
+		Unmounted: []string{"a", "b"},
+		Foreign:   []string{"c"},
+	}}
+	d := New(h.cfg, h.deps)
+	start(t, d)
+	waitState(t, d, 2*time.Second, func(s string) bool { return s == "ready" })
+
+	s := decodeSnapshot(t, call(d, ipc.Request{Op: ipc.OpStatus}))
+	want := &status.RecoverySummary{Unmounted: []string{"a", "b"}, Foreign: []string{"c"}}
+	if !reflect.DeepEqual(s.Recovery, want) {
+		t.Errorf("status op Recovery = %+v, want %+v", s.Recovery, want)
 	}
 }

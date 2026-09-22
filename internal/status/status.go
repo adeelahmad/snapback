@@ -36,6 +36,7 @@ type Snapshot struct {
 	Discovery     string
 	Throttle      []readerpolicy.ThrottleEvent
 	WebURL        string
+	Recovery      *RecoverySummary
 }
 
 // Derive computes the overall daemon state and the sorted per-repository
