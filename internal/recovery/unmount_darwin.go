@@ -1,7 +1,15 @@
 package recovery
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"os/exec"
+)
 
 func defaultUnmount(ctx context.Context, point string) error {
-	panic("SUB-AGENT-TODO: T3a: exec.CommandContext(ctx, \"umount\", \"-f\", point) via argv; wrap the error with the point and combined output")
+	out, err := exec.CommandContext(ctx, "umount", "-f", point).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("unmount %s: %w: %s", point, err, out)
+	}
+	return nil
 }
