@@ -140,7 +140,7 @@ func TestAPIConfigStaleRevisionIs409(t *testing.T) {
 func TestAPISetupValidateAndIntegrations(t *testing.T) {
 	v := &fakeValidator{errs: []error{errcode.New(errcode.RepoUnavailable, "restic.validate", errors.New("repository not found"))}}
 	opts := Options{Backend: &fakeBackend{cfg: &config.Config{}, rev: "r1"}}
-	opts.setValidator(v)
+	opts.Validator = v
 	srv, cookie, csrf := newTestServer(t, opts)
 
 	type result struct {

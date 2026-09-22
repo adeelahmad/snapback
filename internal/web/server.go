@@ -32,13 +32,14 @@ type Backend interface {
 
 // Options configures New.
 type Options struct {
-	Listen   string
-	Pages    *webui.Pages
-	Backend  Backend
-	StateDir string
-	History  History
-	Token    string
-	Stdout   io.Writer
+	Listen    string
+	Pages     *webui.Pages
+	Backend   Backend
+	StateDir  string
+	History   History
+	Token     string
+	Stdout    io.Writer
+	Validator SetupValidator
 }
 
 // Server is the local web server.
@@ -107,6 +108,10 @@ func (s *Server) routes() http.Handler {
 		mux.Handle("GET /history", s.requireSession(http.HandlerFunc(s.handleHistory)))
 		mux.Handle("GET /integrations", s.requireSession(http.HandlerFunc(s.handleIntegrations)))
 	}
+	mux.Handle("GET /api/status", s.requireSession(http.HandlerFunc(s.handleAPIStatus)))
+	mux.Handle("GET /api/config", s.requireSession(http.HandlerFunc(s.handleAPIConfigGet)))
+	mux.Handle("POST /api/setup/validate", s.requireSession(http.HandlerFunc(s.handleAPISetupValidate)))
+	mux.Handle("GET /api/integrations", s.requireSession(http.HandlerFunc(s.handleAPIIntegrations)))
 	mux.Handle("/", s.requireSession(http.NotFoundHandler()))
 	return mux
 }
