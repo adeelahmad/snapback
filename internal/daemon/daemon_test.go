@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/history"
 	"github.com/adeelahmad/snapback/internal/ipc"
+	"github.com/adeelahmad/snapback/internal/mount"
 	"github.com/adeelahmad/snapback/internal/recovery"
 	"github.com/adeelahmad/snapback/internal/status"
 )
@@ -176,5 +178,109 @@ func TestStartupRecoveryReportedInStatus(t *testing.T) {
 	want := &status.RecoverySummary{Unmounted: []string{"a", "b"}, Foreign: []string{"c"}}
 	if !reflect.DeepEqual(s.Recovery, want) {
 		t.Errorf("status op Recovery = %+v, want %+v", s.Recovery, want)
+	}
+}
+
+// recordingPublisher records every catalog published to it.
+type recordingPublisher struct {
+	mu   sync.Mutex
+	cats []mount.Catalog
+}
+
+func (p *recordingPublisher) Publish(cat mount.Catalog) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.cats = append(p.cats, cat)
+}
+
+func (p *recordingPublisher) published() []mount.Catalog {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return slices.Clone(p.cats)
+}
+
+// oneEntryCatalog resolves a single name under the root inode.
+type oneEntryCatalog struct {
+	name string
+	ino  uint64
+}
+
+func (c *oneEntryCatalog) Lookup(parent uint64, name string) (uint64, mount.Kind, bool) {
+	if parent != rootIno || name != c.name {
+		return 0, 0, false
+	}
+	return c.ino, mount.KindDir, true
+}
+
+func (c *oneEntryCatalog) ReadDir(dir uint64) ([]string, bool) {
+	if dir != rootIno {
+		return nil, false
+	}
+	return []string{c.name}, true
+}
+
+func (c *oneEntryCatalog) Readlink(uint64) (string, bool) { return "", false }
+
+func (c *oneEntryCatalog) ReadFile(uint64) ([]byte, bool) { return nil, false }
+
+// rootIno is the inode the fake catalogs list their entry under.
+const rootIno = 1
+
+// lookupResult carries a Lookup made from another goroutine.
+type lookupResult struct {
+	ino   uint64
+	found bool
+}
+
+func TestReadyPublisherWaitsForFirstPublish(t *testing.T) {
+	rec := &recordingPublisher{}
+	pub := NewReadyPublisher(rec)
+	served := pub.cat
+
+	got := make(chan lookupResult, 1)
+	go func() {
+		ino, _, found := served.Lookup(rootIno, "daily")
+		got <- lookupResult{ino, found}
+	}()
+	select {
+	case r := <-got:
+		t.Fatalf("Lookup(1, daily) = %d, %t before the first publish, want a wait", r.ino, r.found)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	pub.Publish(&oneEntryCatalog{name: "daily", ino: 7})
+	select {
+	case r := <-got:
+		if r.ino != 7 || !r.found {
+			t.Errorf("Lookup(1, daily) = %d, %t, want 7, true", r.ino, r.found)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Lookup(1, daily) did not return after the first publish")
+	}
+	if !pub.ready.IsReady() {
+		t.Error("IsReady() = false after the first publish, want true")
+	}
+}
+
+func TestReadyPublisherServesLaterGenerations(t *testing.T) {
+	rec := &recordingPublisher{}
+	pub := NewReadyPublisher(rec)
+
+	pub.Publish(&oneEntryCatalog{name: "daily", ino: 7})
+	pub.Publish(&oneEntryCatalog{name: "weekly", ino: 9})
+
+	cats := rec.published()
+	if len(cats) != 2 {
+		t.Fatalf("published() = %d catalogs, want 2", len(cats))
+	}
+	if cats[0] != cats[1] {
+		t.Errorf("published() = two different catalogs, want the same gated catalog")
+	}
+	if !pub.ready.IsReady() {
+		t.Error("IsReady() = false after two publishes, want true")
+	}
+	ino, _, found := cats[1].Lookup(rootIno, "weekly")
+	if ino != 9 || !found {
+		t.Errorf("Lookup(1, weekly) = %d, %t, want 9, true", ino, found)
 	}
 }

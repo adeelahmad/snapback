@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/config"
@@ -19,6 +20,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/history"
 	"github.com/adeelahmad/snapback/internal/ipc"
 	"github.com/adeelahmad/snapback/internal/links"
+	"github.com/adeelahmad/snapback/internal/mount"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/readerpolicy"
 	"github.com/adeelahmad/snapback/internal/recovery"
@@ -518,6 +520,82 @@ func (d *Daemon) countLinks() {
 // Run builds a Daemon and runs it.
 func Run(ctx context.Context, cfg *config.Config, deps Deps) error {
 	return New(cfg, deps).Run(ctx)
+}
+
+// catalogHolder serves the generation published most recently, so the catalog
+// handed to the FUSE adapter stays one object across publishes.
+type catalogHolder struct {
+	cur atomic.Pointer[mount.Catalog]
+}
+
+// set makes cat the generation the holder serves.
+func (h *catalogHolder) set(cat mount.Catalog) { h.cur.Store(&cat) }
+
+// catalog returns the generation held, or nil before the first publish.
+func (h *catalogHolder) catalog() mount.Catalog {
+	if p := h.cur.Load(); p != nil {
+		return *p
+	}
+	return nil
+}
+
+// Lookup resolves name in the generation held.
+func (h *catalogHolder) Lookup(parent uint64, name string) (ino uint64, kind mount.Kind, found bool) {
+	cat := h.catalog()
+	if cat == nil {
+		return 0, 0, false
+	}
+	return cat.Lookup(parent, name)
+}
+
+// ReadDir lists dir in the generation held.
+func (h *catalogHolder) ReadDir(dir uint64) (names []string, found bool) {
+	cat := h.catalog()
+	if cat == nil {
+		return nil, false
+	}
+	return cat.ReadDir(dir)
+}
+
+// Readlink reads the link at ino in the generation held.
+func (h *catalogHolder) Readlink(ino uint64) (target string, found bool) {
+	cat := h.catalog()
+	if cat == nil {
+		return "", false
+	}
+	return cat.Readlink(ino)
+}
+
+// ReadFile reads the file at ino in the generation held.
+func (h *catalogHolder) ReadFile(ino uint64) (data []byte, found bool) {
+	cat := h.catalog()
+	if cat == nil {
+		return nil, false
+	}
+	return cat.ReadFile(ino)
+}
+
+// ReadyPublisher publishes every generation through one catalog gated by a
+// readiness barrier, so lookups and listings that arrive before the first
+// publish wait for it instead of reporting that the name does not exist.
+type ReadyPublisher struct {
+	pub   mount.Publisher
+	ready *mount.Ready
+	held  *catalogHolder
+	cat   mount.Catalog
+}
+
+// NewReadyPublisher returns a Publisher that serves pub's adapter a gated view
+// of the generations published through it.
+func NewReadyPublisher(pub mount.Publisher) *ReadyPublisher {
+	held := &catalogHolder{}
+	return &ReadyPublisher{pub: pub, ready: mount.NewReady(), held: held, cat: held}
+}
+
+// Publish serves cat as the current generation.
+func (p *ReadyPublisher) Publish(cat mount.Catalog) {
+	p.held.set(cat)
+	p.pub.Publish(p.cat)
 }
 
 // markAll adds every repo in repos to set.
