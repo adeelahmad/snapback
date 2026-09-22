@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/rawpath"
 	"github.com/adeelahmad/snapback/internal/resolver"
 )
@@ -23,6 +24,7 @@ type info struct {
 	Key       string         `json:"key"`
 	RepoID    string         `json:"repo_id"`
 	State     string         `json:"state"`
+	Code      string         `json:"code,omitempty"`
 	Stale     bool           `json:"stale"`
 	Snapshots []infoSnapshot `json:"snapshots"`
 	Pending   []string       `json:"pending"`
@@ -45,6 +47,9 @@ func infoJSON(d Dir, state string, stale bool, linked []resolver.Eligible) ([]by
 		Stale:     stale,
 		Snapshots: []infoSnapshot{},
 		Pending:   []string{},
+	}
+	if state == stateUnavailable {
+		doc.Code = string(errcode.RepoUnavailable)
 	}
 	for _, e := range linked {
 		s := infoSnapshot{ID: string(e.Snapshot.ID), Time: e.Snapshot.Time.UTC().Format(time.RFC3339)}
