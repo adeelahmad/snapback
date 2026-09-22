@@ -55,10 +55,23 @@ func writeBundleFor(env cli.Env, checks []Check, cfg *config.Config, dir string)
 	return 0
 }
 
-// daemonLog returns the daemon log held in the configured state directory, or
-// nil when the configuration names no state directory or holds no log.
+// daemonLog returns the configured daemon log: logging.file when the
+// configuration names one, otherwise the log held in the state directory. A
+// configured file that cannot be read becomes a placeholder naming it, so the
+// bundle says why the log is absent instead of dropping the member silently.
+// The result is nil when the configuration names neither.
 func daemonLog(cfg *config.Config) []byte {
-	if cfg == nil || cfg.StateDir == "" {
+	if cfg == nil {
+		return nil
+	}
+	if path := cfg.Logging.File; path != "" {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return []byte(fmt.Sprintf("%s missing: no log file at %s\n", daemonLogName, path))
+		}
+		return b
+	}
+	if cfg.StateDir == "" {
 		return nil
 	}
 	b, err := os.ReadFile(filepath.Join(cfg.StateDir, daemonLogName))
