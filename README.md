@@ -79,7 +79,7 @@ snapback stands on the shoulders of [httm](https://github.com/kimono-koans/httm)
 
 ## Documentation
 
-- Docs site: https://snapback.run/
+- Docs site: https://snapback.run/docs/
 - [SPEC.md](SPEC.md): the product specification.
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the code is organised.
 - [CONTRIBUTING.md](CONTRIBUTING.md): how to build, test and send changes.

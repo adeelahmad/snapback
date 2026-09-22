@@ -1,0 +1,122 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  color: var(--ink-body);
+  background-color: var(--canvas);
+  background-image:
+    radial-gradient(circle at 15% 10%, var(--glass-tint-green), transparent 40%),
+    radial-gradient(circle at 85% 60%, var(--glass-tint-blue), transparent 45%);
+  background-attachment: fixed;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) var(--space-16);
+}
+
+h1,
+h2 {
+  color: var(--ink);
+}
+
+a {
+  color: var(--accent-text);
+}
+
+a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-8);
+}
+
+.site-header__home img {
+  display: block;
+  height: 32px;
+  width: auto;
+}
+
+.site-header__nav {
+  display: flex;
+  gap: var(--space-6);
+}
+
+.glass {
+  background: var(--glass-fill);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-md);
+  box-shadow:
+    inset 0 0 0 0.5px var(--glass-stroke),
+    inset 0 1px 0 var(--glass-highlight),
+    var(--shadow-glass);
+  padding: var(--space-4) var(--space-6);
+}
+
+.glass pre {
+  margin: 0;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  color: var(--ink);
+}
+
+.hero {
+  padding: var(--space-12) 0;
+}
+
+.hero h1 {
+  margin: 0 0 var(--space-8);
+  max-width: 24ch;
+}
+
+.hero__status {
+  margin-top: var(--space-6);
+  color: var(--ink-muted);
+}
+
+.how {
+  padding: var(--space-8) 0;
+}
+
+.how__label {
+  color: var(--ink-muted);
+}
+
+.terminal__cmd::before {
+  content: '$ ';
+  color: var(--ink-muted);
+}
+
+.terminal__out {
+  color: var(--ink-muted);
+}
+
+.limits,
+.install,
+.status {
+  padding: var(--space-8) 0;
+}
+
+.install p {
+  margin: var(--space-4) 0 0;
+}
+
+.status__state {
+  color: var(--ink-muted);
+}
+
+.site-footer {
+  display: flex;
+  gap: var(--space-6);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--line);
+}
