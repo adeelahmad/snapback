@@ -7,8 +7,8 @@ type Kind uint8
 
 // Entry kinds.
 const (
-	KindDir     Kind = 0 // SUB-AGENT-TODO: distinct non-zero value per tasks.md T2
-	KindSymlink Kind = 0 // SUB-AGENT-TODO: distinct non-zero value per tasks.md T2
+	KindDir     Kind = 1
+	KindSymlink Kind = 2
 )
 
 // Entry is one node in a catalog.
@@ -26,14 +26,23 @@ type Op uint8
 
 // Observed operations.
 const (
-	OpLookup   Op = 0 // SUB-AGENT-TODO: distinct value per tasks.md T2
-	OpReadDir  Op = 0 // SUB-AGENT-TODO: distinct value per tasks.md T2
-	OpReadlink Op = 0 // SUB-AGENT-TODO: distinct value per tasks.md T2
+	OpLookup   Op = 1
+	OpReadDir  Op = 2
+	OpReadlink Op = 3
 )
 
 // String returns the operation name.
 func (o Op) String() string {
-	panic("SUB-AGENT-TODO: return the operation name per TestOpString table (tasks.md T2)")
+	switch o {
+	case OpLookup:
+		return "lookup"
+	case OpReadDir:
+		return "readdir"
+	case OpReadlink:
+		return "readlink"
+	default:
+		return "unknown"
+	}
 }
 
 // Event is one observed operation on a path.
