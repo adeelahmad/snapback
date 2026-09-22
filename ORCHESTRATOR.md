@@ -4,7 +4,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 24
+- **Tick:** 25
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 EXECUTION — wave 1 merged (S2-01, S2-02, S2-03 on stage-1 @ e893fea); S2-05 T1-T2 merged; wave 2: S2-04 (T1 scaffold), S2-08 (T1-T3 RED) in flight
 - **Last gate:** GREEN on stage-1 @ e893fea (full standards matrix, cov 88.6%); master @ f0f0d5b green on GitHub
@@ -385,6 +385,11 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 24 | S2-04/T1 RED | red-worker | passed — 9/9 FAIL by assertion (ENOSYS from shim), attr tests PASS, vet ok; chain2/s2-04 → 3a027b8; plan-ready 21 boxes | — |
 | 24 | S2-04/T1 scaffold | scaffolder | spawned 02:50Z | — |
 | 24 | S2-08/T1,T2,T3 RED | red-worker ×3 | spawned 02:50Z in parallel (disjoint files + per-task shims; S2-03 landed → S2-08 unblocked) | — |
+| 25 | S2-08/T1,T2,T3 RED | red-worker ×3 | passed — combined by cherry-pick: 14 FAIL by assertion + TestNoThresholdSymbolsInPackage PASS-ON-RED (static negative guard); lint 0; chain2/s2-08 → e85e18b; plan-ready 34 boxes | — |
+| 25 | S2-04/T1 scaffold | scaffolder | passed — fs.go stubs, shim deleted, attr tests PASS; chain2/s2-04 → e8bde6b | — |
+| 25 | S2-04/T1 GREEN | green-worker | passed — 18/18 PASS -race; lint 0; chain2/s2-04 → 4c448ed | — |
+| 25 | S2-01+S2-02 structural | structural-reviewer | KILLED at ~6.5 min (no findings written) | split → S2-01/structural + S2-02/structural, git-grep scope only, no whole-repo plugin gate |
+| 25 | S2-08/T1-T3 scaffold, S2-08/T4 RED, S2-03/fix-hang RED, S2-04/T2 RED, S2-04/T3 RED, S2-01/structural, S2-02/structural | various | spawned 02:54Z (7 running; non-overlapping files) | — |
 
 ## Plugin issues found
 
