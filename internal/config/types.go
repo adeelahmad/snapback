@@ -19,6 +19,7 @@ type Config struct {
 	Roots           []Root       `yaml:"roots"`
 	Service         Service      `yaml:"service"`
 	Telemetry       Telemetry    `yaml:"telemetry,omitempty"`
+	Logging         Logging      `yaml:"logging,omitempty"`
 }
 
 // Telemetry records the answer to the setup opt-in question. It is off by

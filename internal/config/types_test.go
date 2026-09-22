@@ -48,6 +48,7 @@ func TestConfigYAMLTagsAreSnakeCase(t *testing.T) {
 	want := []string{
 		"version", "link_name", "timestamps", "state_dir", "history_mount", "backend_mount_dir",
 		"web", "catalog", "views", "discovery", "repositories", "roots", "service", "telemetry",
+		"logging",
 	}
 	var got []string
 	for i := range typ.NumField() {
