@@ -54,7 +54,18 @@ ctime and birth time: FUSE-approximated; recorded, not claimed.
 
 ## Latency over rclone:gdrive
 
-Not filled yet.
+Each row is one measurement from `latency.json`, in milliseconds.
+
+| Measurement | Median (ms) | Min (ms) | Max (ms) | Samples |
+| --- | --- | --- | --- | --- |
+| cold_listing | 32.7 | 32.7 | 32.7 | 1 |
+| warm_prewarmed_listing | 1.4 | 0.7 | 2.2 | 3 |
+| cold_first_file_read | 3012.4 | 3012.4 | 3012.4 | 1 |
+| warm_listing_after_restart | 6.4 | 4.4 | 21.1 | 3 |
+
+Data: 100 files, 4096 bytes
+
+Remote deleted: true
 
 ## Crawler hit counts
 
