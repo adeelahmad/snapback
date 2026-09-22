@@ -238,3 +238,39 @@ func TestOpenMetacharacterPath(t *testing.T) {
 		t.Errorf("Exec args[0] = %q, want %q", r.execArgs[0], want)
 	}
 }
+
+func TestOpenHelpExitsZero(t *testing.T) {
+	r := &openRecorder{available: true}
+	env, _, errb := newEnv(nil)
+
+	got := OpenCommand(openDeps(r)).Run(context.Background(), env, []string{"-h"})
+
+	if got != 0 {
+		t.Fatalf("open -h = %d, want 0", got)
+	}
+	for _, want := range []string{"Usage: snapback open [flags] DIR", "Args:", "--json", "Example:"} {
+		if !strings.Contains(errb.String(), want) {
+			t.Errorf("open -h stderr = %q, want it to contain %q", errb.String(), want)
+		}
+	}
+	if r.execs != 0 {
+		t.Errorf("Exec calls = %d, want 0", r.execs)
+	}
+}
+
+func TestOpenUnknownFlagExitsTwo(t *testing.T) {
+	r := &openRecorder{available: true}
+	env, _, errb := newEnv(nil)
+
+	got := OpenCommand(openDeps(r)).Run(context.Background(), env, []string{"--nope", "d"})
+
+	if got != 2 {
+		t.Fatalf("open --nope d = %d, want 2", got)
+	}
+	if want := "Usage: snapback open"; !strings.Contains(errb.String(), want) {
+		t.Errorf("open --nope d stderr = %q, want it to contain %q", errb.String(), want)
+	}
+	if r.execs != 0 {
+		t.Errorf("Exec calls = %d, want 0", r.execs)
+	}
+}
