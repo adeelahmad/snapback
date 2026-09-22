@@ -90,7 +90,10 @@ type Deps struct {
 	Recoverer  Recoverer
 	Discovery  Discovery
 	Prewarmer  Prewarmer
-	Listener   net.Listener
+	// MountLinker publishes each repository's mount-point link. A nil
+	// MountLinker disables mount points entirely.
+	MountLinker MountLinker
+	Listener    net.Listener
 	// Log receives the daemon's operational lines: one per refresh outcome
 	// and one per failed mount. New substitutes a discarding logger when it
 	// is nil.
