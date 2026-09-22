@@ -1,8 +1,11 @@
 package web
 
 import (
+	"net/url"
 	"regexp"
+	"strings"
 
+	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/webui"
 )
 
@@ -36,4 +39,34 @@ func Split(fields []webui.Field) (basic, advanced Group) {
 	}
 	basic.Count, advanced.Count = len(basic.Fields), len(advanced.Fields)
 	return basic, advanced
+}
+
+// FormSections renders cfg as the basic/advanced split the form shows: the
+// controls of each group, with every error anchored to its own control, and
+// the advanced badge counting the fields Split hid, not the controls the
+// password mode adds.
+func FormSections(cfg *config.Config, byPath map[string]string, form url.Values) webui.FormSections {
+	basic, advanced := Split(Fields(cfg))
+	return webui.FormSections{
+		Basic:         groupSections(basic.Fields, byPath, form),
+		Advanced:      groupSections(advanced.Fields, byPath, form),
+		AdvancedCount: advanced.Count,
+	}
+}
+
+// groupSections turns one group's fields into its sections, keeping the
+// password controls attached to the repository's password file.
+func groupSections(fields []webui.Field, byPath map[string]string, form url.Values) []webui.ConfigSection {
+	var out []webui.ConfigSection
+	for _, sec := range webui.Sections(fields) {
+		s := webui.ConfigSection{Title: sec.Title}
+		for _, f := range sec.Fields {
+			s.Controls = append(s.Controls, control(f, byPath[f.Path]))
+			if prefix, ok := strings.CutSuffix(f.Path, ".password_file"); ok {
+				s.Controls = append(s.Controls, passwordControls(prefix, byPath, form)...)
+			}
+		}
+		out = append(out, s)
+	}
+	return out
 }

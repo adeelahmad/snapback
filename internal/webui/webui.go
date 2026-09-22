@@ -47,7 +47,7 @@ var contentTypes = map[string]string{
 // load parses templates/layout.html with the control partials and pairs a
 // clone of it with every other templates/*.html file, one set per page.
 func load(fsys fs.FS) (*Pages, error) {
-	layout, err := template.ParseFS(fsys, "templates/layout.html", "templates/controls.html")
+	layout, err := template.ParseFS(fsys, "templates/layout.html", "templates/controls.html", "templates/sections.html")
 	if err != nil {
 		return nil, fmt.Errorf("webui: parse layout: %w", err)
 	}

@@ -64,3 +64,11 @@ func RenderInstanceCards(cards []InstanceCardView) (template.HTML, error) {
 	}
 	return template.HTML(buf.String()), nil // #nosec G203 -- built from the embedded template, which escapes every card value
 }
+
+// InstancesView is the Instances page model: the rendered cards and the
+// page-level error banner.
+type InstancesView struct {
+	Chrome
+	Cards  template.HTML
+	Errors []string
+}

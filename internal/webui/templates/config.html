@@ -13,23 +13,8 @@
 <form method="post" action="/config">
 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <input type="hidden" name="revision" value="{{.Revision}}">
-{{if .Sections}}
-{{range .Sections}}
-<section class="config-section">
-<h2>{{.Title}}</h2>
-{{range .Controls}}
-{{if eq .Kind "row"}}<h3 class="config-section__row">{{.Label}}</h3>
-{{else if eq .Kind "select"}}{{template "control-select" .}}
-{{else if eq .Kind "number"}}{{template "control-number" .}}
-{{else if eq .Kind "duration"}}{{template "control-duration" .}}
-{{else if eq .Kind "toggle"}}{{template "control-toggle" .}}
-{{else if eq .Kind "chips"}}{{template "control-chips" .}}
-{{else if eq .Kind "password"}}{{template "control-password" .}}
-{{else}}{{template "control-input" .}}
-{{end}}
-{{end}}
-</section>
-{{end}}
+{{if .FormSections.Basic}}
+{{template "form-sections" .FormSections}}
 {{else}}
 <label for="roots">Roots, one per line</label>
 <textarea id="roots" name="roots" rows="4">{{range .Roots}}{{.}}

@@ -192,8 +192,39 @@ func (s *Server) handleIntegrations(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleInstances renders the backup instances as one card per repository.
-func (s *Server) handleInstances(w http.ResponseWriter, _ *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+func (s *Server) handleInstances(w http.ResponseWriter, r *http.Request) {
+	v := webui.InstancesView{Chrome: s.chrome(r, "instances", "Instances")}
+	if s.opts.Backend != nil {
+		cfg, _, err := s.opts.Backend.Config()
+		if err != nil {
+			v.Errors = append(v.Errors, err.Error())
+		}
+		if cfg != nil {
+			cards, err := webui.RenderInstanceCards(instanceCardViews(cfg))
+			if err != nil {
+				v.Errors = append(v.Errors, err.Error())
+			}
+			v.Cards = cards
+		}
+	}
+	s.render(w, "instances_page", v)
+}
+
+// instanceCardViews maps the instance cards of cfg onto their view model.
+func instanceCardViews(cfg *config.Config) []webui.InstanceCardView {
+	cards := InstanceCards(cfg)
+	out := make([]webui.InstanceCardView, len(cards))
+	for i, c := range cards {
+		v := webui.InstanceCardView{ID: c.ID, Type: c.Type, MountPoint: c.MountPoint}
+		for _, f := range c.Fields {
+			v.Controls = append(v.Controls, control(f, ""))
+		}
+		for _, root := range c.Roots {
+			v.Roots = append(v.Roots, root.LocalPath)
+		}
+		out[i] = v
+	}
+	return out
 }
 
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
@@ -205,6 +236,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		v.Revision = string(rev)
 		if cfg != nil {
+			v.FormSections = FormSections(cfg, nil, nil)
 			fillConfigView(&v, cfg)
 		}
 	}

@@ -1,0 +1,10 @@
+{{define "content"}}<h1>Instances</h1>
+{{if .Errors}}
+<div class="errors" role="alert">
+<ul>
+{{range .Errors}}<li>{{.}}</li>
+{{end}}</ul>
+</div>
+{{end}}
+{{.Cards}}
+{{end}}

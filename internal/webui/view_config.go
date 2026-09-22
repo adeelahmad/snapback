@@ -48,6 +48,7 @@ type ConfigView struct {
 	Chrome
 	Revision        string
 	Sections        []ConfigSection
+	FormSections    FormSections
 	Roots           []string
 	Filters         []string
 	Exclusions      []string

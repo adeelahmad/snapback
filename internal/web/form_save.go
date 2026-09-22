@@ -201,7 +201,7 @@ func (s *Server) renderConfigForm(w http.ResponseWriter, r *http.Request, cfg *c
 		Errors:   banner,
 	}
 	if cfg != nil {
-		v.Sections = configControls(cfg, byPath, r.PostForm)
+		v.FormSections = FormSections(cfg, byPath, r.PostForm)
 	}
 	w.WriteHeader(status)
 	s.render(w, "config", v)
