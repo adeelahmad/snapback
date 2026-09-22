@@ -81,15 +81,14 @@ queued, not at the receiver.
 
 ### Seeing and deleting what was collected
 
-Two commands are planned; neither is available today.
+A `telemetry` subcommand is planned, with two verbs; neither is available
+today.
 
-- `snapback telemetry status` will print exactly what is on, the configured
-  endpoint, the installation identifier and the full last payload as it was or
-  would be delivered, in the machine-readable JSON form used elsewhere in
-  snapback.
-- `snapback telemetry off` will stop all reporting immediately, delete the
-  local queue and the installation identifier, and keep the setting off across
-  upgrades.
+- The `status` verb will print exactly what is on, the configured endpoint, the
+  installation identifier and the full last payload as it was or would be
+  delivered, in the machine-readable JSON form used elsewhere in snapback.
+- The `off` verb will stop all reporting immediately, delete the local queue
+  and the installation identifier, and keep the setting off across upgrades.
 
 Nothing will ever be uploaded retroactively: whatever was not reported while
 telemetry was on is gone.
