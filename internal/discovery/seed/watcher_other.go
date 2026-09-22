@@ -2,9 +2,14 @@
 
 package seed
 
-import "context"
+import (
+	"context"
+	"errors"
+
+	"github.com/adeelahmad/snapback/internal/errcode"
+)
 
 // Run reports that directory watching needs Linux inotify.
 func (w *Watcher) Run(ctx context.Context) error {
-	panic("SUB-AGENT-TODO: return errcode.New(errcode.PrereqMissing, ...) naming inotify/Linux as the missing prerequisite")
+	return errcode.New(errcode.PrereqMissing, "seed.Watcher.Run", errors.New("directory watching needs inotify, which is only available on linux"))
 }
