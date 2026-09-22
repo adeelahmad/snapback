@@ -1,13 +1,11 @@
 package service
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -17,6 +15,8 @@ import (
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/ipc"
+	"github.com/adeelahmad/snapback/internal/status"
 )
 
 const (
@@ -95,46 +95,32 @@ func userUnitDir(getenv func(string) string) string {
 	return filepath.Join(getenv("HOME"), ".config", "systemd", "user")
 }
 
-// statusReady asks the daemon socket for its status and returns its state.
+// statusReady asks the daemon for its status over ipc and returns its state.
 func statusReady(env cli.Env) func(ctx context.Context) (string, error) {
 	return func(ctx context.Context) (string, error) {
 		cfg, _, err := config.Load(env.ConfigPath)
 		if err != nil {
 			return "", err
 		}
-		sock := filepath.Join(cfg.StateDir, "run", "daemon.sock")
-		if xdg := env.Getenv("XDG_RUNTIME_DIR"); xdg != "" {
-			sock = filepath.Join(xdg, "snapback", "daemon.sock")
-		}
-		var d net.Dialer
-		conn, err := d.DialContext(ctx, "unix", sock)
+		c, err := ipc.Dial(ctx, ipc.SocketPath(env.Getenv, cfg.StateDir))
 		if err != nil {
 			return "", err
 		}
-		defer func() { _ = conn.Close() }()
-		if err := conn.SetDeadline(time.Now().Add(time.Second)); err != nil {
-			return "", err
-		}
-		if _, err := conn.Write([]byte(`{"v":1,"op":"status"}` + "\n")); err != nil {
-			return "", err
-		}
-		line, err := bufio.NewReader(conn).ReadBytes('\n')
+		defer func() { _ = c.Close() }()
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		defer cancel()
+		resp, err := c.Call(ctx, ipc.Request{V: 1, Op: ipc.OpStatus})
 		if err != nil {
-			return "", err
-		}
-		var resp struct {
-			OK   bool `json:"ok"`
-			Data struct {
-				State string `json:"state"`
-			} `json:"data"`
-		}
-		if err := json.Unmarshal(line, &resp); err != nil {
 			return "", err
 		}
 		if !resp.OK {
 			return "", errors.New("daemon status request failed")
 		}
-		return resp.Data.State, nil
+		var snap status.Snapshot
+		if err := json.Unmarshal(resp.Data, &snap); err != nil {
+			return "", err
+		}
+		return snap.State, nil
 	}
 }
 

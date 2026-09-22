@@ -81,14 +81,18 @@ func (s *Systemd) Install(ctx context.Context, o UnitOptions) error {
 	return s.waitReady(ctx, op)
 }
 
-// waitReady polls Ready until it reports "ready" or ReadyTimeout elapses.
+// waitReady polls Ready until it reports "ready" or "degraded", or
+// ReadyTimeout elapses. A daemon never reached gives prerequisite_missing; one
+// reached but not ready gives stale_state.
 func (s *Systemd) waitReady(ctx context.Context, op string) error {
 	deadline := time.Now().Add(s.ReadyTimeout)
 	state := ""
+	up := false
 	for {
 		if st, err := s.Ready(ctx); err == nil {
+			up = true
 			state = st
-			if st == "ready" {
+			if st == "ready" || st == "degraded" {
 				return nil
 			}
 		}
@@ -100,6 +104,11 @@ func (s *Systemd) waitReady(ctx context.Context, op string) error {
 			return ctx.Err()
 		case <-time.After(readyPollGap):
 		}
+	}
+	if !up {
+		return errcode.New(errcode.PrereqMissing, op, fmt.Errorf(
+			"service installed and enabled at %s but daemon socket not reachable after %s; see journalctl --user -u snapback",
+			s.unitPath(), s.ReadyTimeout))
 	}
 	return errcode.New(errcode.StaleState, op, fmt.Errorf(
 		"service installed and enabled at %s but daemon not ready (state %q) after %s; see journalctl --user -u snapback",
