@@ -2,7 +2,6 @@ package doctor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -63,21 +62,22 @@ func resticRepos(repo config.Repository) (provider.Validator, provider.Lister) {
 	return p, p
 }
 
-// dialStatus asks the running daemon for its status over the IPC socket.
+type stateDirKey struct{}
+
+// withStateDir returns ctx carrying the config's state dir, from which
+// dialStatus resolves the daemon socket.
+func withStateDir(ctx context.Context, dir string) context.Context {
+	return context.WithValue(ctx, stateDirKey{}, dir)
+}
+
+// dialStatus asks the running daemon for its status over the IPC socket
+// under the state dir carried by ctx.
 func dialStatus(ctx context.Context) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, statusTimeout)
 	defer cancel()
-	c, err := ipc.Dial(ctx, ipc.SocketPath(os.Getenv, ""))
-	if err != nil {
+	dir, _ := ctx.Value(stateDirKey{}).(string)
+	if _, err := ipc.QueryStatus(ctx, ipc.SocketPath(os.Getenv, dir)); err != nil {
 		return "", err
-	}
-	defer func() { _ = c.Close() }()
-	resp, err := c.Call(ctx, ipc.Request{V: 1, Op: ipc.OpStatus})
-	if err != nil {
-		return "", errcode.New(errcode.PrereqMissing, "doctor daemon status", err)
-	}
-	if !resp.OK {
-		return "", errcode.New(resp.Code, "doctor daemon status", errors.New(resp.Error))
 	}
 	return "daemon is running", nil
 }

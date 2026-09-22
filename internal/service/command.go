@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -16,7 +15,6 @@ import (
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/ipc"
-	"github.com/adeelahmad/snapback/internal/status"
 )
 
 const (
@@ -102,22 +100,10 @@ func statusReady(env cli.Env) func(ctx context.Context) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		c, err := ipc.Dial(ctx, ipc.SocketPath(env.Getenv, cfg.StateDir))
-		if err != nil {
-			return "", err
-		}
-		defer func() { _ = c.Close() }()
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		defer cancel()
-		resp, err := c.Call(ctx, ipc.Request{V: 1, Op: ipc.OpStatus})
+		snap, err := ipc.QueryStatus(ctx, ipc.SocketPath(env.Getenv, cfg.StateDir))
 		if err != nil {
-			return "", err
-		}
-		if !resp.OK {
-			return "", errors.New("daemon status request failed")
-		}
-		var snap status.Snapshot
-		if err := json.Unmarshal(resp.Data, &snap); err != nil {
 			return "", err
 		}
 		return snap.State, nil

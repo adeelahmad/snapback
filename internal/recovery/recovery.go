@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/adeelahmad/snapback/internal/links"
+	"github.com/adeelahmad/snapback/internal/pathutil"
 )
 
 // Mount is one parsed mountinfo line.
@@ -98,7 +99,7 @@ func Scan(ctx context.Context, in Input) (Report, error) {
 	var owned []string
 	for _, root := range in.Owned {
 		for _, m := range mounts {
-			if isFuse(m.FSType) && under(m.Point, root) {
+			if isFuse(m.FSType) && pathutil.Under(root, m.Point) {
 				owned = append(owned, m.Point)
 			}
 		}
@@ -153,15 +154,9 @@ func isFuse(fstype string) bool {
 	return fstype == "fuse" || strings.HasPrefix(fstype, "fuse.")
 }
 
-// under reports whether point equals root or lies below it by path component.
-func under(point, root string) bool {
-	root = strings.TrimSuffix(root, "/")
-	return point == root || strings.HasPrefix(point, root+"/")
-}
-
 func underAny(point string, roots []string) bool {
 	for _, r := range roots {
-		if under(point, r) {
+		if pathutil.Under(r, point) {
 			return true
 		}
 	}

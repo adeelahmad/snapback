@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"slices"
 
@@ -14,7 +13,8 @@ import (
 
 // ipcDaemon adapts ipc.Client to cli.Daemon.
 type ipcDaemon struct {
-	c *ipc.Client
+	c    *ipc.Client
+	path string
 }
 
 var _ cli.Daemon = (*ipcDaemon)(nil)
@@ -26,7 +26,7 @@ func dialDaemon(socketPath string) func(ctx context.Context) (cli.Daemon, error)
 		if err != nil {
 			return nil, err
 		}
-		return &ipcDaemon{c: c}, nil
+		return &ipcDaemon{c: c, path: socketPath}, nil
 	}
 }
 
@@ -58,19 +58,7 @@ func (d *ipcDaemon) Visible(ctx context.Context, id provider.SnapshotID) (bool, 
 }
 
 func (d *ipcDaemon) status(ctx context.Context) (status.Snapshot, error) {
-	resp, err := d.call(ctx, ipc.Request{V: 1, Op: ipc.OpStatus})
-	if err != nil {
-		return status.Snapshot{}, err
-	}
-	var s struct {
-		status.Snapshot
-		State string `json:"state"`
-	}
-	if err := json.Unmarshal(resp.Data, &s); err != nil {
-		return status.Snapshot{}, fmt.Errorf("decode daemon status: %w", err)
-	}
-	s.Snapshot.State = s.State
-	return s.Snapshot, nil
+	return ipc.QueryStatus(ctx, d.path)
 }
 
 func (d *ipcDaemon) call(ctx context.Context, req ipc.Request) (ipc.Response, error) {

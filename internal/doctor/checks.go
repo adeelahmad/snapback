@@ -9,6 +9,7 @@ import (
 
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/pathutil"
 )
 
 // Check is one doctor check result.
@@ -164,7 +165,7 @@ func checkRepository(ctx context.Context, cfg *config.Config, repo config.Reposi
 		}
 		for _, s := range snaps {
 			for _, path := range s.Paths {
-				if within(path, root.LocalPath) || within(root.LocalPath, path) {
+				if pathutil.Under(root.LocalPath, path) || pathutil.Under(path, root.LocalPath) {
 					return []Check{repoCheck, {Name: mapName, Status: statusOK, Detail: "root " + root.ID + " is backed up"}}
 				}
 			}
@@ -172,10 +173,6 @@ func checkRepository(ctx context.Context, cfg *config.Config, repo config.Reposi
 	}
 	return []Check{repoCheck, {Name: mapName, Status: statusFail, Code: errcode.MappingAbsent,
 		Detail: "no snapshot covers a configured root", Fix: "check roots and prefix_map for repository " + repo.ID}}
-}
-
-func within(path, dir string) bool {
-	return path == dir || strings.HasPrefix(path, strings.TrimSuffix(dir, "/")+"/")
 }
 
 func checkServiceManager(p Probes) Check {
@@ -203,7 +200,10 @@ func checkInodes(cfg *config.Config, p Probes) Check {
 	return Check{Name: "inode_headroom", Status: statusOK, Detail: detail}
 }
 
-func checkDaemon(ctx context.Context, p Probes) Check {
+func checkDaemon(ctx context.Context, cfg *config.Config, p Probes) Check {
+	if cfg != nil {
+		ctx = withStateDir(ctx, cfg.StateDir)
+	}
 	state, err := p.DialStatus(ctx)
 	if err != nil {
 		code := errcode.Of(err)

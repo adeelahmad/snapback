@@ -48,5 +48,5 @@ func Run(ctx context.Context, cfg *config.Config, cfgErr error, p Probes) []Chec
 	} else {
 		checks = append(checks, checkInodes(cfg, p))
 	}
-	return append(checks, checkDaemon(ctx, p), onAccess())
+	return append(checks, checkDaemon(ctx, cfg, p), onAccess())
 }
