@@ -8,6 +8,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/history"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/readerpolicy"
+	"github.com/adeelahmad/snapback/internal/refresh"
 )
 
 // RepoState is a repository mount's lifecycle state.
@@ -59,4 +60,10 @@ func Derive(phase string, repos map[string]RepoState) (string, []Repo) {
 		}
 	}
 	return state, out
+}
+
+// FromRefresh returns a deep copy of r, so the status model never shares
+// slices or maps with the refresh loop that produced it.
+func FromRefresh(r refresh.Result) refresh.Result {
+	panic("SUB-AGENT-TODO: deep copy of refresh.Result: copy slices and maps")
 }
