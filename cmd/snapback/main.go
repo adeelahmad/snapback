@@ -1,5 +1,7 @@
 package main
 
+import "os"
+
 func main() {
-	panic("SUB-AGENT-TODO: os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) and nothing else")
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
