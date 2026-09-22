@@ -50,5 +50,6 @@ provider seam. See ARCHITECTURE.md for current state versus planned modules.
 - ARCHITECTURE.md: current state, planned modules and the provider seam
 - DEVLOG.md: session journal, decisions, mistakes and technical debt
 - docs/agents/sprint1/standards.md: Go rule digest and the gate matrix
-- Restic is the only supported backend; do not name or promise others
+- Restic is the only supported backend; name others only in a Roadmap section, marked
+  "planned, not supported", and never say "multi-backend" until a second provider ships
 - Read-only by design: Snapback never writes to the Restic repository

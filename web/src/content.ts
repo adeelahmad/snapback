@@ -83,7 +83,8 @@ export const limits: ListContent = {
     'snapback never writes to the Restic repository.',
     'No Windows support.',
     'No live overlay or union of snapshot and working files.',
-    'Restic is the only backend.',
+    'snapback supports Restic today; other backends are not yet supported.',
+    'Borg, Kopia, ZFS and Btrfs snapshots are planned backends, not yet supported.',
   ],
 };
 

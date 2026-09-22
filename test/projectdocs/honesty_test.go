@@ -60,9 +60,27 @@ func TestNoFirstOfKindOrMultiBackendClaims(t *testing.T) {
 	}
 }
 
-func TestReadmeMentionsOnlyResticBackend(t *testing.T) {
+// roadmapHeading is the only README section allowed to name other backends.
+const roadmapHeading = "## Roadmap"
+
+// TestReadmeNamesOtherBackendsOnlyAsPlanned allows other backend names in
+// README.md only on lines inside the Roadmap section that say "planned".
+func TestReadmeNamesOtherBackendsOnlyAsPlanned(t *testing.T) {
 	doc := readDoc(t, "README.md")
-	assertNoMatches(t, "README.md", doc, otherBackendRe)
+	inRoadmap := false
+	for i, line := range strings.Split(doc, "\n") {
+		if strings.HasPrefix(line, "## ") {
+			inRoadmap = strings.TrimSpace(line) == roadmapHeading
+		}
+		for _, m := range otherBackendRe.FindAllString(line, -1) {
+			switch {
+			case !inRoadmap:
+				t.Errorf("README.md:%d: backend %q named outside %q: %s", i+1, m, roadmapHeading, line)
+			case !strings.Contains(strings.ToLower(line), "planned"):
+				t.Errorf("README.md:%d: roadmap line names %q without %q: %s", i+1, m, "planned", line)
+			}
+		}
+	}
 	if !strings.Contains(doc, "Restic") {
 		t.Errorf("README.md does not mention Restic")
 	}

@@ -14,6 +14,8 @@
 
 **Restoring a file should be as easy as it was in 2008.**
 
+snapback is a restore tool for your backups. It supports Restic today; other backends are on the [roadmap](#roadmap).
+
 <!-- TODO: restore GIF (a three-second `cp .snapshot/...` restore) goes here -->
 
 snapback is being built to put a read-only `.snapshot` folder inside your directories, backed by the Restic snapshots you already have. This is the design goal, not something that works today (see [Status](#status)):
@@ -72,6 +74,15 @@ Your live files will stay exactly where they are, on their own filesystem. The o
 snapback is early, pre-release software and not yet usable for restores. The only command that exists is `snapback version`; the `.snapshot` view described above is the design goal. Expect breaking changes.
 
 Stage 1 compatibility evidence (FUSE catalog, `restic mount` path templates, metadata fidelity, crawler safety and latency measurements) is in [docs/reports/stage1/](docs/reports/stage1/). Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Roadmap
+
+snapback supports Restic today. These backends are planned, not supported yet:
+
+- Borg: planned.
+- Kopia: planned.
+- ZFS snapshots: planned.
+- Btrfs snapshots: planned.
 
 ## Prior art and credit
 

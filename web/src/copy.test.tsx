@@ -18,7 +18,14 @@ const headingAllowlist = new Set([
   'macOS',
   'FUSE',
   'SPEC',
+  'Borg',
+  'Kopia',
+  'ZFS',
+  'Btrfs',
 ]);
+
+// roadmapBackends may appear only in sentences that call them planned.
+const roadmapBackends = /\b(borg|kopia|zfs|btrfs)\b/i;
 
 const bannedClaims = [
   'production-ready',
@@ -29,8 +36,6 @@ const bannedClaims = [
   'works today',
   'now supports',
   'first-of-its-kind',
-  'borg',
-  'kopia',
   'duplicity',
   'duplicati',
   'tarsnap',
@@ -139,6 +144,12 @@ describe('copy', () => {
       }
       const claimsNow = /\b(today|now)\b/i.test(s) && !/not yet/i.test(s);
       expect(claimsNow, `sentence claims .snapshot works now: ${JSON.stringify(s)}`).toBe(false);
+    }
+    for (const s of sentences) {
+      if (!roadmapBackends.test(s)) {
+        continue;
+      }
+      expect(s, 'sentence naming a roadmap backend').toMatch(/\bplanned\b/i);
     }
     expect(text).toContain('not yet');
     expect(text).toContain('Restic');
