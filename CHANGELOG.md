@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.0](https://github.com/adeelahmad/snapback/compare/v1.3.0...v1.4.0) (2026-09-22)
+
+### Features
+
+* ship the v0.1 feature set (SPEC §22.1) ([5b5dd2f](https://github.com/adeelahmad/snapback/commit/5b5dd2f91767c22774f2452dbd2a729523032da7))
+
 ## [1.3.0](https://github.com/adeelahmad/snapback/compare/v1.2.0...v1.3.0) (2026-09-22)
 
 ### Features
