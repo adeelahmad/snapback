@@ -40,7 +40,14 @@ asset_name() {
 main() {
 	os=$(detect_os)
 	arch=$(detect_arch)
+	case "$os/$arch" in
+		darwin/amd64 | darwin/arm64 | linux/*) ;;
+		*) die "unsupported platform: $os/$arch" ;;
+	esac
 	asset=$(asset_name "$os" "$arch")
+	case "$arch" in
+		arm | mips | mipsle) printf 'warning: %s/%s is an unverified target\n' "$os" "$arch" >&2 ;;
+	esac
 
 	if [ "${SNAPBACK_DRY_RUN:-0}" = 1 ]; then
 		printf 'asset: %s\n' "$asset"
