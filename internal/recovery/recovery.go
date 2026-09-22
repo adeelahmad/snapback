@@ -1,4 +1,3 @@
-// agentic:shim
 package recovery
 
 import (
@@ -11,7 +10,7 @@ type Mount struct {
 	Point, FSType, Source string
 }
 
-// RepairReport is a placeholder until S3-07 ships links.RepairReport.
+// RepairReport stands in for links.RepairReport until S3-07 ships it.
 type RepairReport struct {
 	Repaired []string
 }
@@ -34,10 +33,10 @@ type Report struct {
 
 // ParseMountinfo parses /proc/self/mountinfo.
 func ParseMountinfo(r io.Reader) ([]Mount, error) {
-	return nil, nil
+	panic("SUB-AGENT-TODO: T3a: read lines; field 5 is the mount point, the fields after the ' - ' separator are fstype then source; decode octal escapes like \\040; return []Mount or a parse error")
 }
 
 // Scan unmounts stale Snapback-owned FUSE mounts.
 func Scan(ctx context.Context, in Input) (Report, error) {
-	return Report{}, nil
+	panic("SUB-AGENT-TODO: T3a: if PIDFile names a live PID other than ours (Alive), list owned candidates in SkippedLive and stop; else ParseMountinfo; candidates are fuse/fuse.* points equal to or under an owned path by path component (never stat/open/list); Unmount each (nil Unmount -> defaultUnmount) in Owned order into Unmounted; other fuse points go to Foreign; then call Repair if set")
 }
