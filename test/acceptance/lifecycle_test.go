@@ -22,6 +22,9 @@ import (
 // readyCap bounds how long a restarted daemon may take to report ready.
 const readyCap = 30 * time.Second
 
+// recoveryLinuxOnly is why the crash-recovery step is skipped off Linux.
+const recoveryLinuxOnly = "recovery reads /proc/self/mountinfo; Linux only in v0.1 (macOS follow-up, SPEC §22.1)"
+
 // liveChecksums returns sha256 of every regular file under root, skipping
 // .snapshot entries so history content never counts as live data.
 func liveChecksums(t *testing.T, root string) map[string]string {
@@ -167,21 +170,30 @@ func TestAcc15StopCrashRestartUninstall(t *testing.T) {
 	stale := mountsUnder(state)
 	check("crash")
 
-	d = startDaemon(t, e)
-	s := waitReady(t, e)
-	for _, m := range mountsUnder(state) {
-		if _, err := os.ReadDir(m); err != nil {
-			t.Errorf("after crash restart: mount %s unreadable (%v), want no stale mount", m, err)
+	if runtime.GOOS != "linux" {
+		t.Logf("skipping step %q: %s", "crash recovery", recoveryLinuxOnly)
+		// The SIGKILLed daemon left its mounts; clear them so later steps
+		// start clean.
+		unmountUnder(state)
+		d = startDaemon(t, e)
+		waitReady(t, e)
+	} else {
+		d = startDaemon(t, e)
+		s := waitReady(t, e)
+		for _, m := range mountsUnder(state) {
+			if _, err := os.ReadDir(m); err != nil {
+				t.Errorf("after crash restart: mount %s unreadable (%v), want no stale mount", m, err)
+			}
 		}
+		if len(stale) > 0 && (s.Data.Recovery == nil || len(s.Data.Recovery.Unmounted) == 0) {
+			t.Errorf("after crash restart: status recovery = %+v, want it to list the stale mounts %v", s.Data.Recovery, stale)
+		}
+		names, err := listNames(filepath.Join(h.proj, ".snapshot"))
+		if err != nil || len(aliasesOnly(names)) == 0 {
+			t.Errorf("after crash restart: list proj/.snapshot = %v, %v, want one alias", names, err)
+		}
+		check("crash restart")
 	}
-	if len(stale) > 0 && (s.Data.Recovery == nil || len(s.Data.Recovery.Unmounted) == 0) {
-		t.Errorf("after crash restart: status recovery = %+v, want it to list the stale mounts %v", s.Data.Recovery, stale)
-	}
-	names, err := listNames(filepath.Join(h.proj, ".snapshot"))
-	if err != nil || len(aliasesOnly(names)) == 0 {
-		t.Errorf("after crash restart: list proj/.snapshot = %v, %v, want one alias", names, err)
-	}
-	check("crash restart")
 
 	if err := d.Stop(); err != nil {
 		t.Errorf("graceful stop before uninstall: %v", err)

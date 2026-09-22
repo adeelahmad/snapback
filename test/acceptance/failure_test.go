@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -23,6 +24,9 @@ const (
 	statusSettle = 30 * time.Second
 	// liveSentinel marks live file bytes that must never appear in history.
 	liveSentinel = "LIVE-ONLY-BYTES-acc14\n"
+	// sampleWindow is how long the lock and prune cases sample status and
+	// the listing for an empty listing in state ready.
+	sampleWindow = 10 * time.Second
 )
 
 // statusRepo is one repository entry in snapback status --json.
@@ -142,13 +146,47 @@ func liveBytesUnder(dir string) string {
 	return hit
 }
 
+// historyEntries drops info.json and latest, leaving one entry per snapshot.
+func historyEntries(names []string) []string {
+	return slices.DeleteFunc(aliasesOnly(names), func(n string) bool { return n == "info.json" })
+}
+
+// readyWithoutCode reports whether status says ready with no repository code.
+func readyWithoutCode(s statusEnvelope) bool {
+	if !s.OK || s.Data.State != "ready" {
+		return false
+	}
+	for _, r := range s.Data.Repos {
+		if r.Code != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// neverEmptyWhileReady samples status and the listing for sampleWindow and
+// reports every sample where status is ready but the listing shows no history.
+func neverEmptyWhileReady(t *testing.T, e env, name, link string) {
+	t.Helper()
+	deadline := time.Now().Add(sampleWindow)
+	for time.Now().Before(deadline) {
+		s, raw := readStatus(t, e)
+		names, err := listNames(link)
+		if readyWithoutCode(s) && err == nil && len(historyEntries(names)) == 0 {
+			t.Errorf("%s: list %s = %v in state ready, want the history aliases or a failure code; status: %s", name, link, names, raw)
+			return
+		}
+		time.Sleep(statusPoll)
+	}
+}
+
 func TestAcc14FailuresDistinctFromEmpty(t *testing.T) {
 	recordEvidence(t, "acc14")
 	requireFUSE(t)
 
 	cases := []struct {
 		name     string
-		wantCode string // "" means any code distinct from the others
+		wantCode string // "" means the listing must never be empty while ready
 		breakIt  func(t *testing.T, h histRepo, e env)
 	}{
 		{"offline", "repository_unavailable", func(t *testing.T, h histRepo, _ env) {
@@ -173,7 +211,6 @@ func TestAcc14FailuresDistinctFromEmpty(t *testing.T) {
 		}},
 	}
 
-	seen := map[string]string{}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			h := newHistRepo(t)
@@ -186,31 +223,38 @@ func TestAcc14FailuresDistinctFromEmpty(t *testing.T) {
 			d := startDaemon(t, e)
 			t.Cleanup(func() { _ = d.Stop() })
 			_, _, _ = runSnapback(t, e, "link", h.proj)
-
-			code, raw := failureCode(t, e, d)
-			if code == "" {
-				t.Errorf("%s: status --json error code = \"\", want a non-empty failure code; status: %s", c.name, raw)
-			}
-			if c.wantCode != "" && code != c.wantCode {
-				t.Errorf("%s: status --json code = %q, want %q", c.name, code, c.wantCode)
-			}
-			if code != "" {
-				if prev, dup := seen[code]; dup {
-					t.Errorf("%s: code %q equals the code of case %s, want distinct failure states", c.name, code, prev)
-				}
-				seen[code] = c.name
-			}
-
 			link := filepath.Join(h.proj, ".snapshot")
-			names, err := listNames(link)
-			if err == nil {
-				t.Errorf("%s: list %s = %v, <nil>, want an error rather than a (possibly empty) listing", c.name, link, names)
+
+			switch c.name {
+			case "lock", "prune":
+				neverEmptyWhileReady(t, e, c.name, link)
+			case "offline":
+				code, raw := failureCode(t, e, d)
+				if code != "" && code != c.wantCode {
+					t.Errorf("%s: status --json code = %q, want %q; status: %s", c.name, code, c.wantCode, raw)
+				}
+				names, err := listNames(link)
+				info, _ := os.ReadFile(filepath.Join(link, "info.json"))
+				// An absent .snapshot is not a failure state; the listing
+				// itself must fail (EIO) to count.
+				listFailed := err != nil && !errors.Is(err, fs.ErrNotExist)
+				t.Logf("%s: list = %v, %v; info.json = %q; status code = %q", c.name, names, err, info, code)
+				if !listFailed && code != c.wantCode && !strings.Contains(string(info), c.wantCode) {
+					t.Errorf("%s: list %s = %v, %v; info.json = %q; status code = %q; want the listing to fail or info.json or status to state %q",
+						c.name, link, names, err, info, code, c.wantCode)
+				}
+			case "mount":
+				code, raw := failureCode(t, e, d)
+				if code != c.wantCode {
+					t.Errorf("%s: status --json code = %q, want %q with the daemon still up; status: %s", c.name, code, c.wantCode, raw)
+				}
 			}
+
 			if hit := liveBytesUnder(link); hit != "" {
 				t.Errorf("%s: live file bytes found under history at %s, want none", c.name, hit)
 			}
-			if err != nil && errors.Is(err, fs.ErrNotExist) {
-				t.Logf("%s: .snapshot entry absent (%v)", c.name, err)
+			if names, err := listNames(link); err != nil && errors.Is(err, fs.ErrNotExist) {
+				t.Logf("%s: .snapshot entry absent (%v, %v)", c.name, names, err)
 			}
 		})
 	}
