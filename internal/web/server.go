@@ -40,6 +40,7 @@ type Options struct {
 	Token     string
 	Stdout    io.Writer
 	Validator SetupValidator
+	Opener    func(ctx context.Context, dir string) error
 }
 
 // Server is the local web server.
@@ -118,6 +119,8 @@ func (s *Server) routes() http.Handler {
 		mux.Handle("GET /api/history", s.requireSession(http.HandlerFunc(s.handleAPIHistory)))
 		mux.Handle("GET /api/versions", s.requireSession(http.HandlerFunc(s.handleAPIVersions)))
 		mux.Handle("GET /api/download", s.requireSession(http.HandlerFunc(s.handleAPIDownload)))
+		mux.Handle("POST /api/restore", s.requireSession(http.HandlerFunc(s.handleAPIRestore)))
+		mux.Handle("POST /api/open", s.requireSession(http.HandlerFunc(s.handleAPIOpen)))
 	}
 	mux.Handle("/", s.requireSession(http.NotFoundHandler()))
 	return mux

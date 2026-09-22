@@ -241,7 +241,7 @@ func TestOpenInFileManager(t *testing.T) {
 	h := restoreFixture(t)
 	rec := &recOpener{}
 	opts := Options{Backend: &fakeBackend{cfg: &config.Config{}}, History: h}
-	opts.setOpener(rec.open)
+	opts.Opener = rec.open
 	srv, cookie, csrf := newTestServer(t, opts)
 
 	postOpen := func(srv *Server, cookie *http.Cookie, csrf, path string) int {
