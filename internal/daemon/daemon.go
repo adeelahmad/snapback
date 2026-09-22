@@ -335,7 +335,7 @@ func (d *Daemon) Status() status.Snapshot {
 		}
 		if out[i].Code == errcode.RepoUnavailable {
 			out[i].Code = errcode.MountFailure
-		} else {
+		} else if out[i].State == string(history.StateReady) {
 			delete(d.mountFailed, out[i].ID)
 		}
 	}

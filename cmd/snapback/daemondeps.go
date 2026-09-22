@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net"
 	"os"
 	"path/filepath"
@@ -87,7 +88,7 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 			Max:     mountBackoffMax,
 		}),
 		History:   view,
-		Refresher: refresher{ref: ref, view: view},
+		Refresher: refresher{ref: ref, view: view, repos: slices.Sorted(maps.Keys(provs))},
 		Linker:    engine,
 		Recoverer: recoverer{
 			owned:   []string{cfg.HistoryMount, cfg.BackendMountDir},
