@@ -1,0 +1,19 @@
+{{define "content"}}<h1>Integrations</h1>
+<section aria-labelledby="shell-h">
+<h2 id="shell-h">Shell hook</h2>
+<p>Add the line for your shell to its startup file.</p>
+{{range $shell, $hook := .ShellHook}}<h3>{{$shell}}</h3>
+<pre><code>{{$hook}}</code></pre>
+{{end}}
+</section>
+<section aria-labelledby="service-h">
+<h2 id="service-h">Service</h2>
+<p>State: {{if .ServiceState}}{{.ServiceState}}{{else}}unknown{{end}}</p>
+{{with .ServiceInstall}}<pre><code>{{.}}</code></pre>{{end}}
+</section>
+<section aria-labelledby="desktop-h">
+<h2 id="desktop-h">Desktop</h2>
+<p>Finder: not available on Linux.</p>
+<p>File manager extensions are not included in v0.1.</p>
+</section>
+{{end}}
