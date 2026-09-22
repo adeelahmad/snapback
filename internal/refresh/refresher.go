@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -56,6 +57,7 @@ type Refresher struct {
 	lists map[string]provider.Lister
 	pub   mount.Publisher
 	pre   provider.Prewarmer
+	log   *slog.Logger
 
 	gen atomic.Uint64
 
@@ -114,6 +116,12 @@ func (r *Refresher) Refresh(ctx context.Context) (Result, error) {
 	if r.cfg.Dirs != nil {
 		dirs = r.cfg.Dirs()
 	}
+	repos := map[string]bool{}
+	for _, d := range dirs {
+		repos[d.RepoID] = true
+	}
+	r.logger().Debug("refresh start", "dirs", len(dirs), "repos", len(repos))
+
 	views := map[string]repoView{}
 	states := map[string]history.RepoState{}
 	var failed []string
@@ -136,6 +144,7 @@ func (r *Refresher) Refresh(ctx context.Context) (Result, error) {
 			r.good[d.RepoID] = v
 		}
 		views[d.RepoID] = v
+		r.logger().Debug("refresh repo", "repo", d.RepoID, "snapshots", len(v.listed), "visible", len(v.visible))
 	}
 	slices.Sort(failed)
 
@@ -221,8 +230,15 @@ func (r *Refresher) Prewarm(ctx context.Context) []provider.PrewarmResult {
 	}
 
 	r.mu.Lock()
+	evicted := 0
+	for id := range r.warm {
+		if !warm[id] {
+			evicted++
+		}
+	}
 	r.warm = warm
 	r.mu.Unlock()
+	r.logger().Debug("refresh evict", "evicted", evicted, "warm", len(warm))
 	return results
 }
 
