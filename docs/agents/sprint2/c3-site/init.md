@@ -25,3 +25,24 @@ Write every T1 test bullet in `plan.md` § T1 at the exact path::fn so each FAIL
 - all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
 - red-worker: make shim bodies differ so comparison tests cannot pass by accident.
 - all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.
+
+## S2-12/T1 · attempt 1 · green-worker · 2026-09-22T03:36:18Z
+
+### Mandate
+Implement S2-12 T1 per `tasks.md` § T1 with the least change that makes exactly the 7 Go tests in test/site/ and web/src/App.test.tsx (vitest) pass. Vite+React+TS per tasks.md § T1; Node pinned 26.0.0 in .nvmrc and engines; exact versions only (npm install --save-exact), commit package-lock.json; no network at test time. Run: GOTOOLCHAIN=auto go test ./test/site/ and (cd web && npm ci && npm test && npm run lint && npm run build). Never commit node_modules or dist. NOTICE lines for react and react-dom (MIT). TEST_GLOBS must include **/*.test.tsx.
+
+### Scope
+#### May
+- web/ scaffold files, .gitignore, NOTICE (exactly the T1 file list in tasks.md) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § T1, `plan-ready.md` § T1, `validate.md` § T1. Chain base `chain/s2-12` @ 3512f58.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`web/** .gitignore NOTICE`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.

@@ -84,3 +84,14 @@ I completed the fuse-linux job in `.github/workflows/ci.yml`, the only file chan
 | Cross-cutting gates (gofmt, goimports, build, vet, golangci-lint 0 issues, test -race, coverage 87.5%, govulncheck, actionlint, shellcheck, mkdocs --strict, goreleaser check) | PASS | full matrix |
 ### Next
 Structural review of S2-05, then final gate.
+
+## S2-05/T3 · attempt 1 · red-worker · 2026-09-22T03:40:00Z
+status: ok
+### Summary
+Added `TestFuseJobUploadFailsOnMissingEvidence` to test/ci/fuse_job_test.go (commit f552e5d on base aa0974f = chain2/s2-05). It takes the fuse-linux `actions/upload-artifact` step via the existing `stepContaining`, fails with t.Fatal if the step or its `if-no-files-found:` key is missing (M-002), and checks that the value is exactly `error`. No shim was needed because every helper already exists (`fuseJobBlock`, `stepContaining`, `noFilesFoundRe`). go vet is clean and golangci-lint reports 0 issues. The other 16 tests in the package still pass.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/ci/fuse_job_test.go::TestFuseJobUploadFailsOnMissingEvidence` | FAIL | fails by assertion: `upload step if-no-files-found = "warn", want "error"` |
+### Next
+GREEN (wave 4, after S2-03/S2-04/S2-06/S2-07 merge): change `if-no-files-found: warn` to `error` in the fuse-linux "Upload evidence" step of ci.yml.

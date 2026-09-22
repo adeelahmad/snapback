@@ -90,3 +90,47 @@ Target tests PASS under `go test -race`; previously passing tests still pass; ac
 ### Memory
 - all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
 - green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S2-05/T3 · attempt 1 · red-worker · 2026-09-22T03:34:13Z
+
+### Mandate
+Write every T3 test bullet in `plan.md` § T3 at the exact path::fn so each FAILS BY ASSERTION (compiles, runs, assertion or t.Fatal on a missing/incorrect artifact) — never by a compile error or missing symbol. Tests only; do not edit ci.yml. The GREEN flips warn→error after S2-06/S2-07 merge.
+
+### Scope
+#### May
+- Create the test files named for T3 in `tasks.md`: test/ci/fuse_job_test.go (append T3 test only)
+- Test helpers that a T3 test itself exercises (e.g. `repoRoot`, `readRepoFile`, `yamlBlock`, `runInstaller`) go in a marked shim `zz_agentic_shim_test.go` in the same test package (first line `// agentic:shim`) with deliberately WRONG bodies so those tests fail by assertion; helpers NOT under test may be real and live in the named helpers file.
+#### May Not
+- Create or edit any non-test artifact (workflow YAML, JSON config, install.sh, .goreleaser.yaml, SPEC.md/README.md, go.mod) — those are GREEN's job; touch other stories' files; suppress/skip tests (except the tool-absent `t.Skip` cases plan.md explicitly allows).
+
+### Inputs
+- `plan.md` § T3, `tasks.md` § T3 (contracts), `validate.md` § T3. Chain base: the story chain branch named in your prompt (stage-1 @ 2158ade = master + sprint2 plan).
+
+### Acceptance
+`go test ./test/...` for this story's package compiles; every new test FAILS by assertion; `go vet ./...` clean; diff vs BASE_REF = only this task's test files (+ shim); output.md block appended; selfcheck PASS.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
+- red-worker: make shim bodies differ so comparison tests cannot pass by accident.
+- all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.
+
+## S2-05/T3 · attempt 1 · green-worker · 2026-09-22T03:38:29Z
+
+### Mandate
+Implement S2-05 T3 per `tasks.md` § T3 with the least change that makes exactly TestFuseJobUploadFailsOnMissingEvidence (+ all test/ci) pass. LAST task of S2-05: change if-no-files-found: warn → error in the fuse-linux 'Upload evidence' step only. S2-03/04/06/07 are merged on stage-1 so the linux job now writes the evidence JSON. actionlint clean; full standards matrix.
+
+### Scope
+#### May
+- .github/workflows/ci.yml (fuse-linux upload step only) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § T3, `plan-ready.md` § T3, `validate.md` § T3. Chain base `chain/s2-05` @ f552e5d.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`.github/workflows/ci.yml`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.

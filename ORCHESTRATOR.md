@@ -4,10 +4,10 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 35
+- **Tick:** 36
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
-- **Phase:** SPRINT 2 EXECUTION — S2-01..S2-04 + S2-08 merged (stage-1 e687157); wave 3 S2-06/S2-07 in GREEN/scaffold; chores C1 (snapback.run) + C2 (Makefile) in flight; awaiting human for gdrive latency run
-- **Last gate:** GREEN on stage-1 @ dbfa7c8 (full standards matrix, cov 82.1%); master @ f0f0d5b green on GitHub
+- **Phase:** SPRINT 2 EXECUTION — S2-01..S2-04, S2-06, S2-07, S2-08, C1, C2 merged (stage-1 b2572b2); S2-05 T3 + S2-09 in flight; C3 site + C4 launch in flight
+- **Last gate:** GREEN on stage-1 @ b2572b2 (full matrix + integration suite locally); PR #1 CI green except commitlint (known, fix before promotion)
 - **Human gate pending:** latency go/no-go (numbers recorded tick 35)
 
 ## Stage table (README §22)
@@ -446,6 +446,15 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 35 | S2-06/T5 RED | red-worker | FAIL by assertion on real run: symlink size/linktarget absent from restic 0.19 `ls --json`; 8 regular files exact (mtime delta 0). chain2/s2-06 → 05571b5 | ORCHESTRATOR CONTRACT RULING → S2-06/T5b: symlinks compared on mode+mtime vs ls --json; target checked via alias vs generator; evidence records size/target as not reported |
 | 35 | C3 plan | planner | passed — plan-shape 0; Vite+React+TS in web/, no Tailwind, Go test/site + vitest, Node 26.0.0 pinned; 8 tasks; APPROVED via auto-approve | brand assets fetched to scratchpad/brand (26 files) |
 | 35 | C1/C2 merged earlier; S2-06/T5b RED, S2-07/T5 GREEN, S2-12/T1 RED | various | spawned 03:32Z | — |
+| 36 | S2-07/T5 GREEN | green-worker | passed — crawler-darwin.json; full matrix green (cov 87.6%) | — |
+| 36 | MERGE S2-07 → stage-1 | orchestrator | 16a1c87; full gate GREEN (gate re-run after a lost tool result) | — |
+| 36 | S2-06/T5b RED | red-worker | PASS-ON-RED waived: symlink compared on mode+mtime vs ls --json, target via alias; 8 regular files exact | tech debt: evidence note injected by test |
+| 36 | S2-06/T5 GREEN | green-worker | passed — fidelity-darwin.json (mtime delta 0 ns all files); full matrix green (cov 87.1%) | — |
+| 36 | MERGE S2-06 → stage-1 | orchestrator | b2572b2; full gate GREEN; full -tags integration suite PASS on merged tree, no leftover mounts; pushed stage-1 (PR #1 CI for linux evidence) | — |
+| 36 | S2-05/T3 RED, S2-12/T1 RED | red-worker ×2 | passed — T3 FAIL (warn≠error); C3 T1 7 FAIL by assertion (+ vitest test, TEST_GLOBS widened to **/*.test.tsx) | — |
+| 36 | HUMAN launch kit | human | supplied README/REPO-SETUP/github-kit.tar.gz; kit README over-claims (non-existent subcommands, "overlay works", snapback-dev/main, /install) → adopted shape + brand only, content kept true | story S2-13 (C4) |
+| 36 | REPO SETTINGS (auto-approve) | orchestrator | description (honest, "Early development."), homepage https://snapback.run, 12 topics, Discussions on, Pages https_enforced=true (cert approved; CNAME snapback.run already set) | social preview upload = manual (no API) |
+| 36 | S2-05/T3 GREEN, S2-09/T1 RED, S2-12/T1 GREEN, S2-13/T1 RED | various | spawned 03:38Z | — |
 
 ## Plugin issues found
 
