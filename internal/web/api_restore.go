@@ -18,15 +18,14 @@ import (
 // handleAPIRestore copies one file out of a snapshot into the live tree under
 // a dated name, never overwriting an existing file.
 func (s *Server) handleAPIRestore(w http.ResponseWriter, r *http.Request) {
-	root := r.FormValue("root")
+	root, id := r.FormValue("root"), provider.SnapshotID(r.FormValue("snapshot"))
+	if !id.Valid() {
+		writeError(w, http.StatusBadRequest, errcode.InvalidConfig, errSnapshotID)
+		return
+	}
 	file, err := s.resolve(root, r.FormValue("file"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, errcode.InvalidConfig, err)
-		return
-	}
-	id := provider.SnapshotID(r.FormValue("snapshot"))
-	if !id.Valid() {
-		writeError(w, http.StatusBadRequest, errcode.InvalidConfig, fmt.Errorf("snapshot id %q is not 64 hex characters", id))
 		return
 	}
 	snapDir, at, err := s.opts.History.SnapshotDir(root, id)

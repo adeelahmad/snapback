@@ -194,6 +194,10 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	q := r.URL.Query()
 	root, id := q.Get("root"), provider.SnapshotID(q.Get("snapshot"))
+	if id != "" && !id.Valid() {
+		writeError(w, http.StatusBadRequest, errcode.InvalidConfig, errSnapshotID)
+		return
+	}
 	if root != "" && id != "" {
 		dir, err := s.resolve(root, q.Get("path"))
 		if err != nil {
