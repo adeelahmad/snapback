@@ -44,7 +44,7 @@ From [SPEC.md](SPEC.md) section 4. Status reflects the packages above.
 | `prewarm` | Metadata pre-warm of the newest selected snapshots. | Implemented |
 | `daemon` | Process lifecycle, instance lock, local IPC, refresh, health. | Implemented |
 | `web` | Embedded assets and the authenticated local HTTP API. | Implemented |
-| `service` | launchd, systemd and OpenRC adapters. | Implemented |
+| `service` | launchd, systemd and OpenRC adapters. | Partial: systemd user scope only; launchd and OpenRC are detected and refused (follow-up per SPEC §22.1) |
 | `macos/FinderCompanion` | Swift app and Finder Sync extension. | Planned |
 
 ## Provider seam
