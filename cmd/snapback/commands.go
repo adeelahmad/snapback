@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/daemon"
 	"github.com/adeelahmad/snapback/internal/discovery/seed"
 	"github.com/adeelahmad/snapback/internal/ipc"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/provider/restic"
+	"github.com/adeelahmad/snapback/internal/service"
 	"github.com/adeelahmad/snapback/internal/version"
 )
 
@@ -56,8 +59,19 @@ func realDeps(configPath string) cli.Deps {
 		}
 		return *c, nil
 	}
+	// One linker for both seams: it loads the configuration on its first
+	// call, so setup can hand it the file it has just written.
+	linker := &lazyLinker{load: loadConfig, path: configPath}
 	return cli.Deps{
-		Linker: &lazyLinker{load: loadConfig, path: configPath},
+		Linker: linker,
+		Link: func(ctx context.Context, dir string) (bool, error) {
+			res, err := linker.Ensure(ctx, dir)
+			return res.Created, err
+		},
+		ServiceInstaller: setupInstaller{},
+		ServiceSupported: func() bool { return serviceSupported(runtime.GOOS, service.RealProbe()) },
+		DaemonRunning:    daemon.Running,
+		GOOS:             runtime.GOOS,
 		Daemon: func(ctx context.Context) (cli.Daemon, error) {
 			cfg, err := loadConfig(configPath)
 			if err != nil {
