@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/provider/restic"
+	"github.com/adeelahmad/snapback/internal/rawpath"
 	"github.com/adeelahmad/snapback/internal/resolver"
 )
 
@@ -40,10 +42,13 @@ type mountHistory struct {
 
 // mountInfo is the part of a directory's info.json that the web UI reads.
 type mountInfo struct {
-	State     string `json:"state"`
+	Rel       rawpath.Path `json:"rel"`
+	State     string       `json:"state"`
 	Snapshots []struct {
-		ID   provider.SnapshotID `json:"id"`
-		Time time.Time           `json:"time"`
+		ID    provider.SnapshotID `json:"id"`
+		Alias string              `json:"alias"`
+		Time  time.Time           `json:"time"`
+		Host  string              `json:"host"`
 	} `json:"snapshots"`
 }
 
@@ -130,6 +135,56 @@ func (h mountHistory) Versions(ctx context.Context, root, file string) ([]Versio
 		}
 		out = append(out, Version{Snapshot: s.ID, Time: s.Time, Size: fi.Size(), ModTime: fi.ModTime()})
 	}
+	return out, nil
+}
+
+// Snapshots lists the snapshots of rel's nearest linked directory from its
+// info.json, newest first.
+func (h mountHistory) Snapshots(root, rel string) ([]SnapshotInfo, error) {
+	r, err := h.rel(root, rel)
+	if err != nil {
+		return nil, err
+	}
+	linked, _, err := h.linkedAncestor(root, r)
+	if err != nil {
+		return nil, err
+	}
+	inf, err := h.info(root, linked)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SnapshotInfo, 0, len(inf.Snapshots))
+	for _, s := range inf.Snapshots {
+		out = append(out, SnapshotInfo{ID: s.ID, Alias: s.Alias, Time: s.Time, Host: s.Host})
+	}
+	slices.SortFunc(out, func(a, b SnapshotInfo) int { return b.Time.Compare(a.Time) })
+	return out, nil
+}
+
+// LinkedDirs lists the paths, relative to root, of root's linked directories.
+func (h mountHistory) LinkedDirs(root string) ([]string, error) {
+	des, err := os.ReadDir(filepath.Join(h.cfg.HistoryMount, "roots", root, "dirs"))
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, de := range des {
+		data, err := os.ReadFile(filepath.Join(h.cfg.HistoryMount, "roots", root, "dirs", de.Name(), "info.json"))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		var inf mountInfo
+		if err := json.Unmarshal(data, &inf); err != nil {
+			return nil, fmt.Errorf("parse info.json for %s/%s: %w", root, de.Name(), err)
+		}
+		if len(inf.Rel) > 0 {
+			out = append(out, string(inf.Rel))
+		}
+	}
+	slices.Sort(out)
 	return out, nil
 }
 

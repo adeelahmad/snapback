@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"slices"
 	"strconv"
@@ -181,6 +182,40 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "config", v)
 }
 
+// browse fills v's linked directories when p is empty, else p's snapshots
+// newest first with id marked selected. Absent history for p leaves both
+// empty.
+func (s *Server) browse(v *webui.HistoryView, b snapshotBrowser, root, p string, id provider.SnapshotID) error {
+	dir, err := s.resolve(root, p)
+	if err != nil {
+		return err
+	}
+	if p == "" {
+		dirs, _ := b.LinkedDirs(root)
+		for _, d := range dirs {
+			v.LinkedDirs = append(v.LinkedDirs, webui.LinkedDir{Path: d, URL: historyURL(root, d)})
+		}
+		return nil
+	}
+	snaps, _ := b.Snapshots(root, dir)
+	for _, sn := range snaps {
+		v.Timeline = append(v.Timeline, webui.SnapshotTick{
+			ID:       string(sn.ID),
+			Time:     sn.Time.Format(time.RFC3339),
+			Alias:    sn.Alias,
+			Host:     sn.Host,
+			URL:      historyURL(root, p) + "&snapshot=" + url.QueryEscape(string(sn.ID)),
+			Selected: sn.ID == id,
+		})
+	}
+	return nil
+}
+
+// historyURL is the history page for p in root, root first.
+func historyURL(root, p string) string {
+	return "/history?root=" + url.QueryEscape(root) + "&path=" + url.QueryEscape(p)
+}
+
 // handleHistory lists the roots and, when root and snapshot are given, the
 // entries of path in that snapshot. html/template escapes every name.
 func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
@@ -197,6 +232,12 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	if id != "" && !id.Valid() {
 		writeError(w, http.StatusBadRequest, errcode.InvalidConfig, errSnapshotID)
 		return
+	}
+	if b, ok := s.opts.History.(snapshotBrowser); ok && root != "" {
+		if err := s.browse(&v, b, root, q.Get("path"), id); err != nil {
+			writeError(w, http.StatusBadRequest, errcode.InvalidConfig, err)
+			return
+		}
 	}
 	if root != "" && id != "" {
 		dir, err := s.resolve(root, q.Get("path"))

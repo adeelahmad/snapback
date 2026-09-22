@@ -9,8 +9,11 @@
 </nav>
 <section class="panel files" aria-label="Snapshots and files">
 <h2>Snapshots</h2>
+{{with .LinkedDirs}}<ul>
+{{range .}}<li><a href="{{.URL}}">{{.Path}}</a></li>
+{{end}}</ul>{{end}}
 <ol class="timeline" data-js="timeline">
-{{range .Timeline}}<li><form method="get" action="/history"><input type="hidden" name="snapshot" value="{{.ID}}"><button type="submit" class="tick" data-snapshot="{{.ID}}"{{if .Selected}} aria-pressed="true"{{else}} aria-pressed="false"{{end}}>{{.Time}} {{if .Warm}}<span class="badge-ok">warm</span>{{else}}<span class="badge-muted">cold</span>{{end}}</button></form></li>
+{{range .Timeline}}<li>{{if .URL}}<a href="{{.URL}}"{{if .Selected}} aria-current="true"{{end}}>{{.Alias}}</a> <span>{{.Host}}</span> {{end}}<form method="get" action="/history"><input type="hidden" name="snapshot" value="{{.ID}}"><button type="submit" class="tick" data-snapshot="{{.ID}}"{{if .Selected}} aria-pressed="true"{{else}} aria-pressed="false"{{end}}>{{.Time}} {{if .Warm}}<span class="badge-ok">warm</span>{{else}}<span class="badge-muted">cold</span>{{end}}</button></form></li>
 {{end}}</ol>
 <table>
 <thead><tr><th>Name</th><th>Size</th><th>Modified</th><th>State</th></tr></thead>
