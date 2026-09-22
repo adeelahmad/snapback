@@ -43,7 +43,7 @@ next_steps() {
 		darwin) printf '  1. Install macFUSE: https://macfuse.github.io/\n' ;;
 		linux) printf '  1. Install the fuse3 package with your distribution package manager\n' ;;
 	esac
-	printf '  2. Run: snapback config\n'
+	printf '  2. Run: snapback version to confirm the install\n'
 }
 
 download() {
