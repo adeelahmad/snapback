@@ -101,3 +101,55 @@ func TestLinksRemoveRequiresManaged(t *testing.T) {
 		})
 	}
 }
+
+func TestLinksHelpExitsZero(t *testing.T) {
+	tests := [][]string{
+		{"-h"},
+		{"--help"},
+		{"list", "-h"},
+		{"repair", "-h"},
+		{"remove", "-h"},
+	}
+	for _, args := range tests {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			l := &fakeLinker{}
+			var execs int
+			env, _, errb := newEnv(nil)
+
+			got := LinksCommand(linkDeps(l, "/w", &execs)).Run(context.Background(), env, args)
+
+			if got != 0 {
+				t.Fatalf("links %q = %d, want 0", args, got)
+			}
+			wants := []string{
+				"Usage: snapback links <list|repair|remove> [flags]",
+				"list", "repair", "remove", "--managed", "--json",
+			}
+			for _, want := range wants {
+				if !strings.Contains(errb.String(), want) {
+					t.Errorf("links %q stderr = %q, want it to contain %q", args, errb.String(), want)
+				}
+			}
+			if n := l.calls(); n != 0 {
+				t.Errorf("engine calls = %d, want 0", n)
+			}
+		})
+	}
+}
+
+func TestLinksUnknownVerbReportsUsage(t *testing.T) {
+	l := &fakeLinker{}
+	var execs int
+	env, _, errb := newEnv(nil)
+
+	got := LinksCommand(linkDeps(l, "/w", &execs)).Run(context.Background(), env, []string{"bogus"})
+
+	if got != 2 {
+		t.Fatalf("links bogus = %d, want 2", got)
+	}
+	for _, want := range []string{"list", "repair", "remove"} {
+		if !strings.Contains(errb.String(), want) {
+			t.Errorf("links bogus stderr = %q, want it to contain %q", errb.String(), want)
+		}
+	}
+}
