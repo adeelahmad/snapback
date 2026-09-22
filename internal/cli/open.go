@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
-	"io"
 	"path/filepath"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
@@ -22,19 +20,26 @@ func OpenCommand(d Deps) Command {
 		Name:    "open",
 		Summary: "open a directory's .snapshot history in the file manager",
 		Run: func(ctx context.Context, env Env, args []string) int {
-			fs := flag.NewFlagSet("open", flag.ContinueOnError)
-			fs.SetOutput(io.Discard)
-			jsonOut, pos, err := ParseFlags(fs, args)
-			if err == nil && len(pos) != 1 {
-				err = &UsageError{Msg: "usage: snapback open [--json] <dir>"}
+			fs := NewFlagSet(env, Usage{
+				Synopsis: "open [flags] DIR",
+				Args:     "DIR  the directory whose .snapshot history to open",
+				Example:  "snapback open --json ~/work",
+			})
+			jsonOut := fs.Bool("json", false, "write a JSON envelope instead of a message")
+			help, err := ParseWithUsage(fs, args)
+			if err == nil && !help && len(fs.Args()) != 1 {
+				err = &UsageError{Msg: "usage: snapback open [flags] DIR"}
 			}
-			if err != nil {
-				return WriteError(env, "open", jsonOut, err)
+			switch {
+			case help:
+				return 0
+			case err != nil:
+				return WriteError(env, "open", *jsonOut, err)
 			}
 			ctx, cancel := context.WithTimeout(ctx, d.OpenTimeout)
 			defer cancel()
-			if err := runOpen(ctx, d, pos[0]); err != nil {
-				return writeOpenError(env, jsonOut, err)
+			if err := runOpen(ctx, d, fs.Arg(0)); err != nil {
+				return writeOpenError(env, *jsonOut, err)
 			}
 			return 0
 		},
