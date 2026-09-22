@@ -3,9 +3,28 @@ package projection
 // node is one built catalog entry; directories keep sorted names and name -> inode.
 type node struct {
 	isDir    bool
+	isFile   bool
 	target   string
+	data     []byte
 	names    []string
 	children map[string]uint64
+}
+
+// Node kinds, matching mount.KindDir, mount.KindSymlink and mount.KindFile.
+const (
+	nodeDir     uint8 = 1
+	nodeSymlink uint8 = 2
+	nodeFile    uint8 = 3
+)
+
+func (n node) kind() uint8 {
+	switch {
+	case n.isDir:
+		return nodeDir
+	case n.isFile:
+		return nodeFile
+	}
+	return nodeSymlink
 }
 
 // RootIno is the inode of the projection root directory.
