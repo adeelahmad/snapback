@@ -102,9 +102,9 @@ func TestMountPointStatusStates(t *testing.T) {
 			mp := tt.setup(t, tmp)
 			cfg := mountStatusConfig(tmp, "nas", mp)
 
-			got := mountPointStatuses(cfg)
+			got := MountPointStatuses(cfg)
 			if len(got) != 1 {
-				t.Fatalf("mountPointStatuses() = %+v, want exactly 1 entry", got)
+				t.Fatalf("MountPointStatuses() = %+v, want exactly 1 entry", got)
 			}
 			if got[0].Repository != "nas" {
 				t.Errorf("Repository = %q, want %q", got[0].Repository, "nas")
@@ -137,18 +137,18 @@ func TestMountPointStatusHumanLines(t *testing.T) {
 	cfg := mountStatusConfig(tmp, "nas", filepath.Join(tmp, "mnt", "nas"))
 	cfg.Repositories = append(cfg.Repositories, config.Repository{ID: "offsite"})
 
-	got := renderMountPoints(mountPointStatuses(cfg))
+	got := RenderMountPoints(MountPointStatuses(cfg))
 
 	for _, want := range []string{
 		"mount point " + filepath.Join(tmp, "mnt", "nas") + ": missing",
 		"mount point : disabled",
 	} {
 		if !strings.Contains(got, want) {
-			t.Errorf("renderMountPoints() = %q, want it to contain %q", got, want)
+			t.Errorf("RenderMountPoints() = %q, want it to contain %q", got, want)
 		}
 	}
 	if n := strings.Count(got, "mount point "); n != 2 {
-		t.Errorf("renderMountPoints() = %q, want 2 mount point lines, got %d", got, n)
+		t.Errorf("RenderMountPoints() = %q, want 2 mount point lines, got %d", got, n)
 	}
 }
 
@@ -159,7 +159,9 @@ func TestMountPointStatusJSON(t *testing.T) {
 	mp := filepath.Join(tmp, "mnt", "nas")
 	cfg := mountStatusConfig(tmp, "nas", mp)
 
-	blob, err := json.Marshal(mountPointReport{MountPoints: mountPointStatuses(cfg)})
+	blob, err := json.Marshal(struct {
+		MountPoints []MountPointStatus `json:"mount_points"`
+	}{MountPoints: MountPointStatuses(cfg)})
 	if err != nil {
 		t.Fatalf("Marshal = %v", err)
 	}

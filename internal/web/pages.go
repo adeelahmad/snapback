@@ -153,7 +153,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	v.DetectedPrefix = webui.Control{Path: "prefix_map", Label: "Detected prefix map"}
 	for _, m := range d.PrefixMap {
 		v.DetectedPrefix.Options = append(v.DetectedPrefix.Options,
-			webui.ControlOption{Value: m.SourcePath, Label: m.SourcePath})
+			webui.Option{Value: m.SourcePath, Label: m.SourcePath})
 	}
 	v.MountPoint = mountPointField(cfg, goos, s.setupHome())
 	v.ResticPaths = binaries(restic, "restic")

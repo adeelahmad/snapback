@@ -26,17 +26,6 @@ type MountPointStatus struct {
 	Remedy     string `json:"remedy,omitempty"`
 }
 
-// MountPointReport is the JSON payload carrying every repository's mount
-// point state.
-type MountPointReport struct {
-	MountPoints []MountPointStatus `json:"mount_points"`
-}
-
-type (
-	mountPointStatus = MountPointStatus
-	mountPointReport = MountPointReport
-)
-
 // MountPointStatuses reports each repository's mount point state, resolved
 // from the filesystem alone: it never dials the daemon and never reads the
 // Restic repository.
@@ -85,7 +74,3 @@ func RenderMountPoints(sts []MountPointStatus) string {
 	}
 	return b.String()
 }
-
-func mountPointStatuses(cfg *config.Config) []MountPointStatus { return MountPointStatuses(cfg) }
-
-func renderMountPoints(sts []MountPointStatus) string { return RenderMountPoints(sts) }

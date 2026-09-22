@@ -123,23 +123,6 @@ func (s *Server) applyCredentials(cfg *config.Config, form url.Values) error {
 	return nil
 }
 
-// configControls renders every key of cfg as a form control, carrying each
-// field's error and the password controls of every repository.
-func configControls(cfg *config.Config, byPath map[string]string, form url.Values) []webui.ConfigSection {
-	var out []webui.ConfigSection
-	for _, sec := range webui.Sections(Fields(cfg)) {
-		s := webui.ConfigSection{Title: sec.Title}
-		for _, f := range sec.Fields {
-			s.Controls = append(s.Controls, control(f, byPath[f.Path]))
-			if prefix, ok := strings.CutSuffix(f.Path, ".password_file"); ok {
-				s.Controls = append(s.Controls, passwordControls(prefix, byPath, form)...)
-			}
-		}
-		out = append(out, s)
-	}
-	return out
-}
-
 // control turns one field into its control, keeping a select value the
 // options do not list so a rejected choice stays visible on its control.
 func control(f webui.Field, msg string) webui.Control {

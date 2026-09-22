@@ -41,9 +41,6 @@ type Control struct {
 	Required bool
 }
 
-// ControlOption is one option of a select, chips or row control.
-type ControlOption = Option
-
 // ConfigSection is one group of controls on the Configuration page.
 type ConfigSection struct {
 	Title    string
