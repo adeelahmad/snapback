@@ -22,105 +22,11 @@ func formHeader(cookie *http.Cookie) http.Header {
 	return h
 }
 
-// configForm is a valid Config form, edited from the formConfig fixture.
-func configForm(csrf string) url.Values {
-	return url.Values{
-		csrfField:          {csrf},
-		"revision":         {"r1"},
-		"roots":            {"/home/edited\n"},
-		"filters":          {"host=edited-host\ntag=weekly\n"},
-		"exclusions":       {"cache\n"},
-		"seed_paths":       {"/home/edited/projects\n"},
-		"discovery_mode":   {"seeded"},
-		"cache_dir":        {"/var/cache/edited"},
-		"refresh_interval": {"11m"},
-	}
-}
-
-func TestConfigFormSavesAndRedirects(t *testing.T) {
-	b := &fakeBackend{cfg: formConfig("/opt/restic/bin/restic"), rev: "r1", newRev: "r2"}
-	srv, cookie, csrf := newTestServer(t, Options{Backend: b})
-
-	form := configForm(csrf)
-	w := do(t, srv, http.MethodPost, "/config", strings.NewReader(form.Encode()), formHeader(cookie))
-
-	if got, want := w.Code, http.StatusSeeOther; got != want {
-		t.Fatalf("POST /config: status = %d, want %d (body %q)", got, want, w.Body.String())
-	}
-	if got, want := w.Header().Get("Location"), "/config?saved=1"; got != want {
-		t.Errorf("POST /config: Location = %q, want %q", got, want)
-	}
-	if got, want := len(b.saved), 1; got != want {
-		t.Fatalf("POST /config: saved configs = %d, want %d", got, want)
-	}
-	if got, want := b.gotRevs[0], b.rev; got != want {
-		t.Errorf("POST /config: saved revision = %q, want %q", got, want)
-	}
-	saved := b.saved[0]
-	if got, want := len(saved.Roots), 1; got != want {
-		t.Fatalf("POST /config: saved roots = %d, want %d", got, want)
-	}
-	root := saved.Roots[0]
-	if got, want := root.LocalPath, "/home/edited"; got != want {
-		t.Errorf("POST /config: root local path = %q, want %q", got, want)
-	}
-	if got, want := root.ID, "home"; got != want {
-		t.Errorf("POST /config: root id = %q, want %q", got, want)
-	}
-	if got, want := root.Snapshots.Hostname, "edited-host"; got != want {
-		t.Errorf("POST /config: root hostname = %q, want %q", got, want)
-	}
-	if got, want := strings.Join(root.Snapshots.TagsAll, ","), "weekly"; got != want {
-		t.Errorf("POST /config: root tags = %q, want %q", got, want)
-	}
-	if got, want := strings.Join(root.ExcludeRelativePaths, ","), "cache"; got != want {
-		t.Errorf("POST /config: root exclusions = %q, want %q", got, want)
-	}
-	if got, want := len(root.SeedPaths), 1; got != want {
-		t.Fatalf("POST /config: root seed paths = %d, want %d", got, want)
-	}
-	if got, want := root.SeedPaths[0].Path, "/home/edited/projects"; got != want {
-		t.Errorf("POST /config: root seed path = %q, want %q", got, want)
-	}
-	if got, want := saved.Discovery.Mode, "seeded"; got != want {
-		t.Errorf("POST /config: discovery mode = %q, want %q", got, want)
-	}
-	if got, want := saved.Catalog.RefreshInterval.String(), "11m0s"; got != want {
-		t.Errorf("POST /config: refresh interval = %q, want %q", got, want)
-	}
-	if got, want := saved.Repositories[0].CacheDir, "/var/cache/edited"; got != want {
-		t.Errorf("POST /config: cache dir = %q, want %q", got, want)
-	}
-}
-
-func TestConfigFormInvalidFieldRerenders(t *testing.T) {
-	b := &fakeBackend{cfg: formConfig("/opt/restic/bin/restic"), rev: "r1", newRev: "r2"}
-	srv, cookie, csrf := newTestServer(t, Options{Backend: b})
-
-	form := configForm(csrf)
-	form.Set("refresh_interval", "eleven minutes")
-	w := do(t, srv, http.MethodPost, "/config", strings.NewReader(form.Encode()), formHeader(cookie))
-
-	if got, want := w.Code, http.StatusOK; got != want {
-		t.Fatalf("POST /config: status = %d, want %d", got, want)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "refresh interval") {
-		t.Errorf("POST /config: body does not name the bad field: %q", body)
-	}
-	if !strings.Contains(body, "eleven minutes") {
-		t.Errorf("POST /config: body does not keep the submitted value: %q", body)
-	}
-	if got, want := len(b.saved), 0; got != want {
-		t.Errorf("POST /config: saved configs = %d, want %d", got, want)
-	}
-}
-
 func TestConfigFormWithoutCSRFTokenIsForbidden(t *testing.T) {
 	b := &fakeBackend{cfg: formConfig("/opt/restic/bin/restic"), rev: "r1", newRev: "r2"}
 	srv, cookie, csrf := newTestServer(t, Options{Backend: b})
 
-	form := configForm(csrf)
+	form := everySectionForm(csrf, newFormTree(t))
 	form.Del(csrfField)
 	w := do(t, srv, http.MethodPost, "/config", strings.NewReader(form.Encode()), formHeader(cookie))
 
@@ -309,11 +215,11 @@ func everySectionForm(csrf string, tree formTree) url.Values {
 		"roots[0].repository_id":                {"main"},
 		"roots[0].prefix_map[0].hostname":       {"demo-host"},
 		"roots[0].prefix_map[0].source_path":    {"/srv/demo"},
-		"roots[0].prefix_map[0].tree_prefix":    {"demo"},
+		"roots[0].prefix_map[0].tree_prefix":    {"/demo"},
 		"roots[0].snapshots.hostname":           {"demo-host"},
 		"roots[0].snapshots.tags_all":           {"nightly"},
 		"roots[0].snapshots.source_paths_exact": {"/srv/demo"},
-		"roots[0].seed_paths[0].path":           {filepath.Join(tree.root, "projects")},
+		"roots[0].seed_paths[0].path":           {"projects"},
 		"roots[0].seed_paths[0].max_depth":      {"2"},
 		"roots[0].exclude_relative_paths":       {"tmp-excluded"},
 		"roots[0].snap.tags":                    {"adhoc"},
@@ -369,9 +275,9 @@ func wantEverySection(tree formTree) *config.Config {
 			ID:                   "home",
 			LocalPath:            tree.root,
 			RepositoryID:         "main",
-			PrefixMap:            []config.PrefixMapping{{Hostname: "demo-host", SourcePath: "/srv/demo", TreePrefix: "demo"}},
+			PrefixMap:            []config.PrefixMapping{{Hostname: "demo-host", SourcePath: "/srv/demo", TreePrefix: "/demo"}},
 			Snapshots:            config.SnapshotFilter{Hostname: "demo-host", TagsAll: []string{"nightly"}, SourcePathsExact: []string{"/srv/demo"}},
-			SeedPaths:            []config.SeedPath{{Path: filepath.Join(tree.root, "projects"), MaxDepth: 2}},
+			SeedPaths:            []config.SeedPath{{Path: "projects", MaxDepth: 2}},
 			ExcludeRelativePaths: []string{"tmp-excluded"},
 			Snap:                 config.SnapSettings{Tags: []string{"adhoc"}},
 		}},
@@ -462,7 +368,7 @@ func TestConfigFormInvalidLockModeAnchorsErrorToField(t *testing.T) {
 	for _, want := range []string{
 		`name="roots[0].local_path" value="` + tree.root + `"`,
 		`name="roots[0].prefix_map[0].hostname" value="demo-host"`,
-		`name="roots[0].seed_paths[0].path" value="` + filepath.Join(tree.root, "projects") + `"`,
+		`name="roots[0].seed_paths[0].path" value="projects"`,
 		`name="catalog.reader_policy.burst_limit" value="7"`,
 		`name="views.rsnapshot_keep.daily" value="7"`,
 		`name="web.listen" value="127.0.0.1:7899"`,

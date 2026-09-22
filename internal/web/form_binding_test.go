@@ -37,29 +37,6 @@ func formConfig(restic string) *config.Config {
 	}
 }
 
-func TestConfigPageShowsConfigOnDisk(t *testing.T) {
-	b := &fakeBackend{cfg: formConfig("/opt/restic/bin/restic"), rev: "r1"}
-	srv, cookie, _ := newTestServer(t, Options{Backend: b})
-
-	w := do(t, srv, http.MethodGet, "/config", nil, http.Header{"Cookie": {cookie.String()}})
-	body := html.UnescapeString(w.Body.String())
-	for _, want := range []string{
-		`name="revision" value="r1"`,
-		"/home/demo\n",
-		"host=demo-host\n",
-		"tag=nightly\n",
-		"tmp-excluded\n",
-		"/home/demo/projects\n",
-		`value="onaccess" selected`,
-		`name="cache_dir" value="/var/cache/snapback-test"`,
-		`name="refresh_interval" value="7m0s"`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("GET /config: body does not contain %q", want)
-		}
-	}
-}
-
 func TestSetupPageOffersDetectedResticBinaries(t *testing.T) {
 	bin := t.TempDir()
 	onPath := filepath.Join(bin, "restic")
