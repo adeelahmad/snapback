@@ -4,10 +4,10 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 21
+- **Tick:** 23
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
-- **Phase:** SPRINT 2 EXECUTION — history rewritten (0 AI trailers anywhere); resuming. Chains now: s2-01 36dd8a7, s2-02 b98f8d1, s2-03 218d3c9, s2-05 d9a4037
-- **Last gate:** GREEN on master @ 41722b6 locally (all checks incl. goreleaser check) and on GitHub (CI 35676870835, docs 35676870852, release 35676870860 — all success)
+- **Phase:** SPRINT 2 EXECUTION — wave 1: S2-01 + S2-02 merged to stage-1 (4376285); S2-03 T7 GREEN in flight; wave 2 S2-04 RED started. Chains: s2-03 965cde8, s2-04 4376285, s2-05 d9a4037
+- **Last gate:** GREEN on stage-1 @ 4376285 (full standards matrix, cov 98.8%); master @ f0f0d5b green on GitHub
 - **Human gate pending:** none (human chose push+merge to master at 01:37Z)
 
 ## Stage table (README §22)
@@ -363,6 +363,23 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 21 | S2-01/T3 | green-worker | passed (task) / ESCALATED (story gate) — 8 T3 + all S2-01 tests PASS -race (re-run), cov 96.9%, lint 0; full matrix red ONLY on test/projectdocs TestNoticeCoversGoModRequires: NOTICE lacks go-fuse + golang.org/x/sys (S1-08 guard working as designed); commit af79267 (no trailer); chain2/s2-01 → af79267 | fix task: S2-01/fix-notice (NOTICE scope) before merge |
 | 21 | S2-03/T7 | red-worker | passed — 3 mount-supervisor unit tests FAIL by assertion; gated TestPathTemplateIntegration skips naming SNAPBACK_FUSE_TESTS; T1-T6 still PASS; lint 0 (incl. -tags integration); no trailer; chain2/s2-03 → 961ee77 | — |
 | 21 | HISTORY REWRITE | orchestrator | human-approved. Backup bundle saved (scratchpad/pre-rewrite-backup.bundle). filter-branch --msg-filter stripped `Co-Authored-By: Claude` / `Claude-Session:` from master, stage-0, stage-1, chain/*, chain2/*, v1.0.0, v1.0.1. Verified: 0 trailers; trees identical (stage-1, old origin/master); authors unchanged. Pushed: origin master 9b6a97d→f0f0d5b (--force-with-lease), tags v1.0.0→d8833fb, v1.0.1→f0f0d5b (v1.0.1 release keeps 10 assets). Deleted refs/original + 129 local worker scratch branches. Note: CHANGELOG.md / GitHub release notes reference pre-rewrite commit SHAs (now dangling links) | tech debt: refresh CHANGELOG commit links |
+| 21 | S2-01/fix-notice | green-worker (full matrix) | spawned 02:40Z | — |
+| 21 | S2-02/T5 | green-worker | spawned 02:40Z | — |
+| 21 | S2-03/scaffold-T7 | scaffolder | spawned 02:40Z | — |
+| 21 | S1-06/author-fix | red-worker | spawned 02:40Z | — |
+| 22 | S2-02/T5 | green-worker | passed — 4 ReadDir + earlier PASS -race (re-run); lint 0 issues (earlier stub-induced findings cleared); no trailer; chain2/s2-02 → ce4c091 | — |
+| 22 | S1-06/author-fix RED | red-worker | passed — TestWorkflowReleaseCommitsAuthoredByUser FAIL by assertion; other 34 release tests PASS; chain2/rel-author → 38fa995 | — |
+| 22 | S2-02/T6 | green-worker | spawned 02:42Z (final, full matrix + cov) | — |
+| 22 | S1-06/author-fix GREEN | green-worker | spawned 02:42Z (full matrix) | — |
+| 23 | S2-01/fix-notice | green-worker | passed — NOTICE lists go-fuse + x/sys (BSD-3-Clause); full matrix green (cov 96.9%); chain2/s2-01 → 968e890 | — |
+| 23 | S2-03/T7 scaffold | scaffolder | passed — mount.go stubs, shim removed, T1-T6 PASS, T7 unit FAIL on SUB-AGENT-TODO; chain2/s2-03 → 965cde8 | — |
+| 23 | S2-02/T6 | green-worker | passed — Readlink verbatim; 18/18 PASS -race; pkg cov 100%; full matrix green; chain2/s2-02 → 05d8b8b | — |
+| 23 | S1-06/author-fix GREEN | green-worker | passed — semrel env GIT_AUTHOR_*/GIT_COMMITTER_* = Adeel Ahmad; 35/35 release tests; full matrix green; chain2/rel-author → 7f7a40c | — |
+| 23 | MERGE S2-01 → stage-1 | orchestrator | f8e74c7; full gate GREEN (cov 96.9%) | — |
+| 23 | MERGE S2-02 + S1-06/author-fix → stage-1 | orchestrator | 248099a, 4376285; full gate GREEN (cov 98.8%); 0 AI trailers in e83fd2f..stage-1 | — |
+| 23 | S2-03/T7 GREEN | green-worker | spawned (final; full matrix + local integration evidence) | — |
+| 23 | S2-04/T1 RED | red-worker | spawned 02:47Z (S2-01+S2-02 landed on stage-1 → wave 2 unblocked) | — |
+| 23 | S2-01+S2-02 structural | structural-reviewer | spawned 02:47Z | — |
 
 ## Plugin issues found
 
