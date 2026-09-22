@@ -68,6 +68,12 @@ func (s *Systemd) Install(ctx context.Context, o UnitOptions) error {
 		return err
 	}
 	if cur == nil || string(cur) != unit {
+		if err := os.MkdirAll(s.UnitDir, 0o755); err != nil {
+			return fmt.Errorf("%s: create unit dir: %w", op, err)
+		}
+		if err := os.Chmod(s.UnitDir, 0o755); err != nil {
+			return fmt.Errorf("%s: create unit dir: %w", op, err)
+		}
 		if err := writeAtomic(s.unitPath(), []byte(unit)); err != nil {
 			return fmt.Errorf("%s: write unit: %w", op, err)
 		}
