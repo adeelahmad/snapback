@@ -16,8 +16,8 @@ var wantOwnedFiles = []string{
 	"CONTRIBUTING.md",
 	"SECURITY.md",
 	"CODE_OF_CONDUCT.md",
-	".github/ISSUE_TEMPLATE/bug_report.md",
-	".github/ISSUE_TEMPLATE/feature_request.md",
+	".github/ISSUE_TEMPLATE/bug.yml",
+	".github/ISSUE_TEMPLATE/feature.yml",
 	".github/pull_request_template.md",
 }
 
@@ -25,8 +25,8 @@ var ownedFiles = []string{
 	"CONTRIBUTING.md",
 	"SECURITY.md",
 	"CODE_OF_CONDUCT.md",
-	".github/ISSUE_TEMPLATE/bug_report.md",
-	".github/ISSUE_TEMPLATE/feature_request.md",
+	".github/ISSUE_TEMPLATE/bug.yml",
+	".github/ISSUE_TEMPLATE/feature.yml",
 	".github/pull_request_template.md",
 }
 
