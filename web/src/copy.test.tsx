@@ -187,4 +187,10 @@ describe('copy', () => {
       expect(attr(a, 'rel') ?? '', `rel of ${a}`).toContain('noopener');
     }
   });
+
+  it('TestFooterAnalyticsNote', () => {
+    const text = renderedText(renderToStaticMarkup(<Footer />));
+
+    expect(text, 'footer privacy note').toContain('Google Analytics');
+  });
 });

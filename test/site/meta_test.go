@@ -294,8 +294,22 @@ func TestNoExternalOrigins(t *testing.T) {
 		if attr == "content" {
 			continue
 		}
-		if strings.HasPrefix(v, "//") || (strings.HasPrefix(strings.ToLower(v), "http") && !allowed[v]) {
-			t.Errorf("%s=%q is an external origin, want none", attr, v)
+		if attr == "src" && v == gtagLoaderURL {
+			continue
 		}
+		if strings.HasPrefix(v, "//") || (strings.HasPrefix(strings.ToLower(v), "http") && !allowed[v]) {
+			t.Errorf("%s=%q is an external origin, want only %s (as the gtag loader)", attr, v, gtagOrigin)
+		}
+	}
+
+	// The one allowed external origin must be used only as the gtag loader.
+	var gtagSrcs int
+	for _, tg := range scriptTags(html) {
+		if tg.attrs["src"] == gtagLoaderURL {
+			gtagSrcs++
+		}
+	}
+	if n := strings.Count(html, gtagOrigin); n != 1 || gtagSrcs != 1 {
+		t.Errorf("%s: %s occurrences = %d, gtag loader scripts = %d, want 1 and 1", indexHTML, gtagOrigin, n, gtagSrcs)
 	}
 }
