@@ -158,9 +158,11 @@ func (s *Systemd) Status(ctx context.Context) (string, error) {
 }
 
 // Uninstall stops, disables and removes the unit, refusing to touch a foreign one.
+// With no unit installed it does nothing and returns nil.
 func (s *Systemd) Uninstall(ctx context.Context) error {
 	const op = "service uninstall"
-	if _, err := s.existingUnit(op); err != nil {
+	cur, err := s.existingUnit(op)
+	if err != nil || cur == nil {
 		return err
 	}
 	for _, args := range [][]string{{"stop", unitName}, {"disable", unitName}} {

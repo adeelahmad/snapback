@@ -219,6 +219,10 @@ func serviceCommand(d commandDeps) cli.Command {
 					_, _ = fmt.Fprintln(env.Stdout, state)
 				}
 			case "uninstall":
+				if _, statErr := os.Stat(s.unitPath()); errors.Is(statErr, os.ErrNotExist) {
+					_, _ = fmt.Fprintln(env.Stdout, "snapback service is not installed")
+					break
+				}
 				err = s.Uninstall(ctx)
 			default:
 				_, _ = fmt.Fprintln(env.Stderr, serviceUsage)
