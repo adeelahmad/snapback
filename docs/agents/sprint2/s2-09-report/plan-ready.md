@@ -24,11 +24,11 @@ Contracts under test: `tasks.md` (S2-09). Package `test/reports` (`package repor
 
 ## T3 — Per-platform path-template, catalog and fidelity sections
 
-- [ ] `test/reports/platform_test.go::TestPathTemplateRowsMatchEvidence` — assert at least one present pathtemplate file; for each, a row names the file with the platform label, `result` and `snapshot_id` equal to the JSON; the snapshot_id is 64 lowercase hex.
-- [ ] `test/reports/platform_test.go::TestCatalogRowsMatchEvidence` — assert at least one present catalog file; for each, a row with the label, `result` and `go_fuse_version` equal to the JSON.
-- [ ] `test/reports/platform_test.go::TestFidelityRowsMatchEvidence` — assert at least one present fidelity file; for each, a row with the label, `files_compared`, `mtime_precision_ns` and pass/fail equal to the JSON.
-- [ ] `test/reports/platform_test.go::TestCtimeBirthTimeNotClaimed` — assert every present fidelity file has at least one `files[]` entry and every `ctime`/`birth_time` has `claimed: false`; assert the fidelity section contains the exact ctime line and no sentence pairs `ctime` with `accurate`, `exact` or `verified`.
-- [ ] `test/reports/platform_test.go::TestPlatformLabels` — assert at least one darwin row exists and uses exactly `macOS (Apple Silicon, macFUSE, local host)`, linux rows use exactly `Linux (ubuntu-latest CI, fuse3)`, and the report contains no `macOS support`.
+- [x] `test/reports/platform_test.go::TestPathTemplateRowsMatchEvidence` — assert at least one present pathtemplate file; for each, a row names the file with the platform label, `result` and `snapshot_id` equal to the JSON; the snapshot_id is 64 lowercase hex.
+- [x] `test/reports/platform_test.go::TestCatalogRowsMatchEvidence` — assert at least one present catalog file; for each, a row with the label, `result` and `go_fuse_version` equal to the JSON.
+- [x] `test/reports/platform_test.go::TestFidelityRowsMatchEvidence` — assert at least one present fidelity file; for each, a row with the label, `files_compared`, `mtime_precision_ns` and pass/fail equal to the JSON.
+- [x] `test/reports/platform_test.go::TestCtimeBirthTimeNotClaimed` — assert every present fidelity file has at least one `files[]` entry and every `ctime`/`birth_time` has `claimed: false`; assert the fidelity section contains the exact ctime line and no sentence pairs `ctime` with `accurate`, `exact` or `verified`.
+- [x] `test/reports/platform_test.go::TestPlatformLabels` — assert at least one darwin row exists and uses exactly `macOS (Apple Silicon, macFUSE, local host)`, linux rows use exactly `Linux (ubuntu-latest CI, fuse3)`, and the report contains no `macOS support`.
 
 ## T4 — Latency numbers
 

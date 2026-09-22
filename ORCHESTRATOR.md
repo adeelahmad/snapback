@@ -4,7 +4,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 37
+- **Tick:** 38
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 EXECUTION — S2-01..S2-04, S2-06, S2-07, S2-08, C1, C2 merged (stage-1 b2572b2); S2-05 T3 + S2-09 in flight; C3 site + C4 launch in flight
 - **Last gate:** GREEN on stage-1 @ df2d91f (full standards matrix)
@@ -462,6 +462,9 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 37 | MERGE S2-13 → stage-1 | orchestrator | df2d91f; full gate GREEN | — |
 | 37 | C3 T2/T3/T4/T6/T8 RED; T2 GREEN; T8 GREEN | red/green | passed — tokens generated from design system (contrast: accent-text/canvas 4.83, line-strong/canvas 3.49); site CI job; chain2/c3-site → 8335795 | T2 shim was test-support code → orchestrator exception let GREEN replace it |
 | 37 | C3 T3 GREEN, C3 T4 scaffold, C3 T7 RED (side chain from stage-1), S2-09 T3 RED | various | spawned 03:49Z | — |
+| 38 | C3 T3/T4/T6/T7 GREEN, T4 scaffold, T7 RED | various | passed — fonts+brand assets byte-copied (+NOTICE OFL); header/hero/how-it-works (13 vitest PASS, build ok; brand glass highlight gradient replaced by inset shadow because test bans linear-gradient); head meta (4/5 — TestThemeColorPerScheme test bug: single-string tokens) ; Pages layout on side chain c3-t7 (_site: web at /, mkdocs at /docs/, install.sh). chain2/c3-site → 477c6ee | T6fix RED opened |
+| 38 | S2-09 T3 RED/GREEN | red/green | passed — path-template, catalog, fidelity sections from JSON (symlink ls --json gap stated); 10 tests PASS | — |
+| 38 | S2-09/T4 RED, C3 T5 RED, C3 T6fix RED | red | spawned 03:54Z | — |
 
 ## Plugin issues found
 

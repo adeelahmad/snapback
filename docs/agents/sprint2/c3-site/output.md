@@ -171,3 +171,124 @@ Added job `site` to `.github/workflows/ci.yml` (existing jobs untouched): ubuntu
 | diff scope | PASS | only `.github/workflows/ci.yml` |
 ### Next
 Structural review; merge per wave-2 order (T2, T3, T6, T8, T7, T4).
+
+## S2-12/T3 · attempt 1 · green-worker · 2026-09-22T03:50:24Z
+status: ok
+### Summary
+Byte-copied the six woff2 fonts from BRAND_DIR/fonts into web/public/fonts/, the six logo SVGs (mark, mark-inverse, lockup-horizontal, lockup-horizontal-inverse, wordmark, wordmark-inverse) from BRAND_DIR/Logos into web/public/brand/, and favicon.svg, favicon-16/32.png, app-icon-180/512.png, og-card-light/dark.png from BRAND_DIR/Icons and Social into web/public/. No file was edited or redrawn. NOTICE lists IBM Plex Sans, IBM Plex Mono and JetBrains Mono under the SIL Open Font License 1.1. app-icon.svg (which has gradients) was left out because the plan does not name it. Commit 63b8f8c, no AI trailers.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/site/assets_test.go::TestFontsSelfHosted` | PASS | green |
+| `test/site/assets_test.go::TestBrandSVGs` | PASS | green |
+| `test/site/assets_test.go::TestBrandPNGs` | PASS | green |
+| `test/site/assets_test.go::TestOGCardsAreWide` | PASS | green |
+| `test/site/assets_test.go::TestNoticeListsFonts` | PASS | green |
+| `test/site/icons_test.go::TestNoBannedIconNames` | PASS | green |
+| `test/site/icons_test.go::TestNoRuntimeCDNInSource` | PASS | green |
+| `go test -race ./...` | PASS* | all packages ok except test/site T6 meta tests (TestHeadMeta, TestThemeColorPerScheme, TestMetaVoice, TestMetaIconsExist, TestNoExternalOrigins), which are still RED and belong to T6 |
+| `npm run build` (web/) | PASS | vite build ok |
+| scope | PASS | diff limited to NOTICE and web/public/** |
+### Next
+structural review; T6 meta turns the remaining test/site failures green.
+
+## S2-12/T4 · attempt 1 · scaffolder · 2026-09-22T03:50:05Z
+status: ok
+### Summary
+Replaced the RED shim `web/src/zz_shim_t4.ts` with the canonical T4 production stubs. `Header`, `Hero` and `HowItWorks` each exist once under `web/src/sections/`, return `null`, and carry a SUB-AGENT-TODO recipe taken from tasks.md § T4. `web/src/content.ts` holds the typed content model (`header`, `hero`, `howItWorks`) with empty values under a SUB-AGENT-TODO. `web/src/styles/site.css` is an empty file. As the brief allows, only the import line of `sections.test.tsx` changed, so it now imports from `./sections/*`. App.tsx and main.tsx are out of scope and left for GREEN. Commit 2772af5, no AI trailers.
+### Scaffold
++ create Header @ web/src/sections/Header.tsx
++ create Hero @ web/src/sections/Hero.tsx
++ create HowItWorks @ web/src/sections/HowItWorks.tsx
++ create content model (NavLink, HeaderContent, HeroContent, HowItWorksContent, header, hero, howItWorks) @ web/src/content.ts
++ create empty stylesheet @ web/src/styles/site.css
+~ update import line only @ web/src/sections.test.tsx
+- delete shim @ web/src/zz_shim_t4.ts
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| stubs return null + SUB-AGENT-TODO | PASS | 3 components, 1 content model, 1 empty stylesheet |
+| no agentic:shim left | PASS | zz_shim_t4.ts deleted |
+| npm run lint (tsc --noEmit) | PASS | clean |
+| T4 vitest cases fail by assertion | PASS | 6/6 fail on assertions, none on import errors |
+| other web tests unchanged | PASS | 7 pass (App.test.tsx, gen-tokens.test.ts) |
+### Next
+green: fill the stubs in sections/*.tsx, content.ts and site.css. Also render Header, Hero and HowItWorks in App.tsx and import site.css from main.tsx, per tasks.md § T4.
+
+## S2-12/T7 · attempt 1 · red-worker · 2026-09-22T03:50:57Z
+status: ok
+### Summary
+Wrote the T7 tests on chain2/c3-t7 (base df2d91f), commit 55ed3d2. Added TestWorkflowBuildsSite and TestWorkflowAssemblesPagesTree to test/docs/workflow_test.go, with two small real helpers that are not under test (buildSteps, stepIndex) and a regexp for setup-node@v<major>. Updated the C1/C4 pins in place, none deleted: TestSiteURLAndName site_url is now https://snapback.run/docs/; TestWorkflowUploadsPagesArtifact wants `path: _site`; TestWorkflowPublishesInstallScript wants the copy to _site/install.sh; readme_links_test.go docsSiteURL is now https://snapback.run/docs/; TestWorkflowBuildsStrict now pins the full `mkdocs build --strict --site-dir site`. No shim was needed, because every test uses existing helpers. To check the step parser, I temporarily edited docs.yml to match the tasks.md contract: all TestWorkflow* tests passed, and then I restored the file. golangci-lint reports 0 issues and `go vet ./...` is clean.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/docs/mkdocs_config_test.go::TestSiteURLAndName` | FAIL | site_url = ("https://snapback.run/", true), want ("https://snapback.run/docs/", true) |
+| `test/docs/workflow_test.go::TestWorkflowBuildsSite` | FAIL | build job: no actions/setup-node step |
+| `test/docs/workflow_test.go::TestWorkflowAssemblesPagesTree` | FAIL | build job: no step runs the three cp commands into _site/ |
+| `test/docs/workflow_test.go::TestWorkflowUploadsPagesArtifact` | FAIL | missing "path: _site" |
+| `test/docs/workflow_test.go::TestWorkflowPublishesInstallScript` | FAIL | build job: no step copies install.sh to _site/install.sh |
+| `test/docs/workflow_test.go::TestWorkflowBuildsStrict` | PASS-ON-RED | "unchanged" invariant per plan.md: `mkdocs build --strict --site-dir site` is already present |
+| `test/projectdocs/readme_links_test.go::TestReadmeLinksDocs` | FAIL | Documentation section missing docs site "https://snapback.run/docs/" |
+### Next
+GREEN edits .github/workflows/docs.yml: setup-node@v4 with node-version-file web/.nvmrc; npm ci and npm run build with `working-directory: web`; one assemble step using the exact commands `cp -R web/dist/. _site/`, `cp -R site/. _site/docs/` and `cp install.sh _site/install.sh`; `path: _site`. GREEN also sets mkdocs.yml site_url to https://snapback.run/docs/ and puts https://snapback.run/docs/ in the README Documentation section. The assemble checks match those cp strings literally.
+
+## S2-12/T6 · attempt 1 · green-worker · 2026-09-22T03:52:22Z
+status: escalate
+### Summary
+Filled the web/index.html head (commit 73ca2cc on worktree-agent-ac886b715f9cd3f04): title, a 128-char description in brand voice, canonical https://snapback.run/, color-scheme, two theme-color metas (#f8f9fa light, #202124 dark from the tokens.json canvas token), og:title/description/url/type/image (+ width/height 1200x630), twitter:card/image, svg + 16/32 png icons and apple-touch-icon 180. 4 of 5 T6 tests pass. TestThemeColorPerScheme fails before reaching index.html: its tokens struct decodes every color token value as map[string]string, but tokens.json (T2) gives accent a plain string value ("#1e7e43"), so loadJSON errors with "cannot unmarshal string into ... .color.tokens.10.value". Fixing it means changing the test (e.g. Value json.RawMessage or any) or tokens.json, both outside SCOPE web/index.html, so I left it alone. Conflict to note: the brief says og-card-dark.png, but the test and tasks.md pin og-card-light.png. I followed the contract (light).
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/site/meta_test.go::TestHeadMeta` | PASS | green |
+| `test/site/meta_test.go::TestThemeColorPerScheme` | FAIL | test decode bug: tokens.json accent value is a string, not {light,dark}; out of scope |
+| `test/site/meta_test.go::TestMetaVoice` | PASS | green |
+| `test/site/meta_test.go::TestMetaIconsExist` | PASS | green |
+| `test/site/meta_test.go::TestNoExternalOrigins` | PASS | green |
+| `go test -race ./...` (other packages) | PASS | only the failure above |
+| `go vet ./...` | PASS | clean |
+| `npm run build` (web/) | PASS | built |
+| diff scope | PASS | web/index.html only |
+### Next
+Orchestrator: send the test fix back to red-worker (change canvasValues' Value field to json.RawMessage and decode only canvas, or skip non-object values). No change to index.html should be needed; the theme-color metas already match canvas light/dark. Then re-run TestThemeColorPerScheme.
+
+## S2-12/T7 · attempt 1 · green-worker · 2026-09-22T04:05:00Z
+status: ok
+### Summary
+docs.yml build job now sets up Node (actions/setup-node@v4, node-version-file web/.nvmrc, npm cache on web/package-lock.json), runs `npm ci` and `npm run build` in web/, keeps the Python setup and `mkdocs build --strict --site-dir site`, then one assemble step (`mkdir -p _site/docs && cp -R web/dist/. _site/ && cp -R site/. _site/docs/ && cp install.sh _site/install.sh`) and uploads `_site`. Deploy job unchanged. mkdocs.yml site_url is https://snapback.run/docs/; README Documentation docs link is https://snapback.run/docs/. No tests touched; web/ is not on this chain so the Node steps were not run locally (tests are static YAML checks). Commit 13b48c9 on chain2/c3-t7 worktree branch.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `test/docs::TestWorkflowBuildsSite` | PASS | green |
+| `test/docs::TestWorkflowAssemblesPagesTree` | PASS | green |
+| `test/docs::TestWorkflowPublishesInstallScript` | PASS | green |
+| `test/docs::TestWorkflowUploadsPagesArtifact` | PASS | green |
+| `test/docs::TestWorkflowBuildsStrict` | PASS | green |
+| `test/docs` mkdocs site_url pin | PASS | green |
+| `test/projectdocs::readme_links` docsSiteURL | PASS | green |
+| `go test -race ./test/...` | PASS | all 9 packages ok |
+| `go vet ./...` | PASS | clean |
+| `actionlint .github/workflows/docs.yml` | PASS | clean |
+| `mkdocs build --strict` | PASS | built in 0.45s |
+| scope | PASS | diff limited to docs.yml, mkdocs.yml, README.md |
+### Next
+Merge per wave-2 order (after T8, before T4); structural review; T8 CI site job.
+
+## S2-12/T4 · attempt 1 · green-worker · 2026-09-22T03:52:53Z
+status: ok
+### Summary
+Filled the T4 stubs on chain2/c3-t4 (base 2772af5), commit 3452960. `content.ts` holds every visible string: the header lockup (light `/brand/lockup-horizontal.svg`, dark `/brand/lockup-horizontal-inverse.svg`, alt `snapback`) and links (`/docs/`, GitHub). The hero has the pitch, the install command and a status line about stage 0 and stage 1 that says the .snapshot view is not yet built. HowItWorks has the terminal lines, labelled "Planned behaviour, not yet built." `Header` uses a `<picture>` with a dark `<source>`. `Hero` puts the command once in `<pre><code>` inside a glass snippet box. `HowItWorks` shows one span per terminal line, and the `$` prompt comes from CSS `::before`, so the `cp .snapshot/` line starts the raw text line as the test requires. `App.tsx` renders Header, Hero and HowItWorks inside `<main>`. The hero pitch is the h1 and contains `snapback`, so App.test still passes. `main.tsx` gains the site.css import. `site.css` uses tokens only: two radial tint discs on `canvas`, and a glass panel with `glass-fill`, blur, stroke, edge, an inset highlight and `shadow-glass`. There is no linear gradient, because the test bans it, and the text colours are only ink, ink-body, ink-muted and accent-text.
+### Result
+| Check | Status | Detail |
+|---|---|---|
+| `web/src/sections.test.tsx::heroShowsTheOneCommand` | PASS | green |
+| `web/src/sections.test.tsx::heroStatesWhatExistsToday` | PASS | green |
+| `web/src/sections.test.tsx::howItWorksShowsSnapshotAndCp` | PASS | green |
+| `web/src/sections.test.tsx::headerLinksDocsAndGitHub` | PASS | green |
+| `web/src/sections.test.tsx::stylesheetUsesTokensOnly` | PASS | green |
+| `web/src/sections.test.tsx::stylesheetSetsNoBlueOrYellowText` | PASS | green |
+| `npm test` (all web tests) | PASS | 3 files, 13 tests |
+| `npm run lint` (tsc --noEmit) | PASS | clean |
+| `npm run build` | PASS | vite build ok |
+| diff within SCOPE_GLOBS | PASS | 7 files under web/src, no tests touched |
+### Next
+Structural review. Then T5 appends to content.ts and App.tsx. Style note: the brand asks for a top-to-45% highlight gradient on glass, but the T4 test bans `linear-gradient`, so an inset highlight shadow stands in for it (the contract wins).

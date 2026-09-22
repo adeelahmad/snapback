@@ -37,22 +37,22 @@ Contracts under test: `tasks.md`. Vitest test names below are the `it()` titles 
 
 ## T3 — Fonts and assets
 
-- [ ] `test/site/assets_test.go::TestFontsSelfHosted` — for each `type.fonts[].file` in `web/tokens.json` (count > 0), assert `web/public/fonts/<basename>` exists and its first four bytes are `wOF2`.
-- [ ] `test/site/assets_test.go::TestBrandSVGs` — table of the six `web/public/brand/*.svg` names plus `web/public/favicon.svg`; assert each parses with `encoding/xml` and its root element is `svg`, and contains no `<linearGradient` or `<radialGradient` (the mark is flat; gradients are app-icon only).
-- [ ] `test/site/assets_test.go::TestBrandPNGs` — table favicon-16 (16x16), favicon-32 (32x32), app-icon-180 (180x180), app-icon-512 (512x512); `png.DecodeConfig`; assert exact width and height.
-- [ ] `test/site/assets_test.go::TestOGCardsAreWide` — `og-card-light.png`, `og-card-dark.png`; assert width >= 1200 and width/height within 0.02 of 1.91.
-- [ ] `test/site/assets_test.go::TestNoticeListsFonts` — assert `NOTICE` contains `IBM Plex Sans`, `IBM Plex Mono`, `JetBrains Mono` and `SIL Open Font License`.
-- [ ] `test/site/icons_test.go::TestNoBannedIconNames` — walk `web/src` (`.ts`, `.tsx`, `.css`; assert >= 1 file) and `web/public` file names; assert no match of `(?i)\b(hat|cap|shield|lock|padlock|cloud|hard-?drive|harddrive|clock|refresh|rotate-?c?c?w|history-icon|camera|shutter|aperture)\b` in identifiers, import specifiers, class names or file names; `lucide` absent.
-- [ ] `test/site/icons_test.go::TestNoRuntimeCDNInSource` — scan `web/index.html`, `web/src/**`; assert no `fonts.googleapis`, `fonts.gstatic`, `unpkg`, `jsdelivr`, `cdnjs`, `<script src="http`.
+- [x] `test/site/assets_test.go::TestFontsSelfHosted` — for each `type.fonts[].file` in `web/tokens.json` (count > 0), assert `web/public/fonts/<basename>` exists and its first four bytes are `wOF2`.
+- [x] `test/site/assets_test.go::TestBrandSVGs` — table of the six `web/public/brand/*.svg` names plus `web/public/favicon.svg`; assert each parses with `encoding/xml` and its root element is `svg`, and contains no `<linearGradient` or `<radialGradient` (the mark is flat; gradients are app-icon only).
+- [x] `test/site/assets_test.go::TestBrandPNGs` — table favicon-16 (16x16), favicon-32 (32x32), app-icon-180 (180x180), app-icon-512 (512x512); `png.DecodeConfig`; assert exact width and height.
+- [x] `test/site/assets_test.go::TestOGCardsAreWide` — `og-card-light.png`, `og-card-dark.png`; assert width >= 1200 and width/height within 0.02 of 1.91.
+- [x] `test/site/assets_test.go::TestNoticeListsFonts` — assert `NOTICE` contains `IBM Plex Sans`, `IBM Plex Mono`, `JetBrains Mono` and `SIL Open Font License`.
+- [x] `test/site/icons_test.go::TestNoBannedIconNames` — walk `web/src` (`.ts`, `.tsx`, `.css`; assert >= 1 file) and `web/public` file names; assert no match of `(?i)\b(hat|cap|shield|lock|padlock|cloud|hard-?drive|harddrive|clock|refresh|rotate-?c?c?w|history-icon|camera|shutter|aperture)\b` in identifiers, import specifiers, class names or file names; `lucide` absent.
+- [x] `test/site/icons_test.go::TestNoRuntimeCDNInSource` — scan `web/index.html`, `web/src/**`; assert no `fonts.googleapis`, `fonts.gstatic`, `unpkg`, `jsdelivr`, `cdnjs`, `<script src="http`.
 
 ## T4 — Content model, header, hero, how it works
 
-- [ ] `web/src/sections.test.tsx::heroShowsTheOneCommand` — render `<Hero/>`; assert text contains exactly one occurrence of `curl -fsSL https://snapback.run/install.sh | sh` inside a `<code>` or `<pre>`.
-- [ ] `web/src/sections.test.tsx::heroStatesWhatExistsToday` — assert hero text matches `/stage 0/i` and `/not yet/i`.
-- [ ] `web/src/sections.test.tsx::howItWorksShowsSnapshotAndCp` — render `<HowItWorks/>`; assert text contains `.snapshot`, a line starting `cp .snapshot/`, and `/planned/i`.
-- [ ] `web/src/sections.test.tsx::headerLinksDocsAndGitHub` — render `<Header/>`; assert an `<a href="/docs/">` and an `<a href="https://github.com/adeelahmad/snapback">`, and an `<img>` whose `src` is `/brand/lockup-horizontal.svg` with non-empty `alt` equal to `snapback`.
-- [ ] `web/src/sections.test.tsx::stylesheetUsesTokensOnly` — read `web/src/styles/site.css` (non-empty); assert no `#[0-9a-fA-F]{3,8}\b`, no `rgb(`/`hsl(` literals, no `linear-gradient`; assert it contains `radial-gradient` using `var(--glass-tint-` and `var(--shadow-glass)`.
-- [ ] `web/src/sections.test.tsx::stylesheetSetsNoBlueOrYellowText` — assert no `color:\s*var\(--(blue|blue-alt|yellow|yellow-text|red)\)` in site.css.
+- [x] `web/src/sections.test.tsx::heroShowsTheOneCommand` — render `<Hero/>`; assert text contains exactly one occurrence of `curl -fsSL https://snapback.run/install.sh | sh` inside a `<code>` or `<pre>`.
+- [x] `web/src/sections.test.tsx::heroStatesWhatExistsToday` — assert hero text matches `/stage 0/i` and `/not yet/i`.
+- [x] `web/src/sections.test.tsx::howItWorksShowsSnapshotAndCp` — render `<HowItWorks/>`; assert text contains `.snapshot`, a line starting `cp .snapshot/`, and `/planned/i`.
+- [x] `web/src/sections.test.tsx::headerLinksDocsAndGitHub` — render `<Header/>`; assert an `<a href="/docs/">` and an `<a href="https://github.com/adeelahmad/snapback">`, and an `<img>` whose `src` is `/brand/lockup-horizontal.svg` with non-empty `alt` equal to `snapback`.
+- [x] `web/src/sections.test.tsx::stylesheetUsesTokensOnly` — read `web/src/styles/site.css` (non-empty); assert no `#[0-9a-fA-F]{3,8}\b`, no `rgb(`/`hsl(` literals, no `linear-gradient`; assert it contains `radial-gradient` using `var(--glass-tint-` and `var(--shadow-glass)`.
+- [x] `web/src/sections.test.tsx::stylesheetSetsNoBlueOrYellowText` — assert no `color:\s*var\(--(blue|blue-alt|yellow|yellow-text|red)\)` in site.css.
 
 ## T5 — Remaining sections and copy lint
 

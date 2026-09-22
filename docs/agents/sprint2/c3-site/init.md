@@ -255,3 +255,112 @@ Write every T7 test bullet in `plan.md` § T7 at the exact path::fn so each FAIL
 - all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
 - red-worker: make shim bodies differ so comparison tests cannot pass by accident.
 - all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.
+
+## S2-12/T4 · attempt 1 · green-worker · 2026-09-22T03:50:39Z
+
+### Mandate
+Implement S2-12 T4 per `tasks.md` § T4 with the least change that makes exactly the 6 T4 vitest cases in web/src/sections.test.tsx pass. Side chain chain2/c3-t4 (parallel with T3 GREEN in web/public). Design system: Liquid Glass panels over tinted radial grounds, tokens only (var(--…)), IBM Plex, man-page voice (lowercase snapback, sentence case, no emoji, no '!'), command before description. Honest: Stage 0 skeleton + Stage 1 compatibility evidence; no working .snapshot mount claimed — the cp .snapshot example is labelled as the design goal. No blue/yellow as text colour (tests ban it); links use accent-text. Run (cd web && npm ci && npm test && npm run lint && npm run build).
+
+### Scope
+#### May
+- web/src/sections/{Header,Hero,HowItWorks}.tsx, web/src/content.ts, web/src/styles/site.css, web/src/App.tsx, web/src/main.tsx (site.css import) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § T4, `plan-ready.md` § T4, `validate.md` § T4. Chain base `chain/s2-12` @ 2772af5.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`web/src/sections/** web/src/content.ts web/src/styles/site.css web/src/App.tsx web/src/main.tsx`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S2-12/T6 · attempt 1 · green-worker · 2026-09-22T03:50:53Z
+
+### Mandate
+Implement S2-12 T6 per `tasks.md` § T6 with the least change that makes exactly the 5 T6 tests in test/site/meta_test.go pass. Head per 20-assets.md: canonical https://snapback.run/, color-scheme light dark, theme-color per scheme from tokens canvas, description 50-160 chars in the brand voice (lowercase snapback, no '!'), og:title/description/url/type/image (og-card-dark.png, absolute https://snapback.run/…), twitter:card summary_large_image, icon svg + 16/32 png + apple-touch-icon 180. No external origins. A parallel T4 GREEN edits web/src — do not touch it.
+
+### Scope
+#### May
+- web/index.html (head meta only) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § T6, `plan-ready.md` § T6, `validate.md` § T6. Chain base `chain/s2-12` @ 63b8f8c.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`web/index.html`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S2-12/T7 · attempt 1 · green-worker · 2026-09-22T03:51:32Z
+
+### Mandate
+Implement S2-12 T7 per `tasks.md` § T7 with the least change that makes exactly the T7 tests in test/docs/ and test/projectdocs/readme_links_test.go pass. Side chain chain2/c3-t7. docs.yml build job: checkout, setup-python (as now) + mkdocs build --strict --site-dir site, actions/setup-node pinned with node-version-file web/.nvmrc, npm ci + npm run build in web, then exactly: cp -R web/dist/. _site/ ; cp -R site/. _site/docs/ ; cp install.sh _site/install.sh ; upload-pages-artifact path: _site. mkdocs site_url https://snapback.run/docs/. README Documentation link https://snapback.run/docs/ (keep everything else in README unchanged). Note: web/ is NOT on this side chain — tests are static; do not try to build web here. actionlint clean; all test/... pass; mkdocs --strict passes.
+
+### Scope
+#### May
+- .github/workflows/docs.yml, mkdocs.yml (site_url), README.md (Documentation docs link only) only.
+#### May Not
+- Write/edit tests; implement later tasks; touch other files; add secrets; suppress anything.
+
+### Inputs
+- `tasks.md` § T7, `plan-ready.md` § T7, `validate.md` § T7. Chain base `chain/s2-12` @ 55ed3d2.
+
+### Acceptance
+Target tests PASS under `go test -race`; previously passing tests still pass; actionlint clean on any workflow touched (installed); diff within SCOPE_GLOBS=`.github/workflows/docs.yml mkdocs.yml README.md`; output.md block; selfcheck PASS. GATE_RUN_MATRIX=0 unless this is the story's last task.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md/plan-ready.md in first); orchestrator relays output.md back.
+- green-worker: pin actions/tools to released versions that really exist; never `latest`.
+
+## S2-12/T6fix · attempt 1 · red-worker · 2026-09-22T03:52:45Z
+
+### Mandate
+Write every T6fix test bullet in `plan.md` § T6fix at the exact path::fn so each FAILS BY ASSERTION (compiles, runs, assertion or t.Fatal on a missing/incorrect artifact) — never by a compile error or missing symbol. Test bug found by T6 GREEN: canvasValues decodes every colour token value as map[string]string, but tokens.json has single-string values (e.g. accent "#1e7e43" applies to all themes) → json unmarshal error before index.html is checked. Fix the helper (json.RawMessage; accept string = same for all themes, or object {light,dark}) and look up only the canvas token. After the fix TestThemeColorPerScheme is expected to PASS against the committed index.html (#f8f9fa light, #202124 dark) — PASS-ON-RED waived by orchestrator; report before/after.
+
+### Scope
+#### May
+- Create the test files named for T6fix in `tasks.md`: test/site/meta_test.go only
+- Test helpers that a T6fix test itself exercises (e.g. `repoRoot`, `readRepoFile`, `yamlBlock`, `runInstaller`) go in a marked shim `zz_agentic_shim_test.go` in the same test package (first line `// agentic:shim`) with deliberately WRONG bodies so those tests fail by assertion; helpers NOT under test may be real and live in the named helpers file.
+#### May Not
+- Create or edit any non-test artifact (workflow YAML, JSON config, install.sh, .goreleaser.yaml, SPEC.md/README.md, go.mod) — those are GREEN's job; touch other stories' files; suppress/skip tests (except the tool-absent `t.Skip` cases plan.md explicitly allows).
+
+### Inputs
+- `plan.md` § T6fix, `tasks.md` § T6fix (contracts), `validate.md` § T6fix. Chain base: the story chain branch named in your prompt (stage-1 @ 2158ade = master + sprint2 plan).
+
+### Acceptance
+`go test ./test/...` for this story's package compiles; every new test FAILS by assertion; `go vet ./...` clean; diff vs BASE_REF = only this task's test files (+ shim); output.md block appended; selfcheck PASS.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
+- red-worker: make shim bodies differ so comparison tests cannot pass by accident.
+- all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.
+
+## S2-12/T5 · attempt 1 · red-worker · 2026-09-22T03:53:37Z
+
+### Mandate
+Write every T5 test bullet in `plan.md` § T5 at the exact path::fn so each FAILS BY ASSERTION (compiles, runs, assertion or t.Fatal on a missing/incorrect artifact) — never by a compile error or missing symbol. Last C3 task. Chain has T1-T4, T6 (T6fix pending in test/site/meta_test.go — do not touch it). Voice lint, honesty and section-order tests over the rendered page; status stages read from SPEC.md §22. Vitest under web/src/. TEST_GLOBS **/*.test.ts **/*.test.tsx.
+
+### Scope
+#### May
+- Create the test files named for T5 in `tasks.md`: the T5 test files named in plan.md § T5
+- Test helpers that a T5 test itself exercises (e.g. `repoRoot`, `readRepoFile`, `yamlBlock`, `runInstaller`) go in a marked shim `zz_agentic_shim_test.go` in the same test package (first line `// agentic:shim`) with deliberately WRONG bodies so those tests fail by assertion; helpers NOT under test may be real and live in the named helpers file.
+#### May Not
+- Create or edit any non-test artifact (workflow YAML, JSON config, install.sh, .goreleaser.yaml, SPEC.md/README.md, go.mod) — those are GREEN's job; touch other stories' files; suppress/skip tests (except the tool-absent `t.Skip` cases plan.md explicitly allows).
+
+### Inputs
+- `plan.md` § T5, `tasks.md` § T5 (contracts), `validate.md` § T5. Chain base: the story chain branch named in your prompt (stage-1 @ 2158ade = master + sprint2 plan).
+
+### Acceptance
+`go test ./test/...` for this story's package compiles; every new test FAILS by assertion; `go vet ./...` clean; diff vs BASE_REF = only this task's test files (+ shim); output.md block appended; selfcheck PASS.
+
+### Memory
+- all: harness locks workers to their worktree — STORY_DIR inside your worktree (copy init.md/output.md in first); orchestrator relays output.md back.
+- red-worker: make shim bodies differ so comparison tests cannot pass by accident.
+- all: errcheck flags unchecked writes — use explicit `_, _ =` discard, never nolint.
