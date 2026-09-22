@@ -468,6 +468,8 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Technical debt (for next planning session)
 
+- S2-06 evidence: symlink `restic_ls_unreported` note is injected by the integration test post-write (T5b could only edit the test). Add a real `FileEvidence` field in production code in a follow-up.
+
 - PR #1 commitlint fails: 10 orchestrator integration commits use `merge:` and C2 used `build:` (not in type-enum). Decision: from tick 35 integration merges use `chore: merge …`; before promoting stage-1 to master, rewrite those subjects (msg-filter, authors/trees unchanged) and force-push stage-1.
 
 - projection.RootIno (internal/projection/spec.go:12) duplicates mount.RootIno by design (projection must stay stdlib-only). Guard: add a gofuse-package test asserting `projection.RootIno == mount.RootIno` (gofuse imports both) — candidate for S2-04 follow-up.
