@@ -10,8 +10,9 @@ import (
 	"text/template"
 )
 
-// archiveNameContract is the S1-03 installer asset-naming contract (s1-03-installer/tasks.md).
-const archiveNameContract = `{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if or (eq .Arch "arm") (eq .Arch "mips") (eq .Arch "mipsle") }}_unverified{{ end }}`
+// archiveNameContract is the S1-03 installer asset-naming contract (s1-03-installer/tasks.md),
+// with the `_unverified` suffix dropped in S5-27/T3 once QEMU smoke-tests arm/mips/mipsle.
+const archiveNameContract = `{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}`
 
 var (
 	archiveFormatRe   = regexp.MustCompile(`(?m)^\s*(formats:\s*\[\s*['"]?tar\.gz['"]?\s*\]|format:\s*['"]?tar\.gz['"]?\s*$|formats:\s*\n\s*-\s*['"]?tar\.gz['"]?\s*$)`)
@@ -105,9 +106,9 @@ func TestGoreleaserArchiveNamesRenderForAllTargets(t *testing.T) {
 		"snapback_linux_arm64.tar.gz",
 		"snapback_darwin_amd64.tar.gz",
 		"snapback_darwin_arm64.tar.gz",
-		"snapback_linux_arm_unverified.tar.gz",
-		"snapback_linux_mips_unverified.tar.gz",
-		"snapback_linux_mipsle_unverified.tar.gz",
+		"snapback_linux_arm.tar.gz",
+		"snapback_linux_mips.tar.gz",
+		"snapback_linux_mipsle.tar.gz",
 	}
 	for i, tg := range targets {
 		var buf bytes.Buffer
@@ -153,15 +154,22 @@ func TestGoreleaserSignsChecksumKeyless(t *testing.T) {
 	}
 }
 
-func TestGoreleaserReleaseNotesLabelUnverified(t *testing.T) {
+func TestGoreleaserReleaseNotesLabelQEMUSmokeTested(t *testing.T) {
 	text := readRepoFile(t, goreleaserFile)
 	block := topLevelBlock(text, "release")
 	if block == "" {
 		t.Fatalf("%s has no top-level release: block", goreleaserFile)
 	}
-	notes := strings.ToLower(yamlBlock(block, "footer") + "\n" + yamlBlock(block, "header"))
-	for _, want := range []string{"unverified", "linux/arm", "linux/mips", "linux/mipsle"} {
-		if !strings.Contains(notes, want) {
+	notes := yamlBlock(block, "footer") + "\n" + yamlBlock(block, "header")
+	if !strings.Contains(notes, "QEMU") {
+		t.Errorf("release footer/header does not mention QEMU; it must say arm/mips/mipsle are smoke-tested there")
+	}
+	lower := strings.ToLower(notes)
+	if strings.Contains(lower, "unverified") {
+		t.Errorf("release footer/header still calls a target unverified:\n%s", notes)
+	}
+	for _, want := range []string{"linux/arm", "linux/mips", "linux/mipsle"} {
+		if !strings.Contains(lower, want) {
 			t.Errorf("release footer/header does not mention %q", want)
 		}
 	}
