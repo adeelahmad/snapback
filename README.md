@@ -67,6 +67,8 @@ ls .snapshot
 cp .snapshot/latest/report.docx .
 ```
 
+Three commands on Linux, four on macOS — measured, see [docs/reports/sprint5/actions.md](docs/reports/sprint5/actions.md).
+
 On macOS, setup writes the configuration only: start the daemon yourself with `snapback run`, which stays in the foreground, because the login service is Linux-only for now. Every flag and command is in the [usage guide](docs-site/usage.md).
 
 ## How it works
