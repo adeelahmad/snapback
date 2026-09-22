@@ -68,7 +68,10 @@ type originList []string
 
 func (o *originList) String() string { return strings.Join(*o, ",") }
 
-func (o *originList) Set(string) error { return nil }
+func (o *originList) Set(v string) error {
+	*o = append(*o, v)
+	return nil
+}
 
 // Command returns the `web [--open] [--assets DIR]` subcommand.
 func Command() cli.Command {
@@ -80,10 +83,10 @@ func Command() cli.Command {
 			open := fs.Bool("open", false, "open the web UI in a browser")
 			assets := fs.String("assets", "", "load templates and assets from DIR")
 			withDaemon := fs.Bool("with-daemon", false, "run a snapback daemon for the lifetime of this command")
-			fs.String("bind", "", "")
-			fs.Bool("allow-remote", false, "")
+			bind := fs.String("bind", "", "listen on ADDRESS instead of the configured address")
+			allowRemote := fs.Bool("allow-remote", false, "allow a bind address that is not loopback")
 			var origins originList
-			fs.Var(&origins, "allow-origin", "")
+			fs.Var(&origins, "allow-origin", "also accept browser requests from this origin (repeatable)")
 			help, err := cli.ParseWithUsage(fs, args)
 			if err != nil {
 				return cli.WriteError(env, "web", false, err)
@@ -91,7 +94,7 @@ func Command() cli.Command {
 			if help {
 				return 0
 			}
-			return serve(ctx, env, "web", *assets, *open, "", *withDaemon)
+			return serve(ctx, env, "web", *assets, *open, "", *withDaemon, *bind, *allowRemote, origins)
 		},
 	}
 }
@@ -114,7 +117,7 @@ func ConfigCommand() cli.Command {
 			if *file != "" {
 				return saveFile(env, *file)
 			}
-			return serve(ctx, env, "config", "", true, "/setup", false)
+			return serve(ctx, env, "config", "", true, "/setup", false, "", false, nil)
 		},
 	}
 }
@@ -164,12 +167,24 @@ func loadOrDefault(path string) (*config.Config, config.Revision, error) {
 // serve starts the server for cmd, opens it at next when open allows and
 // serves until ctx is done. With withDaemon it also owns a daemon for that
 // whole time: started before the listener binds, stopped once serving ends.
-func serve(ctx context.Context, env cli.Env, cmd, assets string, open bool, next string, withDaemon bool) int {
+func serve(ctx context.Context, env cli.Env, cmd, assets string, open bool, next string, withDaemon bool, bind string, allowRemote bool, origins []string) int {
 	cfg, _, err := loadOrDefault(env.ConfigPath)
 	if err != nil {
 		return cli.WriteError(env, cmd, false, err)
 	}
 	opts := productionOptions(cfg, env.ConfigPath)
+	if bind == "" {
+		bind = cfg.Web.Bind
+	}
+	if len(origins) == 0 {
+		origins = cfg.Web.AllowedOrigins
+	}
+	p, err := Policy(bind, allowRemote, origins)
+	if err != nil {
+		return cli.WriteError(env, cmd, false, err)
+	}
+	opts.Policy = p
+	opts.Listen = p.Bind
 	if assets == "" {
 		assets = cfg.Web.AssetsDir
 	}
@@ -194,6 +209,9 @@ func serve(ctx context.Context, env cli.Env, cmd, assets string, open bool, next
 			}
 		}()
 		opts.Daemon = d
+	}
+	if p.Warning != "" {
+		_, _ = fmt.Fprintln(env.Stderr, p.Warning)
 	}
 	s, err := New(opts)
 	if err != nil {
