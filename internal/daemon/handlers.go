@@ -44,13 +44,15 @@ func (s *dedupSet) len() int {
 	return s.order.Len()
 }
 
-// dedups holds each Daemon's dedup set; Daemon's fields live in daemon.go,
-// outside this task's scope.
-var dedups sync.Map // *Daemon -> *dedupSet
+func newDedupSet() *dedupSet {
+	return &dedupSet{order: list.New(), keys: map[string]*list.Element{}}
+}
 
-func (d *Daemon) dedup() *dedupSet {
-	s, _ := dedups.LoadOrStore(d, &dedupSet{order: list.New(), keys: map[string]*list.Element{}})
-	return s.(*dedupSet)
+// opContext derives a context for a finite operation that shutdown cancels.
+func (d *Daemon) opContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(ctx)
+	stop := context.AfterFunc(d.ops, cancel)
+	return ctx, func() { stop(); cancel() }
 }
 
 // handle answers IPC requests per op: status, ensure_link, dir_event,
@@ -84,6 +86,8 @@ func (d *Daemon) handle(ctx context.Context, req ipc.Request) ipc.Response {
 
 	switch req.Op {
 	case ipc.OpRefresh:
+		ctx, cancel := d.opContext(ctx)
+		defer cancel()
 		if err := d.runRefresh(ctx); err != nil {
 			return errResp(err)
 		}
@@ -95,7 +99,7 @@ func (d *Daemon) handle(ctx context.Context, req ipc.Request) ipc.Response {
 		}
 		return dataResp(res)
 	case ipc.OpDirEvent:
-		if d.dedup().seen(req.Session + "\x00" + string(req.Path)) {
+		if d.dedups.seen(req.Session + "\x00" + string(req.Path)) {
 			return dataResp(struct {
 				Dedup bool `json:"dedup"`
 			}{true})
@@ -105,9 +109,21 @@ func (d *Daemon) handle(ctx context.Context, req ipc.Request) ipc.Response {
 		}
 		return ipc.Response{OK: true}
 	case ipc.OpSnapSubmitted:
-		go func() { _ = d.runRefresh(ctx) }()
+		ctx, cancel := d.opContext(context.WithoutCancel(ctx))
+		go func() {
+			defer cancel()
+			_ = d.runRefresh(ctx)
+		}()
 		return ipc.Response{OK: true}
 	default: // ipc.OpShutdown
+		// Run serves IPC on a context that shutdown does not cancel, so this
+		// reply is still written after Run starts stopping.
+		d.mu.Lock()
+		stop := d.cancel
+		d.mu.Unlock()
+		if stop != nil {
+			stop()
+		}
 		return ipc.Response{OK: true}
 	}
 }
@@ -140,5 +156,5 @@ func errResp(err error) ipc.Response {
 // dedupLen reports how many (session, path) keys the dir_event dedup set
 // holds, bounded at dedupCap with LRU eviction.
 func (d *Daemon) dedupLen() int {
-	return d.dedup().len()
+	return d.dedups.len()
 }

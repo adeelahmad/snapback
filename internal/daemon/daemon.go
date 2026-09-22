@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"sync"
@@ -95,10 +96,18 @@ type Daemon struct {
 	cfg  *config.Config
 	deps Deps
 
+	dedups *dedupSet
+
+	// ops is cancelled by shutdown to stop finite operations such as a
+	// refresh started over IPC.
+	ops     context.Context
+	stopOps context.CancelFunc
+
 	mu          sync.Mutex
 	phase       string
 	refresh     RefreshResult
 	lastRefresh time.Time
+	cancel      context.CancelFunc // stops Run; nil until Run starts
 }
 
 // New returns a Daemon for cfg and deps.
@@ -109,7 +118,21 @@ func New(cfg *config.Config, deps Deps) *Daemon {
 	if deps.ShutdownTimeout <= 0 {
 		deps.ShutdownTimeout = defaultShutdownTimeout
 	}
-	return &Daemon{cfg: cfg, deps: deps, phase: "starting"}
+	ops, stopOps := context.WithCancel(context.Background())
+	return &Daemon{cfg: cfg, deps: deps, phase: "starting", dedups: newDedupSet(), ops: ops, stopOps: stopOps}
+}
+
+// onceListener closes its Listener at most once, so the shutdown sequence
+// and ipc.Serve can both close it.
+type onceListener struct {
+	net.Listener
+	once sync.Once
+	err  error
+}
+
+func (l *onceListener) Close() error {
+	l.once.Do(func() { l.err = l.Listener.Close() })
+	return l.err
 }
 
 func (d *Daemon) trace(step string) {
@@ -131,8 +154,18 @@ func (d *Daemon) Run(ctx context.Context) error {
 	defer unlock()
 	d.trace("lock")
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	d.mu.Lock()
+	d.cancel = cancel
+	d.mu.Unlock()
+
+	// IPC is served on a context Run's cancel does not reach, so the
+	// shutdown op can still reply; the shutdown sequence closes l instead.
+	l := &onceListener{Listener: d.deps.Listener}
+	defer func() { _ = l.Close() }()
 	go func() {
-		_ = ipc.Serve(ctx, d.deps.Listener, d.handle, ipc.ServeOptions{UID: uint32(os.Getuid())})
+		_ = ipc.Serve(context.WithoutCancel(ctx), l, d.handle, ipc.ServeOptions{UID: uint32(os.Getuid())})
 	}()
 	d.trace("ipc")
 
@@ -161,7 +194,41 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.mu.Unlock()
 
 	<-ctx.Done()
-	return nil
+	return d.shutdown(context.WithoutCancel(ctx), l)
+}
+
+// shutdown stops the daemon in order: stop answering IPC, cancel finite
+// operations, then unmount the history view before the backend mounts. A
+// busy mount is reported as errcode.MountFailure and never forced. Managed
+// links are left in place.
+func (d *Daemon) shutdown(ctx context.Context, l net.Listener) error {
+	d.mu.Lock()
+	d.phase = "stopping"
+	d.mu.Unlock()
+
+	_ = l.Close()
+	d.stopOps()
+	d.deps.Discovery.Stop()
+
+	ctx, cancel := context.WithTimeout(ctx, d.deps.ShutdownTimeout)
+	defer cancel()
+	var errs []error
+	if err := d.deps.History.Unmount(ctx); err != nil {
+		errs = append(errs, mountErr(ctx, "history", err))
+	}
+	if err := d.deps.Supervisor.Stop(ctx); err != nil {
+		errs = append(errs, mountErr(ctx, "backend", err))
+	}
+	return errors.Join(errs...)
+}
+
+// mountErr reports a failed unmount of the named mount, naming a timeout
+// when the shutdown deadline passed.
+func mountErr(ctx context.Context, mount string, err error) error {
+	if ctx.Err() != nil {
+		err = fmt.Errorf("timed out: %w", err)
+	}
+	return errcode.New(errcode.MountFailure, "daemon shutdown", fmt.Errorf("unmount %s: %w", mount, err))
 }
 
 // Status returns the daemon status.
