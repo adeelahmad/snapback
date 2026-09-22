@@ -144,10 +144,14 @@ jobs:
           path: ${{ env.SNAPBACK_EVIDENCE_DIR }}
           if-no-files-found: error
 
+      # Acceptance evidence is collected even when the integration step fails;
+      # the job still fails because that step failed.
       - name: Build snapback for acceptance
+        if: ${{ !cancelled() }}
         run: go build -o "$SNAPBACK_BIN" ./cmd/snapback
 
       - name: Start the user systemd manager
+        if: ${{ !cancelled() }}
         run: |
           sudo loginctl enable-linger "$USER"
           bus="/run/user/$(id -u)/bus"
@@ -163,7 +167,7 @@ jobs:
 
       # The acceptance suite lands in a later task; skip until its sources exist.
       - name: Acceptance tests
-        if: hashFiles('test/acceptance/**/*.go') != ''
+        if: ${{ !cancelled() && hashFiles('test/acceptance/**/*.go') != '' }}
         env:
           SNAPBACK_EVIDENCE_DIR: ${{ github.workspace }}/v0.1-evidence
         run: |

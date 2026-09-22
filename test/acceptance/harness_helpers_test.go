@@ -80,7 +80,7 @@ func newEnv(t *testing.T) env {
 }
 
 func (e env) environ() []string {
-	xdg := filepath.Dir(e.Config)
+	xdg := filepath.Join(e.Root, "xdg")
 	return append(os.Environ(),
 		"HOME="+e.Home,
 		"XDG_CONFIG_HOME="+e.Config,

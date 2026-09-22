@@ -25,6 +25,11 @@ func missingSystemdPrerequisite(ctx context.Context) string {
 	if os.Getenv("SNAPBACK_SYSTEMD_TESTS") != "1" {
 		return "SNAPBACK_SYSTEMD_TESTS=1 is not set"
 	}
+	// The test writes into the running user manager's real unit directory,
+	// so it refuses to run anywhere but a disposable CI runner.
+	if os.Getenv("CI") != "true" {
+		return "CI=true is not set; refusing to touch a developer machine's user units"
+	}
 	if _, err := exec.LookPath("systemctl"); err != nil {
 		return "systemctl not found on PATH"
 	}
@@ -41,6 +46,37 @@ func missingSystemdPrerequisite(ctx context.Context) string {
 		return "FUSE device /dev/fuse not present"
 	}
 	return ""
+}
+
+// managerConfigHome returns the config home the running systemd user manager
+// searches for units: its own XDG_CONFIG_HOME, else its $HOME/.config.
+func managerConfigHome(ctx context.Context) string {
+	out, _ := exec.CommandContext(ctx, "systemctl", "--user", "show-environment").Output()
+	home := os.Getenv("HOME")
+	for _, line := range strings.Split(string(out), "\n") {
+		if v, ok := strings.CutPrefix(line, "XDG_CONFIG_HOME="); ok && v != "" {
+			return v
+		}
+		if v, ok := strings.CutPrefix(line, "HOME="); ok && v != "" {
+			home = v
+		}
+	}
+	return filepath.Join(home, ".config")
+}
+
+// logUserService logs the unit's status and recent journal when t failed.
+func logUserService(t *testing.T) {
+	t.Helper()
+	if !t.Failed() {
+		return
+	}
+	for _, args := range [][]string{
+		{"systemctl", "--user", "status", "--no-pager", "snapback.service"},
+		{"journalctl", "--user", "-u", "snapback.service", "-n", "50", "--no-pager"},
+	} {
+		out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
+		t.Logf("%s: %v\n%s", strings.Join(args, " "), err, out)
+	}
 }
 
 // repoRootDir walks up from the package directory to the module root.
@@ -116,9 +152,17 @@ func TestIntegrationUserServiceInstallReadyUninstall(t *testing.T) {
 		t.Skip(reason)
 	}
 
+	// Install into the unit directory the user manager actually searches.
+	t.Setenv("XDG_CONFIG_HOME", managerConfigHome(ctx))
+	unitDir := userUnitDir(os.Getenv)
+	unitFile := filepath.Join(unitDir, "snapback.service")
+	if _, err := os.Lstat(unitFile); err == nil {
+		t.Skipf("%s already exists; refusing to overwrite a unit this test did not create", unitFile)
+	}
+	_, statErr := os.Stat(unitDir)
+	createdDir := errors.Is(statErr, os.ErrNotExist)
+
 	base := t.TempDir()
-	xdg := filepath.Join(base, "xdg")
-	t.Setenv("XDG_CONFIG_HOME", xdg)
 	stateDir := filepath.Join(base, "state")
 	root := filepath.Join(base, "root")
 	repo := filepath.Join(base, "repo")
@@ -167,9 +211,17 @@ func TestIntegrationUserServiceInstallReadyUninstall(t *testing.T) {
 
 	exe := buildSnapback(t, ctx)
 	env := cli.Env{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, Getenv: os.Getenv, ConfigPath: cfgPath}
-	unitDir := userUnitDir(os.Getenv)
 	s := &Systemd{UnitDir: unitDir, Run: execRunner, Ready: statusReady(env), ReadyTimeout: integrationReadyTimeout}
-	t.Cleanup(func() { _ = s.Uninstall(context.Background()) })
+	t.Cleanup(func() {
+		logUserService(t)
+		bg := context.Background()
+		_ = s.Uninstall(bg)
+		_ = os.Remove(unitFile)
+		if createdDir {
+			_ = os.Remove(unitDir)
+		}
+		_ = exec.CommandContext(bg, "systemctl", "--user", "daemon-reload").Run()
+	})
 
 	if err := s.Install(ctx, UnitOptions{Exe: exe, Config: cfgPath, Scope: "user"}); err != nil {
 		t.Fatalf("Install() = %v, want nil", err)

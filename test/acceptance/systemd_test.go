@@ -24,6 +24,11 @@ func missingUserSystemd(t *testing.T) string {
 	if os.Getenv("SNAPBACK_SYSTEMD_TESTS") != "1" {
 		return "SNAPBACK_SYSTEMD_TESTS=1 is not set"
 	}
+	// The test writes into the running user manager's real config home, so it
+	// refuses to run anywhere but a disposable CI runner.
+	if os.Getenv("CI") != "true" {
+		return "CI=true is not set; refusing to touch a developer machine's user units"
+	}
 	if _, err := exec.LookPath("systemctl"); err != nil {
 		return "systemctl not found on PATH"
 	}
@@ -34,6 +39,65 @@ func missingUserSystemd(t *testing.T) string {
 		return "no reachable systemctl --user bus"
 	}
 	return ""
+}
+
+// useManagerConfigHome moves e's config into the config home the running
+// systemd user manager searches (its XDG_CONFIG_HOME, else $HOME/.config),
+// so the installed unit is visible to it. Cleanup removes only what it created.
+func useManagerConfigHome(t *testing.T, e env) env {
+	t.Helper()
+	out, _ := exec.CommandContext(t.Context(), "systemctl", "--user", "show-environment").Output()
+	home, cfgHome := os.Getenv("HOME"), ""
+	for _, line := range strings.Split(string(out), "\n") {
+		if v, ok := strings.CutPrefix(line, "XDG_CONFIG_HOME="); ok && v != "" {
+			cfgHome = v
+		}
+		if v, ok := strings.CutPrefix(line, "HOME="); ok && v != "" {
+			home = v
+		}
+	}
+	if cfgHome == "" {
+		cfgHome = filepath.Join(home, ".config")
+	}
+	for _, p := range []string{
+		filepath.Join(cfgHome, "snapback"),
+		filepath.Join(cfgHome, "systemd", "user", "snapback.service"),
+	} {
+		if _, err := os.Lstat(p); err == nil {
+			skip(t, "missing prerequisite: "+p+" already exists; refusing to overwrite it")
+		}
+	}
+	cfg, err := os.ReadFile(filepath.Join(e.Config, "snapback", "config.yaml"))
+	if err != nil {
+		t.Fatalf("read test config: %v", err)
+	}
+	dir := filepath.Join(cfgHome, "snapback")
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", dir, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), cfg, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	e.Config = cfgHome
+	return e
+}
+
+// logUserService logs the unit's status and recent journal when t failed.
+func logUserService(t *testing.T, e env) {
+	t.Helper()
+	if !t.Failed() {
+		return
+	}
+	for _, args := range [][]string{
+		{"systemctl", "--user", "status", "--no-pager", "snapback.service"},
+		{"journalctl", "--user", "-u", "snapback.service", "-n", "50", "--no-pager"},
+	} {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Env = e.environ()
+		out, err := cmd.CombinedOutput()
+		t.Logf("%s: %v\n%s", strings.Join(args, " "), err, out)
+	}
 }
 
 func systemctlUser(t *testing.T, e env, args ...string) error {
@@ -53,10 +117,15 @@ func TestAcc17SystemdUserUnitVisibleAndClean(t *testing.T) {
 	h := newHistRepo(t)
 	writeFiles(t, h.proj, map[string]string{"a.txt": "alpha v1\n"})
 	backup(t, h.fx, "", histHost, time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), "daily", h.fx.Root)
-	e := writeHistConfig(t, h)
+	e := useManagerConfigHome(t, writeHistConfig(t, h))
 	state := filepath.Join(e.Root, "state")
 	configFile := filepath.Join(e.Config, "snapback", "config.yaml")
-	t.Cleanup(func() { _, _, _ = runSnapback(t, e, "service", "uninstall") })
+	t.Cleanup(func() {
+		_, _, _ = runSnapback(t, e, "service", "uninstall")
+		logUserService(t, e)
+		_ = os.Remove(filepath.Join(e.Config, "systemd", "user", "snapback.service"))
+		_ = systemctlUser(t, e, "daemon-reload")
+	})
 
 	if _, stderr, code := runSnapback(t, e, "install", "service", "--user"); code != 0 {
 		t.Fatalf("snapback install service --user exit = %d, want 0; stderr: %s", code, stderr)
