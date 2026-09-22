@@ -1,7 +1,9 @@
 package webui
 
 import (
+	"io"
 	"io/fs"
+	"net/http"
 	"regexp"
 	"slices"
 	"strings"
@@ -140,9 +142,130 @@ func TestAppJSHooksMatchTemplates(t *testing.T) {
 			t.Errorf("assets/app.js data-js hooks = %v, want %q among them", hooks, want)
 		}
 	}
+	for _, want := range []string{"timeline", "versions", "restore"} {
+		if !regexp.MustCompile(`data-js=["']?` + regexp.QuoteMeta(want) + `["'\s>]`).Match(history) {
+			t.Errorf("templates/history.html lacks data-js=%q, want the history hooks declared there", want)
+		}
+	}
+	templates, err := fs.Glob(embedded, "templates/*.html")
+	if err != nil {
+		t.Fatalf("fs.Glob(embedded, %q) error = %v", "templates/*.html", err)
+	}
 	for _, h := range hooks {
-		if !regexp.MustCompile(`data-js=["']?` + regexp.QuoteMeta(h) + `["'\s>]`).Match(history) {
-			t.Errorf("templates/history.html lacks data-js=%q, want every hook app.js queries present", h)
+		re := regexp.MustCompile(`data-js=["']?` + regexp.QuoteMeta(h) + `["'\s>]`)
+		found := false
+		for _, f := range templates {
+			b, err := fs.ReadFile(embedded, f)
+			if err != nil {
+				t.Fatalf("fs.ReadFile(embedded, %q) error = %v", f, err)
+			}
+			if re.Match(b) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("no templates/*.html declares data-js=%q, want every hook app.js queries present in a template", h)
+		}
+	}
+}
+
+// jsFunc returns the source of the top-level function named name, or "" when
+// app.js does not define it.
+func jsFunc(js, name string) string {
+	start := regexp.MustCompile(`(?m)^(?:async\s+)?function\s+` + regexp.QuoteMeta(name) + `\s*\(`).FindStringIndex(js)
+	if start == nil {
+		return ""
+	}
+	body := js[start[0]:]
+	if end := strings.Index(body, "\n}"); end >= 0 {
+		body = body[:end+2]
+	}
+	return body
+}
+
+func TestAppJSRegistersRowAndChipHooks(t *testing.T) {
+	js := appJS(t)
+	tests := []struct {
+		hook string
+		init string
+	}{
+		{"rows", "initRows"},
+		{"chips", "initChips"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.hook, func(t *testing.T) {
+			sel := regexp.MustCompile(`document\.querySelectorAll\(\s*['"]\[data-js="` + tt.hook + `"\]['"]\s*\)\.forEach\(\s*` + tt.init + `\s*\)`)
+			if !sel.MatchString(js) {
+				t.Errorf(`assets/app.js does not register [data-js="%s"], want document.querySelectorAll('[data-js="%s"]').forEach(%s)`, tt.hook, tt.hook, tt.init)
+			}
+			if jsFunc(js, tt.init) == "" {
+				t.Errorf("assets/app.js does not define function %s, want the %s handler", tt.init, tt.hook)
+			}
+		})
+	}
+}
+
+func TestAppJSRowHandlerAddsAndRemoves(t *testing.T) {
+	js := appJS(t)
+	body := jsFunc(js, "initRows")
+	if body == "" {
+		t.Fatal("assets/app.js does not define function initRows, want the data-js=\"rows\" handler")
+	}
+	for _, want := range []string{`data-js="row-add"`, `data-js="row-remove"`, "addEventListener('click'", "reindexNames(", "createElement("} {
+		if !strings.Contains(body, want) {
+			t.Errorf("initRows does not contain %q, want add and remove wired to the row buttons", want)
+		}
+	}
+}
+
+func TestAppJSChipHandlerAddsAndRemoves(t *testing.T) {
+	js := appJS(t)
+	body := jsFunc(js, "initChips")
+	if body == "" {
+		t.Fatal("assets/app.js does not define function initChips, want the data-js=\"chips\" handler")
+	}
+	for _, want := range []string{`data-js="chip-remove"`, "addEventListener('keydown'", "addEventListener('click'", "reindexNames(", "createElement("} {
+		if !strings.Contains(body, want) {
+			t.Errorf("initChips does not contain %q, want add and remove wired to the chip input and buttons", want)
+		}
+	}
+}
+
+func TestAppJSReindexesNames(t *testing.T) {
+	js := appJS(t)
+	body := jsFunc(js, "reindexNames")
+	if body == "" {
+		t.Fatal(`assets/app.js does not define function reindexNames, want the routine that rewrites name="<path>[i]" indices`)
+	}
+	if !regexp.MustCompile(`\\\[\(?\\d\+\)?\\\]`).MatchString(body) {
+		t.Error(`reindexNames does not match a bracketed index with /\[\d+\]/, want the last [n] of every name rewritten`)
+	}
+	for _, want := range []string{"getAttribute('name')", "setAttribute('name'", "setAttribute('id'", "forEach"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("reindexNames does not contain %q, want each name and id renumbered from 0 in document order", want)
+		}
+	}
+}
+
+func TestAppJSServedAssetHasFormHandlers(t *testing.T) {
+	resp := serve(t, mustLoad(t, "").Static(), "/assets/app.js", nil)
+	if got, want := resp.StatusCode, http.StatusOK; got != want {
+		t.Fatalf("Static() GET /assets/app.js = %d, want %d", got, want)
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("io.ReadAll(/assets/app.js) error = %v", err)
+	}
+	served := string(b)
+	for _, want := range []string{`[data-js="rows"]`, `[data-js="chips"]`, "reindexNames"} {
+		if !strings.Contains(served, want) {
+			t.Errorf("served /assets/app.js does not contain %q, want the row and chip handlers served to the browser", want)
+		}
+	}
+	for _, banned := range []string{"import ", "require(", "export ", "<script"} {
+		if strings.Contains(served, banned) {
+			t.Errorf("served /assets/app.js contains %q, want a bundler-free plain module", banned)
 		}
 	}
 }
