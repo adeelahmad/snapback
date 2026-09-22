@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/adeelahmad/snapback/compare/v1.0.0...v1.0.1) (2026-09-22)
+
+### Bug Fixes
+
+* bump goreleaser to v2.18.2 so archive formats config is supported ([61a1906](https://github.com/adeelahmad/snapback/commit/61a19069a1adb493d1cddd1b80eeac0ba000481b))
+* keep changelog title across semantic-release runs ([41722b6](https://github.com/adeelahmad/snapback/commit/41722b69d6fd82292d6f5d44c587efe2d25e85ab))
+
 ## 1.0.0 (2026-09-22)
 
 ### Features
