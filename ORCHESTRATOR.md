@@ -4,10 +4,10 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 23
+- **Tick:** 24
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
-- **Phase:** SPRINT 2 EXECUTION — wave 1: S2-01 + S2-02 merged to stage-1 (4376285); S2-03 T7 GREEN in flight; wave 2 S2-04 RED started. Chains: s2-03 965cde8, s2-04 4376285, s2-05 d9a4037
-- **Last gate:** GREEN on stage-1 @ 4376285 (full standards matrix, cov 98.8%); master @ f0f0d5b green on GitHub
+- **Phase:** SPRINT 2 EXECUTION — wave 1 merged (S2-01, S2-02, S2-03 on stage-1 @ e893fea); S2-05 T1-T2 merged; wave 2: S2-04 (T1 scaffold), S2-08 (T1-T3 RED) in flight
+- **Last gate:** GREEN on stage-1 @ e893fea (full standards matrix, cov 88.6%); master @ f0f0d5b green on GitHub
 - **Human gate pending:** none (human chose push+merge to master at 01:37Z)
 
 ## Stage table (README §22)
@@ -380,6 +380,11 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 23 | S2-03/T7 GREEN | green-worker | spawned (final; full matrix + local integration evidence) | — |
 | 23 | S2-04/T1 RED | red-worker | spawned 02:47Z (S2-01+S2-02 landed on stage-1 → wave 2 unblocked) | — |
 | 23 | S2-01+S2-02 structural | structural-reviewer | spawned 02:47Z | — |
+| 24 | S2-03/T7 GREEN | green-worker | passed — mount supervisor; 33/33 PASS -race; integration TestPathTemplateIntegration PASS on darwin/arm64 (restic 0.19.0 + macFUSE, disposable repo) → docs/reports/stage1/pathtemplate-darwin.json (implemented and tested); full matrix green; chain2/s2-03 → c0c7abb | follow-up opened: S2-03/fix-hang (helper `select{}` deadlocks → Stop-on-ignored-SIGINT path untested; WaitReady early-exit dropped) |
+| 24 | MERGE S2-03 → stage-1 | orchestrator | e893fea; full gate GREEN (cov 88.6%) | — |
+| 24 | S2-04/T1 RED | red-worker | passed — 9/9 FAIL by assertion (ENOSYS from shim), attr tests PASS, vet ok; chain2/s2-04 → 3a027b8; plan-ready 21 boxes | — |
+| 24 | S2-04/T1 scaffold | scaffolder | spawned 02:50Z | — |
+| 24 | S2-08/T1,T2,T3 RED | red-worker ×3 | spawned 02:50Z in parallel (disjoint files + per-task shims; S2-03 landed → S2-08 unblocked) | — |
 
 ## Plugin issues found
 
