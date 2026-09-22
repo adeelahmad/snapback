@@ -56,7 +56,8 @@ func (d *Daemon) opContext(ctx context.Context) (context.Context, context.Cancel
 }
 
 // handle answers IPC requests per op: status, ensure_link, dir_event,
-// snap_submitted, refresh. dir_event dedups per (session, path) through a
+// snap_submitted, refresh, links_list, links_repair, links_remove_managed.
+// dir_event dedups per (session, path) through a
 // bounded LRU (see dedupLen) so repeat FUSE notifications don't re-trigger
 // Linker.Ensure; while phase is "stopping" only status stays answerable,
 // everything else returns errcode.StaleState; an unrecognized op returns
@@ -72,7 +73,8 @@ func (d *Daemon) handle(ctx context.Context, req ipc.Request) ipc.Response {
 		}{s, s.State})
 	}
 	switch req.Op {
-	case ipc.OpRefresh, ipc.OpEnsureLink, ipc.OpDirEvent, ipc.OpSnapSubmitted, ipc.OpShutdown:
+	case ipc.OpRefresh, ipc.OpEnsureLink, ipc.OpDirEvent, ipc.OpSnapSubmitted, ipc.OpShutdown,
+		ipc.OpLinksList, ipc.OpLinksRepair, ipc.OpLinksRemoveManaged:
 	default:
 		return ipc.Response{Code: errcode.InvalidConfig, Error: "unknown op " + req.Op}
 	}
@@ -108,6 +110,24 @@ func (d *Daemon) handle(ctx context.Context, req ipc.Request) ipc.Response {
 			return errResp(err)
 		}
 		return ipc.Response{OK: true}
+	case ipc.OpLinksList:
+		recs, err := d.deps.Linker.List()
+		if err != nil {
+			return errResp(err)
+		}
+		return dataResp(recs)
+	case ipc.OpLinksRepair:
+		rep, err := d.deps.Linker.Repair(ctx)
+		if err != nil {
+			return errResp(err)
+		}
+		return dataResp(rep)
+	case ipc.OpLinksRemoveManaged:
+		rep, err := d.deps.Linker.RemoveManaged(ctx)
+		if err != nil {
+			return errResp(err)
+		}
+		return dataResp(rep)
 	case ipc.OpSnapSubmitted:
 		ctx, cancel := d.opContext(context.WithoutCancel(ctx))
 		go func() {
