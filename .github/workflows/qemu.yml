@@ -1,0 +1,57 @@
+name: qemu
+
+on:
+  push:
+    branches: [master, stage-2, stage-5]
+  pull_request:
+    branches: [master, stage-2, stage-5]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: QEMU smoke linux/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {goarch: arm, goarm: '7'}
+          - {goarch: arm64}
+          - {goarch: mips, gomips: softfloat}
+          - {goarch: mipsle, gomips: softfloat}
+    env:
+      CGO_ENABLED: 0
+      GOOS: linux
+      GOARCH: ${{ matrix.goarch }}
+      GOARM: ${{ matrix.goarm }}
+      GOMIPS: ${{ matrix.gomips }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # qemu-user-static registers binfmt_misc handlers for every emulated
+      # architecture, including 32-bit mips, so a plain exec of the binary works.
+      - name: Install QEMU user-mode emulators
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static binfmt-support
+          update-binfmts --display | grep -E '^qemu-' | sort
+
+      - name: Build
+        run: go build -o bin/snapback ./cmd/snapback
+
+      - name: Version under QEMU
+        run: |
+          out=$(./bin/snapback version)
+          echo "$out"
+          case "$out" in
+            *"target linux/${{ matrix.goarch }})"*) ;;
+            *) echo "expected target linux/${{ matrix.goarch }}"; exit 1 ;;
+          esac
+
+      # S5-27/T2 adds the cross-arch unit-test leg here.
