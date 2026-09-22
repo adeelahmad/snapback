@@ -12,6 +12,7 @@ export function Footer() {
           {link.label}
         </a>
       ))}
+      <p className="footer-note">This site uses Google Analytics to count visits.</p>
     </footer>
   );
 }

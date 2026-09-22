@@ -36,3 +36,7 @@ These backends are planned, not supported yet:
 ## Versions
 
 Versioned documentation is not yet available. Docs will be published per release once v0.1 is tagged.
+
+## Privacy
+
+This site uses Google Analytics to count visits.

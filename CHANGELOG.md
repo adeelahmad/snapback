@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/adeelahmad/snapback/compare/v1.2.0...v1.3.0) (2026-09-22)
+
+### Features
+
+* add google analytics to site and docs ([#4](https://github.com/adeelahmad/snapback/issues/4)) ([1eac08d](https://github.com/adeelahmad/snapback/commit/1eac08dce885ba9901558084917daa3eaf5f8a32))
+
+## [1.2.0](https://github.com/adeelahmad/snapback/compare/v1.1.1...v1.2.0) (2026-09-22)
+
+### Features
+
+* add robots, sitemap, structured data and docs meta (S2-17) ([22daf33](https://github.com/adeelahmad/snapback/commit/22daf33aac678a6d061f54f858139b1fa659f7be))
+* restore-first positioning and seo basics ([#3](https://github.com/adeelahmad/snapback/issues/3)) ([7bfa502](https://github.com/adeelahmad/snapback/commit/7bfa50209aac2ec1f1d196da04268f1081fc4bff))
+
 ## [1.1.1](https://github.com/adeelahmad/snapback/compare/v1.1.0...v1.1.1) (2026-09-22)
 
 ### Bug Fixes
