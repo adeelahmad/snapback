@@ -19,6 +19,71 @@ func writeComm(t *testing.T, root string, pid uint32, name string) {
 	}
 }
 
+// writeStatus creates <root>/<tid>/status holding body, as Linux /proc does.
+func writeStatus(t *testing.T, root string, tid uint32, body string) {
+	t.Helper()
+	dir := filepath.Join(root, strconv.FormatUint(uint64(tid), 10))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) = %v", dir, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "status"), []byte(body), 0o600); err != nil {
+		t.Fatalf("WriteFile(status) = %v", err)
+	}
+}
+
+func TestProcNameAtResolvesThreadGroupLeader(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, root string)
+		tid   uint32
+		want  string
+	}{
+		{
+			name: "thread group leader name wins over thread name",
+			setup: func(t *testing.T, root string) {
+				writeComm(t, root, 1234, "walker\n")
+				writeStatus(t, root, 1234, "Name:\twalker\nTgid:\t1000\nPid:\t1234\n")
+				writeComm(t, root, 1000, "rg\n")
+			},
+			tid:  1234,
+			want: "rg",
+		},
+		{
+			name: "missing status falls back to the thread comm",
+			setup: func(t *testing.T, root string) {
+				writeComm(t, root, 1234, "find\n")
+			},
+			tid:  1234,
+			want: "find",
+		},
+		{
+			name:  "nothing readable is empty",
+			setup: func(t *testing.T, root string) {},
+			tid:   1234,
+			want:  "",
+		},
+		{
+			name: "status without a Tgid line falls back to the thread comm",
+			setup: func(t *testing.T, root string) {
+				writeComm(t, root, 1234, "walker\n")
+				writeStatus(t, root, 1234, "Name:\twalker\nPid:\t1234\n")
+			},
+			tid:  1234,
+			want: "walker",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			tt.setup(t, root)
+			if got := procNameAt(root, tt.tid); got != tt.want {
+				t.Errorf("procNameAt(root, %d) = %q, want %q", tt.tid, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestProcNameAtReadsComm(t *testing.T) {
 	root := t.TempDir()
 	writeComm(t, root, 42, "rg\n")
