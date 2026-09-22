@@ -123,8 +123,8 @@ After a backup finishes, a new snapshot can take up to about a minute to appear 
 
 ## Limits
 
-- Linux is the v0.1 target. Linux acceptance evidence is pending.
-- The v0.1 acceptance run so far is on macOS with macFUSE; every applicable item passed there,
-  and Acc 2, 12 and 17 need Linux. See
+- Linux is the v0.1 target. The v0.1 acceptance run passed on Linux (CI, fuse3): Acc 1 to 17.
+- macOS (macFUSE) is supplementary evidence; Acc 2, 12 and 17 are Linux-only and were skipped
+  in the macOS runs. See
   `docs/reports/v0.1-acceptance.md` in the repository.
 - The service installer is tested with systemd in user scope only.

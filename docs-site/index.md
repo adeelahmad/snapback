@@ -22,7 +22,7 @@ While the daemon runs, a new snapshot can take up to about a minute to appear un
 
 Snapback v0.1 is early, pre-release software. Expect breaking changes. Linux is the v0.1 target.
 
-The `.snapshot` view, `latest`, `snap`, `seed`, `link`, the daemon, the web UI and `doctor` passed the v0.1 acceptance run on macOS with macFUSE; every applicable item passed there, and Acc 2, 12 and 17 need Linux. The systemd user service is built, but its acceptance check needs Linux. Linux acceptance evidence is pending.
+The `.snapshot` view, `latest`, `snap`, `seed`, `link`, the daemon, the web UI, `doctor` and the systemd user service passed the v0.1 acceptance run on Linux (CI, fuse3) — Acc 1 to 17 — with macOS (macFUSE) as supplementary evidence. Acc 2, 12 and 17 are Linux-only and were skipped in the macOS runs. Item-by-item results are in the [v0.1 acceptance report](https://github.com/adeelahmad/snapback/blob/master/docs/reports/v0.1-acceptance.md).
 
 ## Roadmap
 
