@@ -19,6 +19,11 @@ type Check struct {
 	Code   errcode.Code `json:"code"`
 	Detail string       `json:"detail"`
 	Fix    string       `json:"fix"`
+	// Probe and Observed are the --verbose detail: what the check ran and the
+	// raw value it read. They are omitted unless --verbose is passed, so the
+	// default JSON stays byte-identical. Never carry a secret value.
+	Probe    string `json:"probe,omitempty"`
+	Observed string `json:"observed,omitempty"`
 }
 
 const (

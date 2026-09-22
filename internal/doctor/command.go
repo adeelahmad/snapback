@@ -79,6 +79,9 @@ func command(deps commandDeps) cli.Command {
 			jsonOut := fs.Bool("json", false, "print checks as a JSON array")
 			mountTest := fs.Bool("mount-test", false, "add a mount_test check that performs a real mount")
 			strict := fs.Bool("strict", false, "keep platform-inapplicable checks as failures")
+			// SUB-AGENT-TODO(S5-36/T13): parsed but ignored; GREEN must print
+			// the probe and the raw observation under every verdict.
+			_ = fs.Bool("verbose", false, "print the probe and the raw observation under every check")
 			bundle := fs.Bool("bundle", false, "write a local diagnostic bundle into DIR and print its path")
 			help, err := cli.ParseWithUsage(fs, args)
 			if err != nil {
