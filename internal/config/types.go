@@ -82,10 +82,12 @@ type Revision string
 
 // Web configures the local web UI.
 type Web struct {
-	Enabled     bool   `yaml:"enabled"`
-	Listen      string `yaml:"listen"`
-	OpenBrowser bool   `yaml:"open_browser"`
-	AssetsDir   string `yaml:"assets_dir"`
+	Enabled        bool     `yaml:"enabled"`
+	Listen         string   `yaml:"listen"`
+	Bind           string   `yaml:"bind"`
+	AllowedOrigins []string `yaml:"allowed_origins,omitempty"`
+	OpenBrowser    bool     `yaml:"open_browser"`
+	AssetsDir      string   `yaml:"assets_dir"`
 }
 
 // Catalog configures snapshot catalog refresh and caching.
