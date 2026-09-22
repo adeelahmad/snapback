@@ -30,8 +30,15 @@ func Command(build Builder) cli.Command {
 	return cli.Command{
 		Name:    "run",
 		Summary: "run the daemon in the foreground",
-		Run: func(ctx context.Context, env cli.Env, _ []string) int {
-			cfg, _, err := config.Load(env.ConfigPath)
+		Run: func(ctx context.Context, env cli.Env, args []string) int {
+			fs := flag.NewFlagSet("run", flag.ContinueOnError)
+			fs.SetOutput(env.Stderr)
+			cfgPath := fs.String("config", env.ConfigPath, "configuration file")
+			if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
+				_, _ = fmt.Fprintln(env.Stderr, "usage: snapback run [--config FILE]")
+				return 2
+			}
+			cfg, _, err := config.Load(*cfgPath)
 			if err != nil {
 				_, _ = fmt.Fprintf(env.Stderr, "snapback run: %s: %v\n", errcode.InvalidConfig, err)
 				return 1

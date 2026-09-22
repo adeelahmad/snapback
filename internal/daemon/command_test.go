@@ -154,6 +154,29 @@ func TestStatusCommandDaemonDown(t *testing.T) {
 	}
 }
 
+// TestRunCommandConfigFlag pins the SPEC form "snapback run --config FILE",
+// which the rendered systemd unit uses: the flag after the verb wins over
+// the default config path.
+func TestRunCommandConfigFlag(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+	body := "state_dir: " + filepath.Join(dir, "state") + "\nno_such_field: true\n"
+	if err := os.WriteFile(cfgPath, []byte(body), 0o600); err != nil {
+		t.Fatalf("os.WriteFile(%q) = %v", cfgPath, err)
+	}
+	defaultPath := filepath.Join(dir, "default-missing.yaml")
+	env, _, stderr := cmdEnv("", defaultPath)
+
+	args := []string{"--config", cfgPath}
+	code := runWithin(t, 2*time.Second, func() int { return Command(unusedBuilder(t)).Run(context.Background(), env, args) })
+	if code != 1 {
+		t.Errorf("Command().Run(%q) = %d, want 1", args, code)
+	}
+	if strings.Contains(stderr.String(), defaultPath) {
+		t.Errorf("Command().Run(%q) stderr = %q, want the --config file loaded, not %q", args, stderr.String(), defaultPath)
+	}
+}
+
 func TestRunCommandBadConfig(t *testing.T) {
 	dir := t.TempDir()
 	stateDir := filepath.Join(dir, "state")
