@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"maps"
-	"os"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -61,6 +60,7 @@ func NewSupervisor(mounts map[string]provider.Mounter, baseDir string, backoff B
 		backoff: backoff,
 		states:  make(map[string]RepoState, len(mounts)),
 		handles: make(map[string]provider.MountHandle, len(mounts)),
+		modes:   fsmode.Modes{}.OrDefault(),
 		stop:    make(chan struct{}),
 	}
 }
@@ -111,7 +111,7 @@ func (s *Supervisor) Start(ctx context.Context) error {
 // mount creates the repository's mount directory, starts the mount and waits for it to serve.
 func (s *Supervisor) mount(ctx context.Context, repo string) (provider.MountHandle, error) {
 	dir := filepath.Join(s.baseDir, repo)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	if err := fsmode.MkdirAll(dir, s.modes); err != nil {
 		return nil, err
 	}
 	h, err := s.mounts[repo].StartMount(ctx, dir)

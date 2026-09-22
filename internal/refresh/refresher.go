@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -89,6 +88,7 @@ func New(cfg Config, lists map[string]provider.Lister, pub mount.Publisher, pre 
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
+	cfg.Modes = cfg.Modes.OrDefault()
 	return &Refresher{cfg: cfg, lists: lists, pub: pub, pre: pre, good: map[string]repoView{}}
 }
 
@@ -98,7 +98,7 @@ func (r *Refresher) EnsureCacheDir() error {
 	if r.cfg.CacheDir == "" {
 		return nil
 	}
-	return os.MkdirAll(r.cfg.CacheDir, 0o700)
+	return fsmode.MkdirAll(r.cfg.CacheDir, r.cfg.Modes)
 }
 
 // view lists repoID and reads its mount-visible IDs.

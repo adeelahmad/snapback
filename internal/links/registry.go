@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -61,17 +62,36 @@ type RegistryOptions struct {
 // directory that holds it when it is missing.
 func OpenRegistryWithOptions(path string, opts RegistryOptions) (*Registry, error) {
 	modes := opts.Modes.OrDefault()
-	_ = modes
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	if err := fsmode.MkdirAll(dir, modes); err != nil {
 		return nil, fmt.Errorf("links: create registry directory %s: %w", dir, err)
 	}
-	return OpenRegistry(path)
+	// The registry is never group- or world-writable, whatever the configured
+	// file mode allows.
+	mode := modes.File &^ 0o022
+	_, statErr := os.Lstat(path)
+	reg, err := openRegistry(path, mode)
+	if err != nil {
+		return nil, err
+	}
+	if statErr != nil {
+		// bbolt's own mode is filtered by the umask, so stamp the mode back.
+		if err := os.Chmod(path, mode); err != nil {
+			_ = reg.Close()
+			return nil, fmt.Errorf("links: set registry mode %s: %w", path, err)
+		}
+	}
+	return reg, nil
 }
 
 // OpenRegistry opens or creates the registry at path.
 func OpenRegistry(path string) (*Registry, error) {
-	db, err := bbolt.Open(path, 0o600, &bbolt.Options{Timeout: openTimeout})
+	return openRegistry(path, 0o600)
+}
+
+// openRegistry opens or creates the registry at path with the given file mode.
+func openRegistry(path string, mode fs.FileMode) (*Registry, error) {
+	db, err := bbolt.Open(path, mode, &bbolt.Options{Timeout: openTimeout})
 	if err != nil {
 		return nil, fmt.Errorf("links: open registry %s: %w", path, err)
 	}
