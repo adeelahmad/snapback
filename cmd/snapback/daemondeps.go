@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"maps"
 	"net"
 	"os"
@@ -100,6 +101,7 @@ func daemonBuilder(_ context.Context, cfg *config.Config, ln net.Listener) (daem
 		Listener:  ln,
 		Throttle:  policy.Events,
 		Clock:     time.Now,
+		Log:       slog.New(slog.NewTextHandler(os.Stderr, nil)),
 	}, nil
 }
 

@@ -170,6 +170,7 @@ func (d *Daemon) runRefresh(ctx context.Context) error {
 	d.mountFailed = nil
 	d.mu.Unlock()
 	d.countLinks()
+	d.logRefresh()
 	return nil
 }
 

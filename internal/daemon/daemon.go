@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"maps"
 	"net"
 	"os"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -86,7 +89,9 @@ type Deps struct {
 	Discovery  Discovery
 	Prewarmer  Prewarmer
 	Listener   net.Listener
-	// agentic:shim LOG-1 — declaration only, the daemon does not use it yet.
+	// Log receives the daemon's operational lines: one per refresh outcome
+	// and one per failed mount. New substitutes a discarding logger when it
+	// is nil.
 	Log             *slog.Logger
 	Throttle        func() []readerpolicy.ThrottleEvent
 	Clock           func() time.Time
@@ -132,6 +137,9 @@ type Daemon struct {
 	loop        *refresh.Loop      // periodic refresh loop; nil until it starts
 	linkQueued  bool               // a refresh for new links is scheduled
 	linkTimer   *time.Timer        // fires the scheduled link refresh; nil when none
+	// lastLog holds the attributes of the last refresh line logged, so an
+	// unchanged outcome is not logged again.
+	lastLog string
 }
 
 // New returns a Daemon for cfg and deps.
@@ -141,6 +149,9 @@ func New(cfg *config.Config, deps Deps) *Daemon {
 	}
 	if deps.ShutdownTimeout <= 0 {
 		deps.ShutdownTimeout = defaultShutdownTimeout
+	}
+	if deps.Log == nil {
+		deps.Log = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 	ops, stopOps := context.WithCancel(context.Background())
 	return &Daemon{cfg: cfg, deps: deps, phase: "starting", dedups: newDedupSet(), ops: ops, stopOps: stopOps}
@@ -219,6 +230,9 @@ func (d *Daemon) Run(ctx context.Context) error {
 		} else {
 			markAll(mountFailed, d.deps.Supervisor.States())
 		}
+		d.deps.Log.Error("mount failed",
+			slog.String("repos", strings.Join(slices.Sorted(maps.Keys(mountFailed)), ",")),
+			slog.Any("err", err))
 	}
 	res, err := d.deps.Refresher.Refresh(ctx)
 	switch errcode.Of(err) {
@@ -244,6 +258,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 	d.prewarm(ctx)
 	d.countLinks()
+	d.logRefresh()
 
 	d.mu.Lock()
 	d.phase = "ready"
@@ -346,6 +361,52 @@ func (d *Daemon) setWarm(id provider.SnapshotID, warm bool) {
 		d.warm = make(map[provider.SnapshotID]bool)
 	}
 	d.warm[id] = warm
+}
+
+// logRefresh logs one line for the refresh outcome now recorded: the catalog
+// generation, every repository's state, how many linked directories have an
+// eligible snapshot, and the repositories that failed. The periodic loop
+// refreshes as soon as it starts, so an outcome equal to the last one logged
+// is dropped and the log keeps one line per change.
+func (d *Daemon) logRefresh() {
+	d.mu.Lock()
+	res, linked := d.refresh, d.links
+	d.mu.Unlock()
+
+	repos := d.deps.Supervisor.States()
+	for _, id := range res.Failed {
+		repos[id] = history.StateFailed
+	}
+	eligible := 0
+	for _, n := range res.EligibleCount {
+		if n > 0 {
+			eligible++
+		}
+	}
+	attrs := []slog.Attr{slog.Uint64("generation", res.Generation)}
+	for _, id := range slices.Sorted(maps.Keys(repos)) {
+		attrs = append(attrs, slog.String(id, string(repos[id])))
+	}
+	attrs = append(attrs, slog.String("eligible", fmt.Sprintf("%d/%d", eligible, linked)))
+	if len(res.Failed) > 0 {
+		attrs = append(attrs, slog.String("failed", strings.Join(res.Failed, ",")))
+	}
+	if !d.logChanged(fmt.Sprint(attrs)) {
+		return
+	}
+	d.deps.Log.LogAttrs(context.Background(), slog.LevelInfo, "refresh", attrs...)
+}
+
+// logChanged reports whether line differs from the last refresh line logged,
+// recording it when it does.
+func (d *Daemon) logChanged(line string) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.lastLog == line {
+		return false
+	}
+	d.lastLog = line
+	return true
 }
 
 // shutdown stops the daemon in order: stop answering IPC, cancel finite
