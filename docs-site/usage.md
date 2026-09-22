@@ -146,8 +146,8 @@ journalctl --user -u snapback.service
 
 ## Web UI
 
-`snapback web` refuses any listen address that is not loopback; the default is `127.0.0.1` on a
-random port. Each run creates a one-time token and prints a URL of the form
+`snapback web` refuses any listen address that is not loopback unless `--allow-remote` is given;
+the default is `127.0.0.1` on a random port. Each run creates a one-time token and prints a URL of the form
 `http://127.0.0.1:PORT/auth?token=...`. Opening that URL exchanges the token for a session.
 `--open` also opens the URL in a browser when a desktop session is present. The
 [web UI guide](web-ui.md) walks through each page with screenshots.

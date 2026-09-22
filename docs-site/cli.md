@@ -207,6 +207,9 @@ snapback run --config /etc/snapback/config.yaml
 | Flag | Description |
 |---|---|
 | `--config` | configuration file (defaults to the resolved user config path, `~/.config/snapback/config.yaml`) |
+| `--log-file` | write logs to this file; overrides `logging.file` |
+| `--log-format` | log format, one of text, json; overrides `logging.format` (default text) |
+| `--log-level` | log level, one of debug, info, warn, error; overrides `logging.level` (default info) |
 
 ## snapback status
 
@@ -268,6 +271,7 @@ snapback doctor --json --strict
 | `--json` | print checks as a JSON array |
 | `--mount-test` | add a mount_test check that performs a real mount |
 | `--strict` | keep platform-inapplicable checks as failures |
+| `--verbose` | print the probe and the raw observation under every check |
 
 ## snapback web
 
@@ -289,8 +293,12 @@ snapback web
 
 | Flag | Description |
 |---|---|
+| `--allow-origin` | also accept browser requests from this origin (repeatable) |
+| `--allow-remote` | allow a bind address that is not loopback; prints a warning |
 | `--assets` | load templates and assets from DIR |
+| `--bind` | listen on ADDRESS instead of the configured address; a non-loopback address is refused without `--allow-remote` |
 | `--open` | open the web UI in a browser |
+| `--with-daemon` | run a snapback daemon for the lifetime of this command |
 
 ## snapback install service
 
