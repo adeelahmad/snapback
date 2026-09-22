@@ -2,8 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, stage-2]
   pull_request:
+    branches: [master, stage-2]
 
 permissions:
   contents: read
@@ -100,6 +101,7 @@ jobs:
     env:
       SNAPBACK_FUSE_TESTS: "1"
       SNAPBACK_EVIDENCE_DIR: ${{ github.workspace }}/stage1-evidence
+      SNAPBACK_BIN: ${{ github.workspace }}/bin/snapback
     steps:
       - uses: actions/checkout@v4
 
@@ -134,6 +136,26 @@ jobs:
         with:
           name: stage1-evidence-linux
           path: ${{ env.SNAPBACK_EVIDENCE_DIR }}
+          if-no-files-found: error
+
+      - name: Build snapback for acceptance
+        run: go build -o "$SNAPBACK_BIN" ./cmd/snapback
+
+      # The acceptance suite lands in a later task; skip until its sources exist.
+      - name: Acceptance tests
+        if: hashFiles('test/acceptance/**/*.go') != ''
+        env:
+          SNAPBACK_EVIDENCE_DIR: ${{ github.workspace }}/v0.1-evidence
+        run: |
+          mkdir -p "$SNAPBACK_EVIDENCE_DIR"
+          go test -race -tags=integration ./test/acceptance/...
+
+      - name: Upload v0.1 evidence
+        if: always() && hashFiles('test/acceptance/**/*.go') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: v0.1-evidence-linux
+          path: ${{ github.workspace }}/v0.1-evidence
           if-no-files-found: error
 
   site:
