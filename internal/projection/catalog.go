@@ -24,5 +24,9 @@ func (g *Generation) ReadDir(dir uint64) (names []string, found bool) {
 
 // Readlink returns a symlink's stored target unchanged.
 func (g *Generation) Readlink(ino uint64) (target string, found bool) {
-	panic("SUB-AGENT-TODO: return stored target verbatim with found=true for a symlink; \"\",false for directory, unknown inode, or 0")
+	n, ok := g.nodes[ino]
+	if !ok || n.isDir {
+		return "", false
+	}
+	return n.target, true
 }
