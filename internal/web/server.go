@@ -50,6 +50,9 @@ type Options struct {
 	// SetupRunner runs the read-only repository probe. A nil runner means the
 	// repository is not probed.
 	SetupRunner setup.Runner
+	// Policy carries the decided bind address and the browser origins the
+	// guard accepts.
+	Policy BindPolicy
 }
 
 // Server is the local web server.
