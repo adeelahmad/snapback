@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/cli"
+	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/ipc"
 	"github.com/adeelahmad/snapback/internal/status"
@@ -54,7 +58,7 @@ func TestCommandNames(t *testing.T) {
 		cmd  cli.Command
 		want string
 	}{
-		{"Command", Command(), "run"},
+		{"Command", Command(nil), "run"},
 		{"StatusCommand", StatusCommand(), "status"},
 		{"RefreshCommand", RefreshCommand(), "refresh"},
 	}
@@ -160,7 +164,7 @@ func TestRunCommandBadConfig(t *testing.T) {
 	}
 	env, _, stderr := cmdEnv("", cfgPath)
 
-	code := runWithin(t, 2*time.Second, func() int { return Command().Run(context.Background(), env, nil) })
+	code := runWithin(t, 2*time.Second, func() int { return Command(unusedBuilder(t)).Run(context.Background(), env, nil) })
 	if code != 1 {
 		t.Errorf("Command().Run(bad config) = %d, want 1", code)
 	}
@@ -172,4 +176,179 @@ func TestRunCommandBadConfig(t *testing.T) {
 			t.Errorf("os.Stat(%q) = nil, want not exist (no lock on bad config)", p)
 		}
 	}
+}
+
+// unusedBuilder returns a Builder that fails the test if it is called.
+func unusedBuilder(t *testing.T) Builder {
+	return func(context.Context, *config.Config, net.Listener) (Deps, error) {
+		t.Error("Builder called, want not called")
+		return Deps{}, errors.New("unused builder")
+	}
+}
+
+// writeValidConfig writes a minimal valid config under a short temp dir and
+// returns its path and state_dir.
+func writeValidConfig(t *testing.T) (cfgPath, stateDir string) {
+	t.Helper()
+	t.Setenv("TMPDIR", "/tmp")
+	dir := t.TempDir()
+	stateDir = filepath.Join(dir, "state")
+	work := filepath.Join(dir, "work")
+	pw := filepath.Join(dir, "password")
+	for _, d := range []string{stateDir, work} {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			t.Fatalf("os.MkdirAll(%q) = %v", d, err)
+		}
+	}
+	if err := os.WriteFile(pw, []byte("secret\n"), 0o600); err != nil {
+		t.Fatalf("os.WriteFile(%q) = %v", pw, err)
+	}
+	body := strings.Join([]string{
+		"version: 1",
+		"state_dir: " + stateDir,
+		"history_mount: " + filepath.Join(stateDir, "mounts", "history"),
+		"backend_mount_dir: " + filepath.Join(stateDir, "mounts", "repositories"),
+		"repositories:",
+		"  - id: personal",
+		"    repository: /srv/restic",
+		"    restic_binary: /usr/bin/restic",
+		"    password_file: " + pw,
+		"roots:",
+		"  - id: work",
+		"    local_path: " + work,
+		"    repository_id: personal",
+		"",
+	}, "\n")
+	cfgPath = filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(cfgPath, []byte(body), 0o600); err != nil {
+		t.Fatalf("os.WriteFile(%q) = %v", cfgPath, err)
+	}
+	if _, _, err := config.Load(cfgPath); err != nil {
+		t.Fatalf("config.Load(%q) = %v, want a valid test config", cfgPath, err)
+	}
+	return cfgPath, stateDir
+}
+
+// runRecovering runs f and reports a panic as a value instead of crashing
+// the test binary.
+func runRecovering(t *testing.T, d time.Duration, f func() int) (code int, panicked any) {
+	t.Helper()
+	type result struct {
+		code     int
+		panicked any
+	}
+	done := make(chan result, 1)
+	go func() {
+		defer func() {
+			if p := recover(); p != nil {
+				done <- result{code: -1, panicked: p}
+			}
+		}()
+		done <- result{code: f()}
+	}()
+	select {
+	case r := <-done:
+		return r.code, r.panicked
+	case <-time.After(d):
+		t.Fatalf("command did not return within %v", d)
+		return -1, nil
+	}
+}
+
+// assertUnlocked fails the test if stateDir's daemon lock is still held.
+func assertUnlocked(t *testing.T, stateDir string) {
+	t.Helper()
+	unlock, err := Lock(stateDir)
+	if err != nil {
+		t.Errorf("Lock(%q) after run = %v, want nil (lock released)", stateDir, err)
+		return
+	}
+	unlock()
+}
+
+func TestRunCommandUsesBuilder(t *testing.T) {
+	cfgPath, stateDir := writeValidConfig(t)
+	h := newHarness(t)
+	var (
+		mu     sync.Mutex
+		gotCfg *config.Config
+		gotLn  net.Listener
+		calls  int
+	)
+	built := make(chan struct{})
+	build := func(_ context.Context, cfg *config.Config, ln net.Listener) (Deps, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls++
+		gotCfg, gotLn = cfg, ln
+		if calls == 1 {
+			close(built)
+		}
+		deps := h.deps
+		deps.Listener = ln
+		deps.Trace = nil
+		return deps, nil
+	}
+	env, _, stderr := cmdEnv("", cfgPath)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		select {
+		case <-built:
+			time.Sleep(50 * time.Millisecond)
+		case <-time.After(2 * time.Second):
+		}
+		cancel()
+	}()
+
+	code, panicked := runRecovering(t, 5*time.Second, func() int { return Command(build).Run(ctx, env, nil) })
+
+	mu.Lock()
+	defer mu.Unlock()
+	if calls != 1 {
+		t.Errorf("Builder calls = %d, want 1", calls)
+	}
+	if gotCfg == nil {
+		t.Errorf("Builder cfg = nil, want the loaded config")
+	} else if gotCfg.StateDir != stateDir {
+		t.Errorf("Builder cfg.StateDir = %q, want %q", gotCfg.StateDir, stateDir)
+	}
+	if gotLn == nil {
+		t.Errorf("Builder ln = nil, want the IPC listener")
+	}
+	if panicked != nil {
+		t.Errorf("Command(build).Run panicked: %v, want exit 0", panicked)
+	}
+	if code != 0 {
+		t.Errorf("Command(build).Run(valid config) = %d, want 0 (stderr %q)", code, stderr.String())
+	}
+	assertUnlocked(t, stateDir)
+}
+
+func TestRunCommandBuilderError(t *testing.T) {
+	cfgPath, stateDir := writeValidConfig(t)
+	var calls int
+	build := func(context.Context, *config.Config, net.Listener) (Deps, error) {
+		calls++
+		return Deps{}, errcode.New(errcode.RepoUnavailable, "build deps", errors.New("restic not found"))
+	}
+	env, _, stderr := cmdEnv("", cfgPath)
+
+	code, panicked := runRecovering(t, 2*time.Second, func() int {
+		return Command(build).Run(context.Background(), env, nil)
+	})
+
+	if calls != 1 {
+		t.Errorf("Builder calls = %d, want 1", calls)
+	}
+	if panicked != nil {
+		t.Errorf("Command(build).Run panicked: %v, want exit 1", panicked)
+	}
+	if code != 1 {
+		t.Errorf("Command(build).Run(builder error) = %d, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), string(errcode.RepoUnavailable)) {
+		t.Errorf("run stderr = %q, want it to contain %q", stderr.String(), errcode.RepoUnavailable)
+	}
+	assertUnlocked(t, stateDir)
 }

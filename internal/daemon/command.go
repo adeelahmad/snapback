@@ -7,6 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
+	"os"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/cli"
@@ -18,9 +20,13 @@ import (
 // callTimeout bounds one client round trip to the daemon.
 const callTimeout = 5 * time.Second
 
+// Builder builds the daemon's Deps for cfg, serving IPC on ln. The composition
+// root in cmd/snapback supplies the production Builder; tests pass fakes.
+type Builder func(ctx context.Context, cfg *config.Config, ln net.Listener) (Deps, error)
+
 // Command returns the "snapback run" command, which runs the daemon in the
 // foreground until its context is canceled or a shutdown request arrives.
-func Command() cli.Command {
+func Command(build Builder) cli.Command {
 	return cli.Command{
 		Name:    "run",
 		Summary: "run the daemon in the foreground",
@@ -30,11 +36,37 @@ func Command() cli.Command {
 				_, _ = fmt.Fprintf(env.Stderr, "snapback run: %s: %v\n", errcode.InvalidConfig, err)
 				return 1
 			}
-			l, err := ipc.Listen(ipc.SocketPath(env.Getenv, cfg.StateDir))
+			if build == nil {
+				_, _ = fmt.Fprintln(env.Stderr, "snapback run: internal_error: no dependency builder")
+				return 1
+			}
+			if err := os.MkdirAll(cfg.StateDir, 0o700); err != nil {
+				return cli.WriteError(env, "run", false, errcode.New(errcode.PermissionDenied, "create state dir", err))
+			}
+			unlock, err := Lock(cfg.StateDir)
 			if err != nil {
 				return cli.WriteError(env, "run", false, err)
 			}
-			if err := New(cfg, Deps{Listener: l}).Run(ctx); err != nil {
+			l, err := ipc.Listen(ipc.SocketPath(env.Getenv, cfg.StateDir))
+			if err != nil {
+				unlock()
+				return cli.WriteError(env, "run", false, err)
+			}
+			deps, err := build(ctx, cfg, l)
+			if err != nil {
+				_ = l.Close()
+				unlock()
+				code := errcode.Of(err)
+				if code == "" {
+					code = errcode.PrereqMissing
+				}
+				_, _ = fmt.Fprintf(env.Stderr, "snapback run: %s: %v\n", code, err)
+				return 1
+			}
+			// Daemon.Run takes the lock itself; flock is per open file, so
+			// release ours first.
+			unlock()
+			if err := New(cfg, deps).Run(ctx); err != nil {
 				return cli.WriteError(env, "run", false, err)
 			}
 			return 0
