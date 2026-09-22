@@ -128,6 +128,7 @@ type Daemon struct {
 	cancel      context.CancelFunc // stops Run; nil until Run starts
 	loop        *refresh.Loop      // periodic refresh loop; nil until it starts
 	linkQueued  bool               // a refresh for new links is scheduled
+	linkTimer   *time.Timer        // fires the scheduled link refresh; nil when none
 }
 
 // New returns a Daemon for cfg and deps.
@@ -278,15 +279,30 @@ func (d *Daemon) refreshForLinks() {
 		return
 	}
 	d.linkQueued = true
-	time.AfterFunc(linkRefreshDelay, func() {
+	d.linkTimer = time.AfterFunc(linkRefreshDelay, func() {
 		d.mu.Lock()
+		stopping := d.phase == "stopping"
 		d.linkQueued = false
+		d.linkTimer = nil
 		loop := d.loop
 		d.mu.Unlock()
-		if loop != nil {
+		if loop != nil && !stopping {
 			loop.Trigger()
 		}
 	})
+}
+
+// dropLinkRefresh cancels a scheduled link refresh, so a burst still pending
+// at shutdown never triggers a loop whose Run has returned.
+func (d *Daemon) dropLinkRefresh() {
+	d.mu.Lock()
+	timer := d.linkTimer
+	d.linkTimer = nil
+	d.linkQueued = false
+	d.mu.Unlock()
+	if timer != nil {
+		timer.Stop()
+	}
 }
 
 // loopTarget adapts a Daemon to refresh.Target, recording each result for
@@ -337,6 +353,7 @@ func (d *Daemon) shutdown(ctx context.Context, l net.Listener) error {
 	d.mu.Lock()
 	d.phase = "stopping"
 	d.mu.Unlock()
+	d.dropLinkRefresh()
 
 	_ = l.Close()
 	d.stopOps()
