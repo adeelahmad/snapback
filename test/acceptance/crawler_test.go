@@ -4,6 +4,7 @@ package acceptance
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -86,11 +87,19 @@ func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
 		t.Fatalf("EligibleCount within %v: %v (last %v)", histPollCap, err, got)
 	}
 
+	// The daemon's own refresh and pre-warm read tree blobs out of data/ packs,
+	// so the window only measures crawlers once that work has finished.
+	waitPrewarmed(t, e)
+
 	// Watch only the pack files. The daemon's own restic processes open config,
 	// keys, locks, snapshots and index in the background; that is not a crawler
 	// read. Any file or directory content served through .snapshot comes from
 	// data/ packs, so opens there are the ones a crawler could cause.
 	c := watchOpens(t, filepath.Join(repo, "data"))
+	time.Sleep(crawlerSettle)
+	if got := c.n.Load(); got != 0 {
+		t.Fatalf("repo IN_OPEN count while idle for %v = %d, want 0", crawlerSettle, got)
+	}
 	dst := filepath.Join(e.Root, "dst")
 	crawlers := [][]string{
 		{"rg", "x", proj},
@@ -125,7 +134,10 @@ func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
 		t.Errorf("repo IN_OPEN count after direct .snapshot read = 0, want > 0")
 	}
 
-	rg := exec.Command("rg", "-L", "x", proj)
+	// ripgrep skips hidden directories and honours ignore files by default, so
+	// without these flags it never descends into .snapshot and never trips the
+	// reader policy. rg is in the default deny_processes list.
+	rg := exec.Command("rg", "-L", "--hidden", "--no-ignore", "x", proj)
 	rg.Env = e.environ()
 	_ = rg.Run()
 	stdout, stderr, code := runSnapback(t, e, "status", "--json")
@@ -136,6 +148,36 @@ func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
 	hasEvent := strings.Contains(lower, "throttl") || strings.Contains(lower, "deny")
 	if !hasEvent || !strings.Contains(stdout, `"rg"`) {
 		t.Errorf("status --json = %q, want a throttle/deny event naming \"rg\"", stdout)
+	}
+}
+
+// crawlerSettle is how long the open counter must stay at zero before the
+// crawlers run, so a late daemon read cannot be blamed on them.
+const crawlerSettle = 3 * time.Second
+
+// waitPrewarmed polls status --json until the daemon has no pre-warm work
+// left, so its own pack reads are over before the crawler window opens.
+func waitPrewarmed(t *testing.T, e env) {
+	t.Helper()
+	deadline := time.Now().Add(histPollCap)
+	for {
+		st, out := readStatus(t, e)
+		var s struct {
+			Data struct {
+				Prewarm struct {
+					Warm    int `json:"warm"`
+					Pending int `json:"pending"`
+				} `json:"prewarm"`
+			} `json:"data"`
+		}
+		if st.OK && json.Unmarshal([]byte(out), &s) == nil &&
+			s.Data.Prewarm.Pending == 0 && s.Data.Prewarm.Warm >= 1 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("prewarm not quiescent within %v; last status --json = %q", histPollCap, out)
+		}
+		time.Sleep(time.Second)
 	}
 }
 

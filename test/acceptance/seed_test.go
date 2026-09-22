@@ -72,6 +72,8 @@ timestamps: utc
 state_dir: @STATE@
 history_mount: @HIST@
 backend_mount_dir: @STATE@/mounts/repositories
+catalog:
+  refresh_interval: 10m
 discovery:
   mode: seed
   shell: false
