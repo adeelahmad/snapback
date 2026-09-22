@@ -161,6 +161,9 @@ main() {
 		printf 'warning: %s is not on your PATH; add it to use snapback\n' "$install_dir" >&2
 	fi
 
+	printf 'installing snapback %s for %s/%s to %s\n' "${version:-latest}" "$os" "$arch" "$install_dir"
+	printf 'set SNAPBACK_INSTALL_DIR or pass --dir to change the location\n'
+
 	if [ "${SNAPBACK_DRY_RUN:-0}" = 1 ]; then
 		printf 'asset: %s\n' "$asset"
 		printf 'url: %s/%s\n' "$SNAPBACK_BASE_URL" "$asset"
@@ -177,6 +180,7 @@ main() {
 	want=$(awk -v a="$asset" '$2 == a { print $1 }' "$tmp/checksums.txt")
 	[ -n "$want" ] || die "no checksum for $asset in checksums.txt"
 	[ "$(sha256 "$tmp/$asset")" = "$want" ] || die "checksum mismatch for $asset; refusing to install"
+	printf 'checksum verified: %s\n' "$asset"
 	tar -xzf "$tmp/$asset" -C "$tmp" snapback
 	mkdir -p "$install_dir"
 	cp "$tmp/snapback" "$install_dir/snapback"
