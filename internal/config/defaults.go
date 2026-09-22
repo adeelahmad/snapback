@@ -36,9 +36,10 @@ func defaults() *Config {
 	}
 }
 
-// applyDefaults fills the defaults that depend on decoded values or the
-// environment.
-func applyDefaults(c *Config) {
+// ApplyDefaults fills the defaults that depend on decoded values or the
+// environment, so a configuration assembled field by field carries the same
+// defaults as a parsed one.
+func ApplyDefaults(c *Config) {
 	if c.StateDir == "" {
 		if xs := os.Getenv("XDG_STATE_HOME"); filepath.IsAbs(xs) {
 			c.StateDir = filepath.Join(xs, "snapback")
@@ -64,7 +65,7 @@ func applyDefaults(c *Config) {
 func Default() *Config {
 	c := defaults()
 	c.Version = 1
-	applyDefaults(c)
+	ApplyDefaults(c)
 	return c
 }
 
