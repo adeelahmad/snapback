@@ -11,6 +11,7 @@ theme:
 nav:
   - Home: index.md
   - Usage: usage.md
+  - Restore onto another machine: restore-onto-another-machine.md
   - Configuration: configuration.md
   - Logging: logging.md
   - Docker: docker.md
