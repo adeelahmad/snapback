@@ -4,11 +4,19 @@ Revision 2 · 21 September 2026 · Adeel Ahmad · Supersedes "Restic directory h
 
 ## 1. Build this
 
-Build **Snapback**: a Go application for Linux and macOS that puts a `.snapshot` entry inside directories on an existing live filesystem, through which any program (a shell, Finder, a file dialog in Chrome, a script) can browse and copy that directory as it was in past Restic snapshots. Restoring one file becomes `cp .snapshot/2026-09-20_0300/report.docx .`.
+Build **Snapback**: a Go application for Linux and macOS that puts a `.snapshot` entry inside directories on an existing live filesystem, through which any program (a shell, Finder, a file dialog in Chrome, a script) can browse and copy that directory as it was in past Restic snapshots.
+
+**Central idea.** Every directory gets a doorway into its own backup history. Restoring one file is an ordinary copy:
+
+```text
+cd ~/project
+ls .snapshot
+cp .snapshot/2026-09-20_0300Z/report.docx .
+```
 
 **Thesis.** Backing up was never the problem; restoring is. Modern backup tools optimised the write path (deduplication, encryption, cloud backends, incrementals) and sacrificed the read path. Restoring one file from a Restic repository, an EC2 snapshot or Duplicity chain means walking the repository root, host, snapshot ID and full path, or creating and attaching volumes. Older tools (rsnapshot on a local disk, NetApp's per-directory `.snapshot`) made restore trivial because history lived next to the data. Snapback restores that experience on top of Restic's modern write path. Public one-liner: *restoring a file should be as easy as it was in 2008.*
 
-**Shape of the software.** One static Go executable per OS/architecture containing the CLI, the daemon, and an embedded local web UI. Restic is driven through the installed `restic` CLI. FUSE is a hard, documented prerequisite (anyone running Restic is already in FUSE territory); `snapback doctor` fails early and explains how to install it. A small native macOS companion (Finder Sync extension) is in scope but the CLI, daemon, discovery modes and web UI must be fully usable without it.
+**Shape of the software.** One Go application executable per OS/architecture containing the CLI, the daemon, and an embedded local web UI. On Linux it is a static build (`CGO_ENABLED=0`), called static only where `file`/`ldd` evidence proves it; on macOS it is a self-contained Go application executable whose linkage and runtime requirements are still to be verified. Restic is driven through the installed `restic` CLI. Restic itself works without FUSE; FUSE is a hard prerequisite because Snapback exposes Restic snapshots as a browsable filesystem, through `restic mount` and its own history catalog. `snapback doctor` detects it, fails early and explains how to install the platform prerequisite; Snapback never installs FUSE automatically. A small native macOS companion (Finder Sync extension) is in scope but the CLI, daemon, discovery modes and web UI must be fully usable without it.
 
 **Non-negotiable design rules.**
 
@@ -30,15 +38,16 @@ Build **Snapback**: a Go application for Linux and macOS that puts a `.snapshot`
 | Backup access | Read-only history browsing through the Restic CLI and `restic mount`. |
 | Backup creation | Only on-demand directory snapshots via `snapback snap` (section 10). No scheduler, retention, `forget`, `prune`, `repair` or repository init. |
 | Restore | Users copy from history with ordinary tools. Bulk or metadata-sensitive restoration remains `restic restore`. Web UI offers copy-next-to-original, never overwrite. |
-| Platforms | Linux and macOS; amd64 and arm64 required, plus smaller Linux targets (e.g. MIPS for OpenWrt) as cross-compiled, unverified builds until tested. Windows excluded. |
+| First public release | The v0.1 contract in section 22.1: Linux first, with macOS, launchd, the Finder companion and additional package channels as separately proven follow-ups, and on-access discovery experimental until acceptance proof. |
+| Platforms | Linux and macOS (Linux first; macOS is a separately proven follow-up, section 22.1); amd64 and arm64 required, plus smaller Linux targets (e.g. MIPS for OpenWrt) as cross-compiled, unverified builds until tested. Windows excluded. |
 | FUSE | Hard prerequisite. macFUSE on macOS, `fuse3` on Linux. Detected by `doctor`; never installed automatically. |
-| Discovery | Two modes: **targeted seeding** (first-release default) and **on-access kernel hooks** (opt-in in the first release, intended to become default once proven). Explicit `link`/`open` commands and the Finder action always exist as the universal fallback. No claim of universal read interception. |
+| Discovery | Two modes: **targeted seeding** (first-release default) and **on-access kernel hooks** (experimental and opt-in until acceptance proof, not part of the first public release; intended to become default once proven). Explicit `link`/`open` commands and the Finder action always exist as the universal fallback. No claim of universal read interception. |
 | Snapshot naming | Timestamp-named directories plus `latest`. `by-date` calendar view retained. rsnapshot-style `daily.N`/`weekly.N` views are optional presentation, off by default. |
 | UI | Browser UI embedded with `go:embed`; configuration and Time Machine-style history browsing. No Node runtime, CDN or separate server at runtime. Overridable asset directory for development. |
 | Configuration | Versioned YAML in the user's config directory, written by `snapback config` (web) or CLI; same validated schema everywhere. |
 | Background operation | Foreground daemon plus `install service` for launchd, systemd and OpenRC, auto-detected. |
 | Caching | Restic owns its repository cache; Snapback owns only its registry/catalog cache and a pre-warm step (section 11). No invented Restic flags. |
-| Distribution | One-line installer, Homebrew tap, apt repo (.deb), OpenWrt .ipk, checksums and signatures, from day one (section 17). |
+| Distribution | One-line installer and release binaries with checksums and signatures in the first public release; Homebrew tap, apt repo (.deb) and OpenWrt .ipk follow as separately proven channels (sections 17, 22.1). |
 | Quality | CI, conventional commits, semantic release, changelog, docs site on GitHub Pages, security policy, from day one (section 18). |
 | Union / rename inference | Out of scope. `latest` never resurrects deleted files. No cross-snapshot rename inference. |
 
@@ -187,7 +196,7 @@ Use native path handling for live paths and POSIX handling for the snapshot tree
 **Rules.**
 
 - An omitted hostname filter means all hosts are eligible and the UI must show that choice. `tags_all` uses AND semantics.
-- `source_paths_exact` requires equality with the deduplicated, ordered recorded set; it selects a backup set, not a tree prefix.
+- `source_paths_exact` compares canonical sets: keep each path's exact bytes (no normalization), drop exact duplicates, sort deterministically by byte order, then require the snapshot's canonical recorded set to equal the configured canonical set. The same paths recorded in a different order select the same backup set. It selects a backup set, not a tree prefix.
 - Sort by snapshot time newest first, full ID as tie-breaker. Timestamp aliases add a short-ID suffix on same-minute collisions.
 - `latest` means the newest eligible snapshot, not the newest in which a file still exists. If D is absent or a non-directory in S, opening the alias fails; never fall back to an older snapshot or the live directory.
 - List aliases without probing every subtree. A missing subtree may yield a dangling alias; the UI annotates presence lazily for visible rows.
@@ -216,7 +225,7 @@ Implement only what the catalog needs: lookup, attributes, directory enumeration
 
 No payload read runs a Restic subprocess per byte range. Catalog listing never scans the live root, walks full snapshot trees or fetches file contents. Some file managers dereference aliases to inspect targets; document and measure that rather than claiming listing is metadata-free.
 
-**Crawler safety.** Tools that do not follow symlinks (`rg`, `fd`, `find`, `rsync -a`, `du`, `tar`) pay one extra directory entry per folder and never touch the catalog. Tools that do follow them (`rg -L`, `find -L`, `rsync -L`, `cp -rL`, `tar -h`, VS Code search with `search.followSymlinks`, IDE indexers, Spotlight `mdworker`) could walk every snapshot and pull historical content from the cloud. Defend at the catalog: FUSE exposes the caller PID; apply a configurable process denylist/allowlist (`catalog.reader_policy`), rate-limit any process enumerating many snapshot directories in a short window, and surface throttling in status. Document `.snapshot` in global ignore files and recommend disabling Spotlight on the mount points. Stage 1 includes a test that runs `rg`, `rg -L`, `fd -L` and a VS Code search over a seeded tree and measures catalog hits.
+**Crawler safety.** Tools that do not follow symlinks (`rg`, `fd`, `find`, `rsync -a`, `du`, `tar`) pay one extra directory entry per folder and never touch the catalog. Tools that do follow them (`rg -L`, `find -L`, `rsync -L`, `cp -rL`, `tar -h`, VS Code search with `search.followSymlinks`, IDE indexers, Spotlight `mdworker`) could walk every snapshot and pull historical content from the cloud. Defend at the catalog: FUSE exposes the caller PID; apply a configurable process denylist/allowlist (`catalog.reader_policy`), rate-limit any process enumerating many snapshot directories in a short window, and surface throttling in status. `catalog.reader_policy` is a resource-protection and UX mechanism, not an access-control boundary: processes running as the same user can change executable identity or perform equivalent filesystem operations. Document `.snapshot` in global ignore files and recommend disabling Spotlight on the mount points. Stage 1 includes a test that runs `rg`, `rg -L`, `fd -L` and a VS Code search over a seeded tree and measures catalog hits.
 
 Mounts and IPC are private to the configured user by default. Root mappings organise history; they are not an access-control sandbox against the same user. Historical symlinks retain Restic's behaviour and can resolve outside a subtree; the HTTP API enforces its own path containment and never follows arbitrary historical symlinks into the host filesystem.
 
@@ -250,7 +259,7 @@ The `.snapshot` entry must be visible to every program, so it must physically ex
 | Mode | When a link is created | Privilege | First release |
 | --- | --- | --- | --- |
 | `seed` | Up front, in every directory under paths the user names, then kept complete by a directory-creation watcher | none | **default** |
-| `on-access` | Just before any allowed process first opens a directory, via kernel permission hooks | root (Linux), system extension + entitlement (macOS) | opt-in |
+| `on-access` | Just before any allowed process first opens a directory, via kernel permission hooks | root (Linux), system extension + entitlement (macOS) | not included; experimental and opt-in until acceptance proof (section 22.1) |
 | explicit | `snapback link`, `snapback open`, shell hook, Finder action, web UI | none | always available |
 
 ### 9.1 Targeted seeding (default)
@@ -475,7 +484,7 @@ Go `net/http` serving HTML/CSS/JS embedded with `go:embed` as a compressed bundl
 
 - **Setup** (`snapback config`): choose installed `restic`/`rclone`, repository URI or path, credential-file reference, validate access, choose roots, host/source prefix mappings and seed paths, test one directory, save. Guided, no file editing.
 - **Configuration:** edit roots, filters, exclusions, seed paths, discovery mode, Restic cache settings, catalog settings, views. Validation, atomic save, revision check.
-- **History (rclone-explorer layout):** left panel of configured roots and folders with status dots for repositories and mounts; middle panel file list (name, size, modified) for the selected snapshot; a timeline across the top of snapshot timestamps for the selected directory, scrubbing updates the listing. Per file, a **Versions** panel showing only distinct versions (deduplicated by size and mtime from cached trees, no content reads), each with Download and **Restore copy next to original** (`report (2026-09-20).docx`), never overwrite. **Open in file manager** button. Absent directories shown distinctly from failed reads; warm/cold badge per snapshot.
+- **History (rclone-explorer layout):** left panel of configured roots and folders with status dots for repositories and mounts; middle panel file list (name, size, modified) for the selected snapshot; a timeline across the top of snapshot timestamps for the selected directory, scrubbing updates the listing. Per file, a **Versions** panel listing every snapshot occurrence of the file unless exact content identity is available without reading content. Size plus mtime from cached trees does not establish content identity: it may group occurrences for presentation only, labelled "likely identical", and is never treated or described as proof of equality or as distinct versions. The panel never reads file content for this. Each occurrence has Download and **Restore copy next to original** (`report (2026-09-20).docx`), never overwrite. **Open in file manager** button. Absent directories shown distinctly from failed reads; warm/cold badge per snapshot.
 - **Status:** mount readiness, last successful refresh, errors, eligible snapshot count, managed-link count, pre-warm state, discovery mode and throttling events, integration state. Only measured metrics.
 - **Integrations:** shell-hook installation text, Finder companion availability and activation, on-access capability and entitlement status, service status and install instructions.
 
@@ -500,15 +509,15 @@ Installation is idempotent. Update or remove only files belonging to this instan
 
 ## 17. Distribution and packaging
 
-Adoption is the goal, so every channel ships from the first tagged release.
+Adoption is the goal, so every channel below is designed in from the start. The first public release ships the Linux release binaries and the one-line installer; each further channel ships once it is separately proven (section 22.1).
 
 | Channel | Requirement |
 | --- | --- |
-| Release binaries | Static Go binaries (`CGO_ENABLED=0`, verified with `ldd`/`file`) for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64; additional cross-compiled Linux targets (linux/arm, linux/mips, linux/mipsle) published as **unverified** until a real mount test exists. SHA-256 checksums and Sigstore/cosign or GPG signatures on every artifact. |
+| Release binaries | Linux: static Go binaries (`CGO_ENABLED=0`, called static only when verified with `ldd`/`file`) for linux/amd64 and linux/arm64, in the first public release. macOS: self-contained Go application executables for darwin/amd64 and darwin/arm64, with linkage and runtime requirements to be verified, shipped with the macOS follow-up. Additional cross-compiled Linux targets (linux/arm, linux/mips, linux/mipsle) published as **unverified** until a real mount test exists. SHA-256 checksums and Sigstore/cosign or GPG signatures on every artifact. |
 | One-line installer | `curl -fsSL https://snapback.<domain>/install.sh \| sh`: detects OS/arch, downloads the matching release, verifies the checksum, installs to a user or system bin dir, prints next steps (`snapback config`). rclone install model. Never installs FUSE; prints how. |
-| Homebrew | A tap with a formula for macOS and Linux; formula notes the macFUSE cask requirement. |
-| apt | `.deb` packages and a hosted apt repository with a signing key; depends on `fuse3`. |
-| OpenWrt | `.ipk` for supported targets; documents `kmod-fuse` requirement. |
+| Homebrew | Follow-up channel. A tap with a formula for macOS and Linux; formula notes the macFUSE cask requirement. |
+| apt | Follow-up channel. `.deb` packages and a hosted apt repository with a signing key; depends on `fuse3`. |
+| OpenWrt | Follow-up channel. `.ipk` for supported targets; documents `kmod-fuse` requirement. |
 | Later | RPM, Arch AUR, QNAP QPKG, Synology SPK as follow-ups, not first release. |
 | Finder companion | Separate `.pkg`/`.app` download; signed and notarized where a signing identity exists; state clearly when it is unsigned. |
 
@@ -518,9 +527,9 @@ Every artifact carries version, commit and build target (`snapback version`). Re
 
 People only trust a restore tool that looks trustworthy, so the project scaffolding is part of the product and exists before the vertical slice.
 
-- **CI (GitHub Actions):** `go build`, `go vet`, `staticcheck`/`golangci-lint`, unit and integration tests with `-race`, cross-compilation of every release target, coverage report, dependency vulnerability scan (`govulncheck`), pinned Go toolchain. Real mount/browse/unmount tests on Linux runners and on macOS runners with macFUSE.
+- **CI (GitHub Actions):** `go build`, `go vet`, `staticcheck`/`golangci-lint`, unit and integration tests with `-race`, cross-compilation of every release target, coverage report, dependency vulnerability scan (`govulncheck`), pinned Go toolchain. Real mount/browse/unmount tests on Linux runners, and on macOS runners with macFUSE as part of the macOS follow-up.
 - **Conventional commits and semantic release:** version bumps, tags, changelog and GitHub release notes generated automatically from commit history. `CHANGELOG.md` kept in the repo.
-- **Release pipeline:** builds all artifacts, generates checksums, signs them, publishes the GitHub release, updates the Homebrew tap, apt repo and OpenWrt feed, and deploys the docs site, on every tag.
+- **Release pipeline:** builds all artifacts, generates checksums, signs them, publishes the GitHub release, updates each package channel that has shipped (Homebrew tap, apt repo, OpenWrt feed), and deploys the docs site, on every tag.
 - **Docs site on GitHub Pages:** generated from repository Markdown (MkDocs Material or Hugo), built and deployed by CI, versioned per release. Contains the landing page (lead with the restore story, a short screen recording of a restore, the one-line install), install and quickstart, the three commands, configuration reference, discovery modes and their costs, troubleshooting, backup/gitignore exclusions, managed-link cleanup, and the operations guide (locks and maintenance).
 - **Repository furniture:** README with a GIF of a three-second restore at the top, ARCHITECTURE.md, CONTRIBUTING.md, SECURITY.md with a disclosure path, CODE_OF_CONDUCT, issue and PR templates, LICENSE (choose a permissive OSI licence), NOTICE with dependency licences, `go.mod`/`go.sum`.
 - **Honesty gate:** the implementation report ends with the requirement matrix (section 22) and release notes never use "production-ready", "cross-platform", "static" or "Finder-integrated" without linked evidence.
@@ -570,7 +579,7 @@ Use generated temporary fixtures and a small real Restic repository. Never test 
 
 **Performance.** Startup never walks live roots or pre-enumerates snapshot trees; work is proportional to repositories, known links and snapshot summaries. `ensure-link` under 100 ms p95 on a local SSD after startup, measured and reported. Shell notification returns sooner with a strict timeout. On-access handler under 5 ms p99. Seeding throughput reported (directories/second, warm and cold). A synthetic provider with a million-directory root and 10,000 snapshot summaries verifies lazy catalogs; report memory, startup, first listing, warm listing, refresh and cold first read separately. Real rclone/Google Drive cold-listing, warm-listing and cold-read numbers reported from stage 1.
 
-**Platform proof.** Unit, integration and race tests on the core. Cross-compile all targets. Real mount/browse/unmount on Linux and macOS including Apple Silicon. Verify Linux static linkage. Record every untested OS/architecture/service/FUSE combination.
+**Platform proof.** Unit, integration and race tests on the core. Cross-compile all targets. Real mount/browse/unmount on Linux, and on macOS including Apple Silicon before macOS support is claimed. Verify Linux static linkage. Record every untested OS/architecture/service/FUSE combination.
 
 ## 21. Must-verify risk areas
 
@@ -595,12 +604,22 @@ Implement in this order, keeping each stage demonstrable and usable on Linux bef
 | 1. Compatibility milestone | Pin dependencies; disposable Restic repo; verify `--path-template ids/%I`; tiny directory/symlink FUSE catalog on Linux and macOS; metadata-fidelity check; rclone/Google Drive latency measurements; crawler test | Numbers recorded in the report; go/no-go on latency |
 | 2. Core vertical slice | Config, `SnapshotProvider` + Restic implementation, resolver with per-snapshot prefix map and per-directory selection, private Restic mount, virtual catalog with timestamp aliases, `link`/`open`/`snap`, ownership registry | Acceptance 3–8, 10 on Linux |
 | 3. Reliable background operation | Daemon, refresh, pre-warm, local IPC, shell hooks, targeted seeding with watcher and inode budget, reader policy, crash recovery, clean shutdown | Acceptance 1, 2, 9, 11–15 |
-| 4. Web UI and services | Setup, Configuration, History (timeline + Versions + restore-copy), Status, Integrations; launchd/systemd/OpenRC; `install service`; packages and installer | Acceptance 16, 17; all channels publish from a tag |
+| 4. Web UI and services | Setup, Configuration, History (timeline + Versions + restore-copy), Status, Integrations; launchd/systemd/OpenRC; `install service`; packages and installer | Acceptance 16, 17; each shipped channel publishes from a tag |
 | 5. macOS proof | go-fuse on macFUSE/Apple Silicon, LaunchAgent, Finder companion with signing instructions | Acceptance 17 on macOS, 19 |
 | 6. On-access mode | fanotify permission events on Linux, then Endpoint Security on macOS, process policy, fail-open | Acceptance 18; decision on promoting to default |
 | 7. Release | Binaries per target, companion package, checksums, signatures, licence notices, example configs, operations docs, measured validation, launch assets | Requirement matrix complete |
 
-Linux with the web UI (stages 0–4) is the first public release candidate. Stages 5 and 6 follow.
+Linux with the web UI (stages 0–4), limited to the v0.1 scope below, is the first public release candidate. Stages 5 and 6 follow.
+
+### 22.1 First public release contract
+
+The stages above are build order; this table is the release boundary. Only the v0.1 row is a prerequisite for the first public release. Later rows are not deleted or relaxed: each ships with its full requirements once its own evidence exists.
+
+| Release | Scope | Condition |
+| --- | --- | --- |
+| **v0.1, first public release candidate** | Restic backend; the `.snapshot` filesystem and history model (sections 3, 6, 7); Linux first; explicit plus targeted seeded discovery (sections 9.1, 9.3); `snapback snap`; daemon; web UI; systemd; a working one-line installer and Linux release binary; safe link registry (section 8); refresh and pre-warm (sections 11, 14) | Every acceptance test in section 20 that applies to this scope passes on Linux |
+| **Follow-up, separately proven** | macOS core with macFUSE; launchd; Finder companion; additional package channels (Homebrew, apt, OpenWrt, then section 23 packaging); OpenRC | Each ships only with its own acceptance evidence (for macOS, a real macFUSE test); none blocks v0.1 |
+| **Experimental until acceptance proof** | Linux fanotify on-access; macOS Endpoint Security on-access | Opt-in and labelled experimental until acceptance 18 passes and fail-open is measured |
 
 **Deliverables.** Complete source, `go.mod`/`go.sum`, embedded frontend sources and assets, native companion source, reproducible build commands, CLI help, configuration schema and examples, service implementations, installer script, packaging definitions, CI workflows, docs site sources, ARCHITECTURE and operations README with setup, shell-hook installation, service installation, discovery-mode costs, troubleshooting, backup and gitignore exclusions, and managed-link cleanup.
 
@@ -619,4 +638,4 @@ Design the first release so these are additions, not rewrites.
 
 ## 24. Paste this instruction into Codex with this document
 
-> Implement the attached Snapback specification (Revision 2). Treat its fixed requirements as authoritative. Build the Go core with a `SnapshotProvider` seam and a Restic implementation only, the embedded local web UI with configuration and Time Machine-style history, targeted seeding with a directory watcher as the default discovery mode, the explicit `link`/`open`/`snap` commands, native service adapters for launchd, systemd and OpenRC, the one-line installer and package definitions, the CI/semantic-release/docs-site pipeline, and the separately packaged macOS Finder companion. Keep all live files on their original filesystem; the only physical change to a live directory is one owned symlink named by `link_name` (default `.snapshot`) into the separate read-only history catalog. Use the installed Restic CLI and treat FUSE as a hard prerequisite. Begin with stage 0 scaffolding and the stage 1 compatibility milestone, record the latency and crawler measurements, then complete the vertical slice and remaining stages in order; on-access kernel hooks come last and stay opt-in. Make routine implementation choices autonomously, pin and verify dependencies, and run meaningful tests on disposable fixtures. Do not expand into backup scheduling, retention, a file-content cache, a union of historical files, Windows support, a live filesystem overlay, or any backend other than Restic. Do not mention other backends in user-facing text. Deliver runnable code and documentation, and end the report with the requirement matrix listing every unimplemented or untested requirement explicitly.
+> Implement the attached Snapback specification (Revision 2). Treat its fixed requirements as authoritative. Build the Go core with a `SnapshotProvider` seam and a Restic implementation only, the embedded local web UI with configuration and Time Machine-style history, targeted seeding with a directory watcher as the default discovery mode, the explicit `link`/`open`/`snap` commands, native service adapters for launchd, systemd and OpenRC, the one-line installer and package definitions, the CI/semantic-release/docs-site pipeline, and the separately packaged macOS Finder companion. Keep all live files on their original filesystem; the only physical change to a live directory is one owned symlink named by `link_name` (default `.snapshot`) into the separate read-only history catalog. Use the installed Restic CLI and treat FUSE as a hard prerequisite. Begin with stage 0 scaffolding and the stage 1 compatibility milestone, record the latency and crawler measurements, then complete the vertical slice and remaining stages in order; on-access kernel hooks come last and stay opt-in. The first public release boundary is section 22.1. Make routine implementation choices autonomously, pin and verify dependencies, and run meaningful tests on disposable fixtures. Do not expand into backup scheduling, retention, a file-content cache, a union of historical files, Windows support, a live filesystem overlay, or any backend other than Restic. Do not mention other backends in user-facing text. Deliver runnable code and documentation, and end the report with the requirement matrix listing every unimplemented or untested requirement explicitly.
