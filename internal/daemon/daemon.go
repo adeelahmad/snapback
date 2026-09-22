@@ -466,6 +466,10 @@ func (d *Daemon) Status() status.Snapshot {
 	for _, id := range res.Failed {
 		repos[id] = history.StateFailed
 	}
+	var throttle []readerpolicy.ThrottleEvent
+	if d.deps.Throttle != nil {
+		throttle = d.deps.Throttle()
+	}
 	state, out := status.Derive(phase, repos)
 	for i := range out {
 		if !d.mountFailed[out[i].ID] {
@@ -488,6 +492,7 @@ func (d *Daemon) Status() status.Snapshot {
 		Prewarm:       pre,
 		Pending:       res.Pending,
 		Discovery:     d.cfg.Discovery.Mode,
+		Throttle:      throttle,
 		Recovery:      rec,
 	}
 }
