@@ -1,6 +1,12 @@
 package projection
 
-// SUB-AGENT-TODO: add the unexported node representation Build produces.
+// node is one built catalog entry; directories keep sorted names and name -> inode.
+type node struct {
+	isDir    bool
+	target   string
+	names    []string
+	children map[string]uint64
+}
 
 // RootIno is the inode of the projection root directory.
 const RootIno uint64 = 1
