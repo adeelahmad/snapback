@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/pathutil"
 	"github.com/adeelahmad/snapback/internal/resolver"
 )
 
@@ -55,11 +56,11 @@ func place(pol Policy, dir string) (placement, error) {
 // excluded reports whether dir is at or under the history mount or an
 // excluded entry, or has a path component equal to the link name.
 func excluded(pol Policy, dir string) bool {
-	if pol.HistoryMount != "" && under(pol.HistoryMount, dir) {
+	if pol.HistoryMount != "" && pathutil.Under(pol.HistoryMount, dir) {
 		return true
 	}
 	for _, e := range pol.Excluded {
-		if under(e, dir) {
+		if pathutil.Under(e, dir) {
 			return true
 		}
 	}
@@ -69,13 +70,4 @@ func excluded(pol Policy, dir string) bool {
 		}
 	}
 	return false
-}
-
-// under reports whether p equals base or lies beneath it, by whole components.
-func under(base, p string) bool {
-	rel, err := filepath.Rel(filepath.Clean(base), p)
-	if err != nil {
-		return false
-	}
-	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }

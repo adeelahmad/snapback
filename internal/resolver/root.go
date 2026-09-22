@@ -4,7 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"strings"
+
+	"github.com/adeelahmad/snapback/internal/pathutil"
 )
 
 // RootSpec is a configured backup root: its ID and its local path.
@@ -36,15 +37,21 @@ func SelectRoot(roots []RootSpec, dir string) (Match, error) {
 	ambiguous := false
 	for _, r := range roots {
 		root := filepath.Clean(r.LocalPath)
-		rel, ok := within(root, clean)
-		if !ok || len(root) < bestLen {
+		if !pathutil.Under(root, clean) || len(root) < bestLen {
 			continue
 		}
 		if len(root) == bestLen {
 			ambiguous = true
 			continue
 		}
-		best, bestLen, ambiguous = Match{RootID: r.ID, Rel: rel}, len(root), false
+		rel, err := filepath.Rel(root, clean)
+		if err != nil {
+			continue
+		}
+		if rel == "." {
+			rel = ""
+		}
+		best, bestLen, ambiguous = Match{RootID: r.ID, Rel: filepath.ToSlash(rel)}, len(root), false
 	}
 	switch {
 	case bestLen < 0:
@@ -53,18 +60,4 @@ func SelectRoot(roots []RootSpec, dir string) (Match, error) {
 		return Match{}, fmt.Errorf("resolver: %q: %w", dir, ErrAmbiguousRoot)
 	}
 	return best, nil
-}
-
-// within reports whether the cleaned root contains the cleaned dir and
-// returns dir relative to root, without leading or trailing slashes.
-func within(root, dir string) (string, bool) {
-	if root == dir {
-		return "", true
-	}
-	prefix := root
-	if root != "/" {
-		prefix += "/"
-	}
-	rel, ok := strings.CutPrefix(dir, prefix)
-	return rel, ok
 }

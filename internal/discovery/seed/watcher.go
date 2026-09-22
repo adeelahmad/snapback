@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/pathutil"
 )
 
 const (
@@ -145,7 +146,7 @@ func (w *Watcher) recordEnsure(failures int, lastErr error) {
 // callers must report paths in the same form as the configured roots.
 func (w *Watcher) covered(dir string) bool {
 	for _, r := range w.roots {
-		if !within(dir, r.Root) {
+		if !pathutil.Under(r.Root, dir) {
 			continue
 		}
 		rel, err := filepath.Rel(r.Root, dir)
