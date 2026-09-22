@@ -20,12 +20,12 @@ func readBundle(t *testing.T, path string) map[string]string {
 	if err != nil {
 		t.Fatalf("os.Open(%q) = _, %v, want nil error", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	gz, err := gzip.NewReader(f)
 	if err != nil {
 		t.Fatalf("gzip.NewReader(%q) = _, %v, want nil error", path, err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 	members := make(map[string]string)
 	tr := tar.NewReader(gz)
 	for {
