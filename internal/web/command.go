@@ -87,6 +87,9 @@ func Command() cli.Command {
 			allowRemote := fs.Bool("allow-remote", false, "allow a bind address that is not loopback")
 			var origins originList
 			fs.Var(&origins, "allow-origin", "also accept browser requests from this origin (repeatable)")
+			// SUB-AGENT-TODO: resolve these over cfg.Logging and give the
+			// resolved logger to the server (S5-36/T12).
+			_ = cli.AddLogFlags(fs)
 			help, err := cli.ParseWithUsage(fs, args)
 			if err != nil {
 				return cli.WriteError(env, "web", false, err)

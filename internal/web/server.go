@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -53,6 +54,9 @@ type Options struct {
 	// Policy carries the decided bind address and the browser origins the
 	// guard accepts.
 	Policy BindPolicy
+	// Log is the logger the server writes its own records through. It is
+	// resolved from the --log-* flags and the logging section of the config.
+	Log *slog.Logger
 }
 
 // Server is the local web server.
