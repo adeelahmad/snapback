@@ -38,14 +38,16 @@ archives:
     formats: [tar.gz]
     name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if or (eq .Arch "arm") (eq .Arch "mips") (eq .Arch "mipsle") }}_unverified{{ end }}'
     files:
-      - none*
+      - LICENSE
+      - NOTICE
   - id: snapback_universal
     ids:
       - snapback_universal
     formats: [tar.gz]
     name_template: '{{ .ProjectName }}_{{ .Os }}_universal'
     files:
-      - none*
+      - LICENSE
+      - NOTICE
 
 checksum:
   name_template: checksums.txt
