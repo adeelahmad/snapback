@@ -95,7 +95,7 @@ func TestSystemdUnitUserGolden(t *testing.T) {
 	if got != want {
 		t.Errorf("SystemdUnit(%+v) = %q, want %q", userOpts, got, want)
 	}
-	for _, line := range []string{"Restart=on-failure", "RestartSec=5s", "TimeoutStopSec=30s", "WantedBy=default.target"} {
+	for _, line := range []string{"KillMode=mixed", "Restart=on-failure", "RestartSec=5s", "TimeoutStopSec=30s", "WantedBy=default.target"} {
 		if !slices.Contains(strings.Split(got, "\n"), line) {
 			t.Errorf("SystemdUnit(%+v) lacks line %q", userOpts, line)
 		}

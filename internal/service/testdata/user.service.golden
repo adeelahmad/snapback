@@ -6,6 +6,7 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
+KillMode=mixed
 ExecStart=/usr/local/bin/snapback run --config /home/u/.config/snapback/config.yaml
 Restart=on-failure
 RestartSec=5s

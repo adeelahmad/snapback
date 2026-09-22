@@ -6,6 +6,7 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
+KillMode=mixed
 ExecStart="/opt/my apps/snapback" run --config "/home/u/cfg 100%%/$$HOME \"q\" \\x.yaml"
 Restart=on-failure
 RestartSec=5s
