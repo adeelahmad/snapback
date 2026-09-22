@@ -7,7 +7,7 @@
   <a href="https://github.com/adeelahmad/snapback/releases"><img alt="release" src="https://img.shields.io/github/v/release/adeelahmad/snapback?color=1e7e43&label=release"></a>
   <a href="https://github.com/adeelahmad/snapback/actions/workflows/ci.yml"><img alt="ci" src="https://img.shields.io/github/actions/workflow/status/adeelahmad/snapback/ci.yml?branch=master&label=ci"></a>
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/github/license/adeelahmad/snapback?color=5f6368"></a>
-  <a href="https://snapback.run/"><img alt="docs" src="https://img.shields.io/badge/docs-snapback.run-1a73e8"></a>
+  <a href="https://snapback.sh/"><img alt="docs" src="https://img.shields.io/badge/docs-snapback.sh-1a73e8"></a>
 </p>
 
 # snapback
@@ -16,9 +16,7 @@
 
 snapback is a restore tool for your backups. It supports Restic today; other backends are on the [roadmap](#roadmap).
 
-<!-- TODO: restore GIF (a three-second `cp .snapshot/...` restore) goes here -->
-
-snapback is being built to put a read-only `.snapshot` folder inside your directories, backed by the Restic snapshots you already have. This is the design goal, not something that works today (see [Status](#status)):
+snapback puts a read-only `.snapshot` entry inside your directories, backed by the Restic snapshots you already have. The v0.1 acceptance run on macOS (macFUSE) exercised this restore; the results are in [docs/reports/v0.1-acceptance.md](docs/reports/v0.1-acceptance.md):
 
 ```console
 $ ls .snapshot/
@@ -31,25 +29,29 @@ That is the whole restore: no app to open, no browser tab, no restore wizard. Yo
 
 ## Why
 
-Backing up was never the problem; restoring is. Most tools make you leave the directory you are working in, open something else, find the file again and download it somewhere. Older setups solved this with a `.snapshot` directory next to the data. snapback aims to bring that back for the Restic backups you already have.
+Backing up was never the problem; restoring is. Most tools make you leave the directory you are working in, open something else, find the file again and download it somewhere. Older setups solved this with a `.snapshot` directory next to the data. snapback brings that back for the Restic backups you already have.
 
-- **Next to the data.** The plan is a `.snapshot` entry inside the directories your backups cover, not a separate mount you have to go looking for.
-- **Any program.** `cp`, `diff`, an editor, a file manager, a file dialog: if it can read a directory, it will be able to restore.
-- **Your existing backups.** snapback reads [Restic](https://restic.net) repositories. It does not replace your backup tool; it is meant to make restoring from it trivial.
+- **Next to the data.** A `.snapshot` entry sits inside the directories your backups cover, not in a separate mount you have to go looking for.
+- **Any program.** `cp`, `diff`, an editor, a file manager, a file dialog: if it can read a directory, it can restore.
+- **Your existing backups.** snapback reads [Restic](https://restic.net) repositories. It does not replace your backup tool; it makes restoring from it trivial.
 
 ## Install
 
 ```sh
-curl -fsSL https://snapback.run/install.sh | sh
+curl -fsSL https://snapback.sh/install.sh | sh
 ```
 
-The installer downloads the latest tagged build for Linux or macOS from the [releases page](https://github.com/adeelahmad/snapback/releases). Today that build does one thing: `snapback version` prints its build information.
+The installer downloads the latest tagged build from the [releases page](https://github.com/adeelahmad/snapback/releases). That tag predates v0.1 and only prints build information. Until v0.1 is tagged, build from source with Go:
 
-The planned `.snapshot` view will need the `restic` CLI and FUSE (`fuse3` on Linux, [macFUSE](https://macfuse.github.io) on macOS).
+```sh
+go build ./cmd/snapback
+```
+
+The `.snapshot` view needs the `restic` CLI and FUSE (`fuse3` on Linux, [macFUSE](https://macfuse.github.io) on macOS). Setup, the service and every command are in the [usage guide](docs-site/usage.md).
 
 ## How it works
 
-This section describes the design in [SPEC.md](SPEC.md); none of it is built yet.
+The full design is in [SPEC.md](SPEC.md).
 
 ```
 ~/Documents/
@@ -60,7 +62,9 @@ This section describes the design in [SPEC.md](SPEC.md); none of it is built yet
     └── latest/                 ← the newest snapshot for this directory
 ```
 
-Your live files will stay exactly where they are, on their own filesystem. The only change snapback will make to a live directory is one managed `.snapshot` symlink. It will point into a small read-only FUSE catalog that lists the Restic snapshots containing that directory, newest first, plus a `latest` alias, and resolves them through a private, read-only `restic mount`. Files will be read from the repository only when you open them.
+Your live files stay exactly where they are, on their own filesystem. The only change snapback makes to a live directory is one managed `.snapshot` symlink. It points into a small read-only FUSE catalog that lists the Restic snapshots containing that directory, newest first, plus a `latest` alias, and resolves them through a private, read-only `restic mount`. Files are read from the repository only when you open them.
+
+While the daemon runs, a new snapshot can take up to about a minute to appear under `.snapshot`, because the view reloads Restic snapshot metadata on a refresh interval. `snapback refresh` asks the daemon to reload sooner.
 
 ## What it doesn't do
 
@@ -71,7 +75,9 @@ Your live files will stay exactly where they are, on their own filesystem. The o
 
 ## Status
 
-snapback is early, pre-release software and not yet usable for restores. The command set is listed by the built-in help and described in the [usage guide](docs-site/usage.md); it targets Linux first. Expect breaking changes.
+snapback v0.1 is early, pre-release software. Expect breaking changes. Linux is the v0.1 target.
+
+What exists and passed the v0.1 acceptance run on macOS (macFUSE): the `.snapshot` view with its `latest` alias, `snapback snap` for ad-hoc snapshots, `snapback seed` and `snapback link` to create `.snapshot` entries, the daemon (`snapback run`), the local web UI (`snapback web`) and `snapback doctor`. The systemd user service (`snapback install service`) is built, but its acceptance check needs Linux. One acceptance item, the Acc 14 mount case, failed on macOS and is under investigation. Linux acceptance evidence is pending, so v0.1 is not yet released. Item-by-item results are in [docs/reports/v0.1-acceptance.md](docs/reports/v0.1-acceptance.md).
 
 Stage 1 compatibility evidence (FUSE catalog, `restic mount` path templates, metadata fidelity, crawler safety and latency measurements) is in [docs/reports/stage1/](docs/reports/stage1/). Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -84,15 +90,13 @@ snapback supports Restic today. These backends are planned, not supported yet:
 - ZFS snapshots: planned.
 - Btrfs snapshots: planned.
 
-When the daemon runs, a snapshot taken while it runs can take up to about a minute to appear under `.snapshot`, because the view reloads Restic snapshot metadata on a refresh interval.
-
 ## Prior art and credit
 
 snapback stands on the shoulders of [httm](https://github.com/kimono-koans/httm) by kimono-koans, released under the MPL-2.0 license. httm showed how pleasant it is to browse and restore past versions of a file right from where it lives, and snapback's in-directory `.snapshot` idea owes a great deal to it.
 
 ## Documentation
 
-- Docs site: https://snapback.run/docs/
+- Docs site: https://snapback.sh/docs/
 - [SPEC.md](SPEC.md): the product specification.
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the code is organised.
 - [CONTRIBUTING.md](CONTRIBUTING.md): how to build, test and send changes.

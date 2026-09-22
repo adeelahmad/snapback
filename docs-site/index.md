@@ -4,11 +4,25 @@ Snapback is about one thing: getting a file back. Restoring a file should be as 
 
 ## Install
 
-Coming soon. There are no builds to download yet.
+The latest tagged release predates v0.1. Until v0.1 is tagged, build from source:
+
+```sh
+go build ./cmd/snapback
+```
+
+Snapback needs the `restic` CLI and FUSE (`fuse3` on Linux, macFUSE on macOS). The [usage guide](usage.md) covers setup, the service and every command.
+
+## How it works
+
+Each directory your backups cover gets a read-only `.snapshot` entry. It lists the Restic snapshots that contain the directory, newest first, plus a `latest` alias. Restore with any program that reads files, for example `cp .snapshot/latest/report.docx .`. Snapback never writes to the Restic repository.
+
+While the daemon runs, a new snapshot can take up to about a minute to appear under `.snapshot`, because the view reloads Restic snapshot metadata on a refresh interval.
 
 ## Status
 
-Snapback is pre-release software under active development. Expect breaking changes.
+Snapback v0.1 is early, pre-release software. Expect breaking changes. Linux is the v0.1 target.
+
+The `.snapshot` view, `latest`, `snap`, `seed`, `link`, the daemon, the web UI and `doctor` passed the v0.1 acceptance run on macOS with macFUSE; one mount case failed there and is under investigation. The systemd user service is built, but its acceptance check needs Linux. Linux acceptance evidence is pending.
 
 ## Roadmap
 
@@ -19,8 +33,6 @@ These backends are planned, not supported yet:
 - ZFS snapshots: planned.
 - Btrfs snapshots: planned.
 
-When the daemon runs, a snapshot taken while it runs can take up to about a minute to appear under `.snapshot`, because the view reloads Restic snapshot metadata on a refresh interval.
-
 ## Versions
 
-Versioned documentation is not yet available. Docs will be published per release once the first release ships.
+Versioned documentation is not yet available. Docs will be published per release once v0.1 is tagged.

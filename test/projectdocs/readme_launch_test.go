@@ -16,7 +16,9 @@ const (
 	ciBadgePath  = "actions/workflow/status/" + repoSlug + "/ci.yml"
 	ciBadgeQuery = "branch=master"
 	stage1Link   = "docs/reports/stage1/"
-	installPath  = "snapback.run/install"
+	v01Report    = "docs/reports/v0.1-acceptance.md"
+	usageGuide   = "docs-site/usage.md"
+	installPath  = "snapback.sh/install"
 )
 
 // launchSections are the README ## sections, in the order they must appear.
@@ -156,7 +158,7 @@ func TestReadmeH1AndBoldPitch(t *testing.T) {
 	}
 }
 
-func TestReadmeConsoleExampleIsDesignGoal(t *testing.T) {
+func TestReadmeConsoleExampleCitesEvidence(t *testing.T) {
 	lead := readmeLead(readDoc(t, "README.md"))
 	m := consoleBlockRe.FindStringSubmatch(lead)
 	if m == nil {
@@ -166,8 +168,8 @@ func TestReadmeConsoleExampleIsDesignGoal(t *testing.T) {
 		t.Errorf("README lead console block = %q, want the canonical `cp .snapshot/latest/…` restore", m[1])
 	}
 	prose := strings.ToLower(fenceRe.ReplaceAllString(lead, ""))
-	if !strings.Contains(prose, "design goal") {
-		t.Errorf("README lead does not label the console example as the design goal")
+	if !strings.Contains(prose, v01Report) {
+		t.Errorf("README lead does not cite the evidence for the console example, want a link to %s", v01Report)
 	}
 }
 
@@ -189,7 +191,17 @@ func TestReadmeSectionOrder(t *testing.T) {
 	}
 }
 
-func TestReadmeMentionsOnlyVersionSubcommand(t *testing.T) {
+// usageCommandRe matches a command row in the usage guide's command reference.
+var usageCommandRe = regexp.MustCompile("(?m)^\\| `snapback ([a-z][a-z-]*)` \\|")
+
+func TestReadmeMentionsOnlyListedSubcommands(t *testing.T) {
+	listed := map[string]bool{}
+	for _, m := range usageCommandRe.FindAllStringSubmatch(readDoc(t, usageGuide), -1) {
+		listed[m[1]] = true
+	}
+	if len(listed) == 0 {
+		t.Fatalf("%s lists no commands", usageGuide)
+	}
 	readme := readDoc(t, "README.md")
 	code := fenceRe.FindAllString(readme, -1)
 	for _, m := range inlineCodeRe.FindAllStringSubmatch(readme, -1) {
@@ -200,8 +212,8 @@ func TestReadmeMentionsOnlyVersionSubcommand(t *testing.T) {
 	}
 	for _, c := range code {
 		for _, m := range subcommandRe.FindAllStringSubmatch(c, -1) {
-			if m[1] != "version" {
-				t.Errorf("README code mentions `snapback %s`, want only `snapback version` (the one command that exists)", m[1])
+			if !listed[m[1]] {
+				t.Errorf("README code mentions `snapback %s`, want only commands listed in %s", m[1], usageGuide)
 			}
 		}
 	}
@@ -232,7 +244,7 @@ func TestReadmeStatusSaysEarlyAndLinksStage1(t *testing.T) {
 	if strings.TrimSpace(status) == "" {
 		t.Fatal(`README "## Status" section is missing or empty`)
 	}
-	for _, want := range []string{"early", "not yet usable for restores", stage1Link} {
+	for _, want := range []string{"early", "linux acceptance evidence is pending", v01Report, stage1Link} {
 		if !strings.Contains(status, want) {
 			t.Errorf(`README "## Status" section missing %q`, want)
 		}

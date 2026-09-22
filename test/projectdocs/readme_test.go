@@ -28,10 +28,11 @@ func TestReadmeLeadsWithRestoreStory(t *testing.T) {
 	}
 }
 
-func TestReadmeHasGifTodoMarkerAtTop(t *testing.T) {
-	lead := readmeLead(readDoc(t, "README.md"))
-	if !strings.Contains(lead, "<!-- TODO: restore GIF") {
-		t.Fatalf("README lead (before first ## heading) missing %q", "<!-- TODO: restore GIF")
+var placeholderMarkerRe = regexp.MustCompile(`(?i)TODO|TBD|placeholder|coming soon`)
+
+func TestReadmeHasNoPlaceholderMarkers(t *testing.T) {
+	if m := placeholderMarkerRe.FindAllString(readDoc(t, "README.md"), -1); len(m) > 0 {
+		t.Errorf("README contains placeholder markers %q, want none", m)
 	}
 }
 
@@ -45,7 +46,7 @@ func TestReadmeStatesPreRelease(t *testing.T) {
 	}
 }
 
-const installLine = "curl -fsSL https://snapback.run/install.sh | sh"
+const installLine = "curl -fsSL https://snapback.sh/install.sh | sh"
 
 func TestReadmeOneLineInstallUsesSnapbackRun(t *testing.T) {
 	install := section(readDoc(t, "README.md"), "## Install")
@@ -58,7 +59,7 @@ func TestReadmeHasNoPlaceholderDomains(t *testing.T) {
 	readme := readDoc(t, "README.md")
 	for _, placeholder := range []string{"example.com", "example.invalid"} {
 		if strings.Contains(readme, placeholder) {
-			t.Errorf("README contains placeholder domain %q, want the real domain snapback.run", placeholder)
+			t.Errorf("README contains placeholder domain %q, want the real domain snapback.sh", placeholder)
 		}
 	}
 }
