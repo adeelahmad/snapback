@@ -151,13 +151,16 @@ func pollEligible(t *testing.T, e env) (map[string]int, error) {
 		if code != 0 {
 			return last, fmt.Errorf("status --json exit = %d (stderr %q)", code, stderr)
 		}
+		// status --json wraps the payload in an {"ok":…,"data":{…}} envelope.
 		var st struct {
-			EligibleCount map[string]int
+			Data struct {
+				EligibleCount map[string]int
+			} `json:"data"`
 		}
 		if err := json.Unmarshal([]byte(stdout), &st); err != nil {
 			return last, fmt.Errorf("decode status --json %q: %w", stdout, err)
 		}
-		last = st.EligibleCount
+		last = st.Data.EligibleCount
 		for _, n := range last {
 			if n > 0 {
 				return last, nil
