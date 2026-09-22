@@ -3,6 +3,8 @@ package providertest
 
 import (
 	"context"
+	"path/filepath"
+	"slices"
 	"sync"
 
 	"github.com/adeelahmad/snapback/internal/provider"
@@ -28,42 +30,90 @@ type Fake struct {
 
 // Validate returns f.Identity, or f.ValidateErr when set.
 func (f *Fake) Validate(context.Context) (provider.Identity, error) {
-	panic("SUB-AGENT-TODO: T2 Validate: under f.mu return f.Identity, f.ValidateErr (zero Identity when the error is set)")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.ValidateErr != nil {
+		return provider.Identity{}, f.ValidateErr
+	}
+	return f.Identity, nil
 }
 
 // List returns a copy of f.Snapshots, or f.ListErr when set.
 func (f *Fake) List(context.Context) ([]provider.Snapshot, error) {
-	panic("SUB-AGENT-TODO: T2 List: under f.mu return f.ListErr if set, else a copy of f.Snapshots so callers cannot mutate it")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.ListErr != nil {
+		return nil, f.ListErr
+	}
+	return slices.Clone(f.Snapshots), nil
 }
 
 // StartMount returns a *FakeMount for dir, or f.MountErr when set.
 func (f *Fake) StartMount(ctx context.Context, dir string) (provider.MountHandle, error) {
-	panic("SUB-AGENT-TODO: T2 StartMount: return f.MountErr if set, else &FakeMount{dir: dir, done: make(chan struct{})}")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.MountErr != nil {
+		return nil, f.MountErr
+	}
+	return &FakeMount{dir: dir, done: make(chan struct{})}, nil
 }
 
 // SnapshotRoot returns <mountDir>/ids/<id>, matching the real provider.
 func (f *Fake) SnapshotRoot(mountDir string, id provider.SnapshotID) string {
-	panic("SUB-AGENT-TODO: T2 SnapshotRoot: return filepath.Join(mountDir, \"ids\", string(id))")
+	return filepath.Join(mountDir, "ids", string(id))
 }
 
 // Probe returns the scripted result for id and treePath; a missing entry is provider.ProbeAbsent.
 func (f *Fake) Probe(ctx context.Context, mountDir string, id provider.SnapshotID, treePath string) (provider.ProbeResult, error) {
-	panic("SUB-AGENT-TODO: T2 Probe: under f.mu return f.ProbeErr if set, else f.Probes[id][treePath] or provider.ProbeAbsent when missing")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.ProbeErr != nil {
+		return provider.ProbeAbsent, f.ProbeErr
+	}
+	if r, ok := f.Probes[id][treePath]; ok {
+		return r, nil
+	}
+	return provider.ProbeAbsent, nil
 }
 
 // Snap records req and returns f.SnapID, or f.SnapErr when set.
 func (f *Fake) Snap(ctx context.Context, req provider.SnapRequest) (provider.SnapshotID, error) {
-	panic("SUB-AGENT-TODO: T2 Snap: under f.mu return f.SnapErr if set, else append a deep copy of req (Tags/Excludes cloned) to f.snapReqs and return f.SnapID")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.SnapErr != nil {
+		return "", f.SnapErr
+	}
+	f.snapReqs = append(f.snapReqs, cloneSnapRequest(req))
+	return f.SnapID, nil
 }
 
 // SnapRequests returns a copy of the requests passed to Snap, in call order.
 func (f *Fake) SnapRequests() []provider.SnapRequest {
-	panic("SUB-AGENT-TODO: T2 SnapRequests: under f.mu return a copy of f.snapReqs (clone Tags/Excludes) so callers cannot mutate it")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	reqs := make([]provider.SnapRequest, len(f.snapReqs))
+	for i, r := range f.snapReqs {
+		reqs[i] = cloneSnapRequest(r)
+	}
+	return reqs
 }
 
 // Prewarm marks each ID warm, or fails each with f.PrewarmErr when set.
 func (f *Fake) Prewarm(ctx context.Context, ids []provider.SnapshotID, concurrency int) []provider.PrewarmResult {
-	panic("SUB-AGENT-TODO: T2 Prewarm: return one PrewarmResult per id in input order: {ID, Warm: true} or {ID, Err: f.PrewarmErr} when set")
+	f.mu.Lock()
+	err := f.PrewarmErr
+	f.mu.Unlock()
+	results := make([]provider.PrewarmResult, len(ids))
+	for i, id := range ids {
+		results[i] = provider.PrewarmResult{ID: id, Warm: err == nil, Err: err}
+	}
+	return results
+}
+
+func cloneSnapRequest(req provider.SnapRequest) provider.SnapRequest {
+	req.Tags = slices.Clone(req.Tags)
+	req.Excludes = slices.Clone(req.Excludes)
+	return req
 }
 
 // FakeMount is the provider.MountHandle returned by Fake.StartMount.
@@ -75,25 +125,26 @@ type FakeMount struct {
 
 // Dir returns the mount directory.
 func (m *FakeMount) Dir() string {
-	panic("SUB-AGENT-TODO: T2 Dir: return m.dir")
+	return m.dir
 }
 
 // Ready returns nil immediately.
 func (m *FakeMount) Ready(context.Context) error {
-	panic("SUB-AGENT-TODO: T2 Ready: return nil")
+	return nil
 }
 
 // Done returns a channel closed after Die or Stop.
 func (m *FakeMount) Done() <-chan struct{} {
-	panic("SUB-AGENT-TODO: T2 Done: return m.done")
+	return m.done
 }
 
 // Stop closes Done; it is idempotent.
 func (m *FakeMount) Stop(context.Context) error {
-	panic("SUB-AGENT-TODO: T2 Stop: m.stopOnce.Do(close(m.done)); return nil (idempotent)")
+	m.stopOnce.Do(func() { close(m.done) })
+	return nil
 }
 
 // Die simulates the mount process exiting unexpectedly by closing Done.
 func (m *FakeMount) Die() {
-	panic("SUB-AGENT-TODO: T2 Die: m.stopOnce.Do(close(m.done))")
+	m.stopOnce.Do(func() { close(m.done) })
 }
