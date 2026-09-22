@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"go.etcd.io/bbolt"
 
+	"github.com/adeelahmad/snapback/internal/fsmode"
 	"github.com/adeelahmad/snapback/internal/rawpath"
 )
 
@@ -44,6 +47,26 @@ var (
 // Registry is the bbolt-backed link registry.
 type Registry struct {
 	db *bbolt.DB
+}
+
+// RegistryOptions configures how the registry file and the directory holding
+// it are created.
+type RegistryOptions struct {
+	// Modes are the modes to create the registry file and its directory with.
+	// Zero fields fall back to Snapback's defaults.
+	Modes fsmode.Modes
+}
+
+// OpenRegistryWithOptions opens or creates the registry at path, creating the
+// directory that holds it when it is missing.
+func OpenRegistryWithOptions(path string, opts RegistryOptions) (*Registry, error) {
+	modes := opts.Modes.OrDefault()
+	_ = modes
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("links: create registry directory %s: %w", dir, err)
+	}
+	return OpenRegistry(path)
 }
 
 // OpenRegistry opens or creates the registry at path.

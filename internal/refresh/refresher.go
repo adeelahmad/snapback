@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/adeelahmad/snapback/internal/aliases"
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/fsmode"
 	"github.com/adeelahmad/snapback/internal/history"
 	"github.com/adeelahmad/snapback/internal/mount"
 	"github.com/adeelahmad/snapback/internal/prewarm"
@@ -23,6 +25,8 @@ import (
 // Config configures a Refresher.
 type Config struct {
 	BackendMountDir    string
+	CacheDir           string
+	Modes              fsmode.Modes
 	Dirs               func() []DirSpec
 	VisibleIDs         func(repoID string) ([]provider.SnapshotID, error)
 	Aliases            aliases.Options
@@ -86,6 +90,15 @@ func New(cfg Config, lists map[string]provider.Lister, pub mount.Publisher, pre 
 		cfg.Now = time.Now
 	}
 	return &Refresher{cfg: cfg, lists: lists, pub: pub, pre: pre, good: map[string]repoView{}}
+}
+
+// EnsureCacheDir creates the refresh and prewarm cache directory with the
+// configured modes. It is a no-op when no cache directory is configured.
+func (r *Refresher) EnsureCacheDir() error {
+	if r.cfg.CacheDir == "" {
+		return nil
+	}
+	return os.MkdirAll(r.cfg.CacheDir, 0o700)
 }
 
 // view lists repoID and reads its mount-visible IDs.

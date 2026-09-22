@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/fsmode"
 	"github.com/adeelahmad/snapback/internal/provider"
 )
 
@@ -37,6 +38,7 @@ type Supervisor struct {
 	mounts  map[string]provider.Mounter
 	baseDir string
 	backoff Backoff
+	modes   fsmode.Modes
 
 	mu       sync.Mutex
 	states   map[string]RepoState
@@ -61,6 +63,13 @@ func NewSupervisor(mounts map[string]provider.Mounter, baseDir string, backoff B
 		handles: make(map[string]provider.MountHandle, len(mounts)),
 		stop:    make(chan struct{}),
 	}
+}
+
+// WithModes sets the modes the supervisor creates its mount directories with.
+// Zero fields fall back to Snapback's defaults.
+func (s *Supervisor) WithModes(m fsmode.Modes) *Supervisor {
+	s.modes = m.OrDefault()
+	return s
 }
 
 // MountFailures returns the repos whose mount failed with errcode.MountFailure at startup.
