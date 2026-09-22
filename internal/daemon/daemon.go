@@ -17,6 +17,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/readerpolicy"
 	"github.com/adeelahmad/snapback/internal/recovery"
+	"github.com/adeelahmad/snapback/internal/refresh"
 	"github.com/adeelahmad/snapback/internal/status"
 )
 
@@ -232,7 +233,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	return d.shutdown(context.WithoutCancel(ctx), l)
 }
 
-// refreshEvery refreshes the catalog every interval until ctx is done, so a
+// refreshEvery runs a refresh.Loop every interval until ctx is done, so a
 // snapshot that was pending while restic's mount had not yet reloaded gets
 // its links once it becomes visible. A non-positive interval only waits.
 func (d *Daemon) refreshEvery(ctx context.Context, interval time.Duration) {
@@ -240,16 +241,19 @@ func (d *Daemon) refreshEvery(ctx context.Context, interval time.Duration) {
 		<-ctx.Done()
 		return
 	}
-	t := time.NewTicker(interval)
-	defer t.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			_ = d.runRefresh(ctx)
-		}
-	}
+	_ = refresh.NewLoop(loopTarget{d}, interval, time.After).Run(ctx)
+}
+
+// loopTarget adapts a Daemon to refresh.Target, recording each result for
+// status through runRefresh.
+type loopTarget struct{ d *Daemon }
+
+func (t loopTarget) Refresh(ctx context.Context) (refresh.Result, error) {
+	return refresh.Result{}, t.d.runRefresh(ctx)
+}
+
+func (t loopTarget) Prewarm(ctx context.Context) []provider.PrewarmResult {
+	return t.d.deps.Prewarmer.Prewarm(ctx)
 }
 
 // shutdown stops the daemon in order: stop answering IPC, cancel finite
