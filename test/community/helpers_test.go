@@ -21,17 +21,43 @@ var wantOwnedFiles = []string{
 	".github/pull_request_template.md",
 }
 
-// SUB-AGENT-TODO: initialize to the fixed list of the six owned community files, in wantOwnedFiles order.
-var ownedFiles []string
+var ownedFiles = []string{
+	"CONTRIBUTING.md",
+	"SECURITY.md",
+	"CODE_OF_CONDUCT.md",
+	".github/ISSUE_TEMPLATE/bug_report.md",
+	".github/ISSUE_TEMPLATE/feature_request.md",
+	".github/pull_request_template.md",
+}
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
-	panic("SUB-AGENT-TODO: walk up from the test's working dir to the directory holding go.mod and return it; t.Fatal if none found")
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("no go.mod found above the test working directory")
+		}
+		dir = parent
+	}
 }
 
 func readOwned(t *testing.T, rel string) string {
 	t.Helper()
-	panic("SUB-AGENT-TODO: read filepath.Join(repoRoot(t), rel); t.Fatalf naming rel if missing or empty; return contents")
+	b, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
+	if err != nil {
+		t.Fatalf("%s: %v", rel, err)
+	}
+	if len(b) == 0 {
+		t.Fatalf("%s: empty", rel)
+	}
+	return string(b)
 }
 
 func TestRepoRootHasGoMod(t *testing.T) {
