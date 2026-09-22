@@ -1,0 +1,61 @@
+version: 2
+project_name: snapback
+
+builds:
+  - id: snapback
+    main: ./cmd/snapback
+    binary: snapback
+    env:
+      - CGO_ENABLED=0
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - linux_arm_7
+      - linux_mips_softfloat
+      - linux_mipsle_softfloat
+    ldflags:
+      - -X github.com/adeelahmad/snapback/internal/version.Version={{ .Version }}
+      - -X github.com/adeelahmad/snapback/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/adeelahmad/snapback/internal/version.Target={{ .Os }}/{{ .Arch }}
+    goarm:
+      - "7"
+    gomips:
+      - softfloat
+
+archives:
+  - id: snapback
+    formats: [tar.gz]
+    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if or (eq .Arch "arm") (eq .Arch "mips") (eq .Arch "mipsle") }}_unverified{{ end }}'
+    files:
+      - none*
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--output-signature=${signature}"
+      - "--output-certificate=${certificate}"
+      - "${artifact}"
+      - "--yes"
+
+release:
+  mode: append
+  footer: |
+    Targets linux/arm, linux/mips and linux/mipsle are unverified: they are
+    cross-compiled but not tested on real hardware. Their assets carry the
+    `_unverified` suffix.
+
+    Verify downloads against checksums.txt; checksums.txt is signed keylessly
+    with cosign (checksums.txt.sig, checksums.txt.pem).
+
+changelog:
+  disable: true
