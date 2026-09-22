@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+
+	"github.com/adeelahmad/snapback/internal/errcode"
 )
 
 // Manager names a service manager: "systemd", "launchd" or "openrc".
@@ -28,10 +31,23 @@ var ErrUnsupportedManager = errors.New("service: unsupported service manager")
 
 // Detect returns the running service manager.
 func Detect(probe Probe) (Manager, error) {
-	panic("SUB-AGENT-TODO: T1 read probe.PID1Comm and probe.Exists markers to pick systemd/launchd/openrc; nothing recognised -> errcode.UnsupportedServiceManager")
+	comm, err := probe.PID1Comm()
+	if err != nil {
+		return "", errcode.New(errcode.UnsupportedServiceManager, "service detect", err)
+	}
+	switch {
+	case comm == "systemd" || probe.Exists("/run/systemd/system"):
+		return "systemd", nil
+	case comm == "launchd":
+		return "launchd", nil
+	case probe.Exists("/run/openrc"):
+		return "openrc", nil
+	}
+	return "", errcode.New(errcode.UnsupportedServiceManager, "service detect", fmt.Errorf("%w: pid 1 is %q", ErrUnsupportedManager, comm))
 }
 
 // ForManager returns the Installer for m.
 func ForManager(m Manager, unitDir, config string) (Installer, error) {
-	panic("SUB-AGENT-TODO: T1 unsupported managers return ErrUnsupportedManager with errcode.UnsupportedServiceManager and foreground instructions, writing nothing to unitDir")
+	return nil, errcode.New(errcode.UnsupportedServiceManager, "service install",
+		fmt.Errorf("%w %q; run in the foreground instead: snapback run --config %s", ErrUnsupportedManager, m, config))
 }
