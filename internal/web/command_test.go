@@ -264,7 +264,13 @@ func overrideAssets(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("os.ReadFile(%q) error = %v", status, err)
 	}
-	if err := os.WriteFile(status, append(data, []byte("\nOVERRIDE-MARK\n")...), 0o600); err != nil {
+	marker := []byte(`{{define "content"}}`)
+	i := bytes.Index(data, marker)
+	if i < 0 {
+		t.Fatalf("status.html missing %q", marker)
+	}
+	data = append(data[:i+len(marker):i+len(marker)], append([]byte("\nOVERRIDE-MARK\n"), data[i+len(marker):]...)...)
+	if err := os.WriteFile(status, data, 0o600); err != nil {
 		t.Fatalf("os.WriteFile(%q) error = %v", status, err)
 	}
 	return dir
