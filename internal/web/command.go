@@ -75,6 +75,7 @@ func serve(ctx context.Context, env cli.Env, cmd, assets string, open bool, next
 	if err != nil {
 		return cli.WriteError(env, cmd, false, err)
 	}
+	opts := productionOptions(cfg, env.ConfigPath)
 	if assets == "" {
 		assets = cfg.Web.AssetsDir
 	}
@@ -83,14 +84,10 @@ func serve(ctx context.Context, env cli.Env, cmd, assets string, open bool, next
 		return cli.WriteError(env, cmd, false, errcode.New(errcode.InvalidConfig, cmd, err))
 	}
 	token := randomToken()
-	s, err := New(Options{
-		Listen:   cfg.Web.Listen,
-		Pages:    pages,
-		Backend:  fileBackend{path: env.ConfigPath},
-		StateDir: cfg.StateDir,
-		Token:    token,
-		Stdout:   env.Stdout,
-	})
+	opts.Pages = pages
+	opts.Token = token
+	opts.Stdout = env.Stdout
+	s, err := New(opts)
 	if err != nil {
 		return cli.WriteError(env, cmd, false, err)
 	}
