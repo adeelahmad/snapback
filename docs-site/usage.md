@@ -37,6 +37,65 @@ These are the commands `snapback --help` lists, with their own summaries.
 | `snapback version` | print build information |
 | `snapback web` | serve the local web UI |
 
+## Machine-readable status: `status --json`
+
+`snapback status --json` prints one JSON object on stdout. It is an envelope: `ok` reports whether
+the daemon answered, and `data` carries the status snapshot. Every key is snake_case.
+
+```json
+{
+  "ok": true,
+  "data": {
+    "state": "degraded",
+    "repos": [
+      { "id": "personal", "state": "ready", "code": "" },
+      { "id": "archive", "state": "failed", "code": "repository_unavailable" }
+    ],
+    "last_refresh": "2026-09-22T06:00:00Z",
+    "generation": 7,
+    "eligible_count": { "personal": 3, "archive": 0 },
+    "links": 4,
+    "warm": {
+      "5f2d9c1b8a7e4630df51cc2a9b04e7f318d6a5be2c7f091d43ab68e5c70f29d1": true
+    },
+    "prewarm": {
+      "warm": 1,
+      "cold": 2,
+      "pending": 0,
+      "last_prewarm": "2026-09-22T06:00:00Z"
+    },
+    "pending": [],
+    "discovery": "running",
+    "throttle": [
+      { "pid": 4821, "process": "mds", "rule": "deny", "at": "2026-09-22T05:58:12Z" }
+    ],
+    "web_url": "http://127.0.0.1:8080/",
+    "recovery": { "unmounted": [], "foreign": [] }
+  }
+}
+```
+
+The output carries no repository passwords or environment values.
+
+## Daemon logs
+
+The daemon writes its log to stderr. It logs one `Info` line whenever the refresh outcome changes
+— on the first refresh, and after that only when the generation, a repository's state, the
+eligible count or the failed repositories change, so an idle daemon stays quiet:
+
+```
+refresh generation=7 personal=ready archive=failed eligible=3/4 failed=archive
+```
+
+`eligible` is the number of linked directories that have at least one snapshot, over the number of
+linked directories; `failed` appears only when a repository failed. When a repository's mount
+fails, the daemon logs one `Error` line carrying `repos=<sorted ids>` and `err=<error>`. Under the
+systemd user service, read both with:
+
+```
+journalctl --user -u snapback.service
+```
+
 ## Web UI
 
 `snapback web` refuses any listen address that is not loopback; the default is `127.0.0.1` on a

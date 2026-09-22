@@ -250,6 +250,12 @@ Durations use Go syntax: `20ms`, `60s`, `5m`, `1h`.
 | `seed_paths[].path` | relative path | none | Directory under `local_path` to seed `.snapshot` entries in. |
 | `seed_paths[].max_depth` | integer | none | How many levels deep to seed. At least 1. |
 | `exclude_relative_paths` | list of relative paths | empty | Directories under `local_path` to skip. |
+
+On Linux, the daemon also watches each `seed_paths` entry with inotify and links directories
+created under it afterwards, staying inside that entry's `max_depth` and skipping the root's
+`exclude_relative_paths`. It watches only those entries, not the whole `local_path`, so a root
+without `seed_paths` is not watched. On macOS there is no watcher: run `snapback seed` again after
+creating directories.
 | `snap.tags` | list of strings | empty | Tags added to snapshots taken with `snapback snap`. |
 
 Relative paths must be clean and must not contain `..`.
