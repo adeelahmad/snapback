@@ -102,10 +102,18 @@ source "$SNIP"
 	recs := waitLog(t, h.log, 3)
 	physA, _ := filepath.EvalSymlinks(a)
 	physB, _ := filepath.EvalSymlinks(b)
-	for i, want := range []string{h.dir, physA, physB} {
-		if got := recs[i][len(recs[i])-1]; got != want {
-			t.Errorf("notify %d dir = %q, want %q", i, got, want)
-		}
+	// Each notify runs detached, so the three records can reach the log in
+	// any order; compare the notified directories as a sorted set instead
+	// of by position.
+	got := make([]string, len(recs))
+	for i, rec := range recs {
+		got[i] = rec[len(rec)-1]
+	}
+	slices.Sort(got)
+	want := []string{h.dir, physA, physB}
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
+		t.Errorf("notify dirs = %q, want %q (each physical dir exactly once)", got, want)
 	}
 }
 
