@@ -458,3 +458,85 @@ func TestSnapUsesRootHost(t *testing.T) {
 		})
 	}
 }
+
+// TestSnapHelpPrintsUsage checks that -h and --help exit 0 and print the
+// synopsis, an example and every flag to stderr without taking a snapshot.
+func TestSnapHelpPrintsUsage(t *testing.T) {
+	cfg, _ := snapFixture(t)
+	for _, arg := range []string{"-h", "--help"} {
+		t.Run(arg, func(t *testing.T) {
+			r := newSnapRig()
+
+			code, stdout, stderr := runSnap(snapDeps(r, cfg), arg)
+
+			if code != 0 {
+				t.Fatalf("snap %s exit = %d, want 0 (stderr %q)", arg, code, stderr)
+			}
+			for _, want := range []string{"snap [flags] [DIR]", "--tag", "--timeout"} {
+				if !strings.Contains(stderr, want) {
+					t.Errorf("snap %s stderr = %q, want it to contain %q", arg, stderr, want)
+				}
+			}
+			for _, name := range []string{"tag", "repository", "prefix", "wait", "timeout"} {
+				if want := "\n  -" + name; !strings.Contains(stderr, want) {
+					t.Errorf("snap %s stderr = %q, want a flag line %q", arg, stderr, want)
+				}
+			}
+			if stdout != "" {
+				t.Errorf("snap %s stdout = %q, want it empty", arg, stdout)
+			}
+			if r.snapCalls != 0 {
+				t.Errorf("snap %s Snap calls = %d, want 0", arg, r.snapCalls)
+			}
+		})
+	}
+}
+
+// TestSnapEndsWithNextStep checks that a successful non-JSON snap ends by
+// naming the directory it snapped, and that --json stays a bare envelope.
+func TestSnapEndsWithNextStep(t *testing.T) {
+	cfg, proj := snapFixture(t)
+
+	t.Run("explicit dir", func(t *testing.T) {
+		r := newSnapRig()
+
+		code, stdout, stderr := runSnap(snapDeps(r, cfg), proj)
+
+		if code != 0 {
+			t.Fatalf("snap %s exit = %d, want 0 (stderr %q)", proj, code, stderr)
+		}
+		want := "next: ls " + filepath.Join(proj, ".snapshot")
+		if got := lastLine(stdout); got != want {
+			t.Errorf("snap %s last stdout line = %q, want %q", proj, got, want)
+		}
+	})
+
+	t.Run("default dir", func(t *testing.T) {
+		r := newSnapRig()
+		d := snapDeps(r, cfg)
+		d.Getwd = func() (string, error) { return proj, nil }
+
+		code, stdout, stderr := runSnap(d)
+
+		if code != 0 {
+			t.Fatalf("snap exit = %d, want 0 (stderr %q)", code, stderr)
+		}
+		want := "next: ls " + filepath.Join(proj, ".snapshot")
+		if got := lastLine(stdout); got != want {
+			t.Errorf("snap last stdout line = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("json", func(t *testing.T) {
+		r := newSnapRig()
+
+		code, stdout, stderr := runSnap(snapDeps(r, cfg), "--json", proj)
+
+		if code != 0 {
+			t.Fatalf("snap --json %s exit = %d, want 0 (stderr %q)", proj, code, stderr)
+		}
+		if strings.Contains(stdout, "next:") {
+			t.Errorf("snap --json stdout = %q, want no next-step line", stdout)
+		}
+	})
+}
