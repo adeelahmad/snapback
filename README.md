@@ -84,6 +84,8 @@ snapback supports Restic today. These backends are planned, not supported yet:
 - ZFS snapshots: planned.
 - Btrfs snapshots: planned.
 
+When the daemon runs, a snapshot taken while it runs can take up to about a minute to appear under `.snapshot`, because the view reloads Restic snapshot metadata on a refresh interval.
+
 ## Prior art and credit
 
 snapback stands on the shoulders of [httm](https://github.com/kimono-koans/httm) by kimono-koans, released under the MPL-2.0 license. httm showed how pleasant it is to browse and restore past versions of a file right from where it lives, and snapback's in-directory `.snapshot` idea owes a great deal to it.
