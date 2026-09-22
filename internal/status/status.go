@@ -18,26 +18,26 @@ type RepoState = history.RepoState
 
 // Repo is one repository's status.
 type Repo struct {
-	ID    string
-	State string
-	Code  errcode.Code
+	ID    string       `json:"id"`
+	State string       `json:"state"`
+	Code  errcode.Code `json:"code"`
 }
 
 // Snapshot is the daemon status model.
 type Snapshot struct {
-	State         string
-	Repos         []Repo
-	LastRefresh   time.Time
-	Generation    uint64
-	EligibleCount map[string]int
-	Links         int
-	Warm          map[provider.SnapshotID]bool
-	Prewarm       PrewarmSummary `json:"prewarm"`
-	Pending       []provider.SnapshotID
-	Discovery     string
-	Throttle      []readerpolicy.ThrottleEvent
-	WebURL        string
-	Recovery      *RecoverySummary `json:"recovery,omitempty"`
+	State         string                       `json:"state"`
+	Repos         []Repo                       `json:"repos"`
+	LastRefresh   time.Time                    `json:"last_refresh"`
+	Generation    uint64                       `json:"generation"`
+	EligibleCount map[string]int               `json:"eligible_count"`
+	Links         int                          `json:"links"`
+	Warm          map[provider.SnapshotID]bool `json:"warm"`
+	Prewarm       PrewarmSummary               `json:"prewarm"`
+	Pending       []provider.SnapshotID        `json:"pending"`
+	Discovery     string                       `json:"discovery"`
+	Throttle      []readerpolicy.ThrottleEvent `json:"throttle"`
+	WebURL        string                       `json:"web_url"`
+	Recovery      *RecoverySummary             `json:"recovery,omitempty"`
 }
 
 // PrewarmSummary counts snapshots by pre-warm state and records when the
@@ -65,8 +65,8 @@ func SummarizePrewarm(results []provider.PrewarmResult, pending int, at time.Tim
 
 // RecoverySummary lists the paths the startup crash recovery cleaned up.
 type RecoverySummary struct {
-	Unmounted []string
-	Foreign   []string
+	Unmounted []string `json:"unmounted"`
+	Foreign   []string `json:"foreign"`
 }
 
 // Derive computes the overall daemon state and the sorted per-repository

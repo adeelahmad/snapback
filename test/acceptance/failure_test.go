@@ -31,9 +31,9 @@ const (
 
 // statusRepo is one repository entry in snapback status --json.
 type statusRepo struct {
-	ID    string
-	State string
-	Code  string
+	ID    string `json:"id"`
+	State string `json:"state"`
+	Code  string `json:"code"`
 }
 
 // statusEnvelope is the snapback status --json output, success or error.
@@ -41,11 +41,12 @@ type statusEnvelope struct {
 	OK   bool   `json:"ok"`
 	Code string `json:"code"`
 	Data struct {
-		State    string
-		Repos    []statusRepo
-		Recovery *struct {
-			Unmounted []string
-			Foreign   []string
+		State         string         `json:"state"`
+		Repos         []statusRepo   `json:"repos"`
+		EligibleCount map[string]int `json:"eligible_count"`
+		Recovery      *struct {
+			Unmounted []string `json:"unmounted"`
+			Foreign   []string `json:"foreign"`
 		} `json:"recovery"`
 	} `json:"data"`
 }

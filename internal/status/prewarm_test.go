@@ -59,7 +59,7 @@ func TestSnapshotJSONHasPrewarmSummary(t *testing.T) {
 	if err := json.Unmarshal(b, &got); err != nil {
 		t.Fatalf("json.Unmarshal(%s) = %v", b, err)
 	}
-	if _, ok := got["Warm"]; !ok {
+	if _, ok := got["warm"]; !ok {
 		t.Errorf("Snapshot JSON = %s, want the Warm map kept", b)
 	}
 	raw, ok := got["prewarm"]

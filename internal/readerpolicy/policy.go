@@ -42,10 +42,10 @@ type Event struct {
 
 // ThrottleEvent records a process's transition into being denied or throttled.
 type ThrottleEvent struct {
-	PID     uint32
-	Process string
-	Rule    string
-	At      time.Time
+	PID     uint32    `json:"pid"`
+	Process string    `json:"process"`
+	Rule    string    `json:"rule"`
+	At      time.Time `json:"at"`
 }
 
 // Policy applies a Config to incoming events.

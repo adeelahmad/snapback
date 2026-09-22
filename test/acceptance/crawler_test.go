@@ -4,7 +4,6 @@ package acceptance
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -147,18 +146,9 @@ func pollEligible(t *testing.T, e env) (map[string]int, error) {
 	deadline := time.Now().Add(histPollCap)
 	var last map[string]int
 	for {
-		stdout, stderr, code := runSnapback(t, e, "status", "--json")
-		if code != 0 {
-			return last, fmt.Errorf("status --json exit = %d (stderr %q)", code, stderr)
-		}
-		// status --json wraps the payload in an {"ok":…,"data":{…}} envelope.
-		var st struct {
-			Data struct {
-				EligibleCount map[string]int
-			} `json:"data"`
-		}
-		if err := json.Unmarshal([]byte(stdout), &st); err != nil {
-			return last, fmt.Errorf("decode status --json %q: %w", stdout, err)
+		st, out := readStatus(t, e)
+		if !st.OK && time.Now().After(deadline) {
+			return last, fmt.Errorf("status --json not ok: %s", out)
 		}
 		last = st.Data.EligibleCount
 		for _, n := range last {
