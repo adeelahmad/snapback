@@ -72,7 +72,7 @@ func Fields(cfg *config.Config) []webui.Field {
 func appendFields(out *[]webui.Field, prefix string, v reflect.Value) {
 	t := v.Type()
 	for i := range t.NumField() {
-		tag := t.Field(i).Tag.Get("yaml")
+		tag := yamlName(t.Field(i).Tag.Get("yaml"))
 		if tag == "" {
 			continue
 		}
@@ -200,7 +200,7 @@ func splitSegment(seg string) (string, []int, error) {
 func fieldByYAML(v reflect.Value, name string) (reflect.Value, error) {
 	t := v.Type()
 	for i := range t.NumField() {
-		if t.Field(i).Tag.Get("yaml") == name {
+		if yamlName(t.Field(i).Tag.Get("yaml")) == name {
 			return v.Field(i), nil
 		}
 	}
@@ -280,6 +280,16 @@ func setMap(v reflect.Value, vals []string) error {
 	}
 	v.Set(reflect.ValueOf(m))
 	return nil
+}
+
+// yamlName is the key of a yaml struct tag, without its options such as
+// omitempty, and empty for a field yaml skips.
+func yamlName(tag string) string {
+	name, _, _ := strings.Cut(tag, ",")
+	if name == "-" {
+		return ""
+	}
+	return name
 }
 
 // unindexed strips the slice indices from a key path, so that

@@ -203,7 +203,7 @@ func yamlLeafPaths(t reflect.Type, prefix string) []string {
 	var out []string
 	for i := range t.NumField() {
 		f := t.Field(i)
-		tag := f.Tag.Get("yaml")
+		tag := yamlName(f.Tag.Get("yaml"))
 		if tag == "" {
 			continue
 		}

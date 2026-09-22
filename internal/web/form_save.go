@@ -4,9 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
-	"time"
 
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/webui"
@@ -86,79 +87,153 @@ func applyFilters(cfg *config.Config, filters []string) error {
 	return nil
 }
 
-// applyConfigForm copies the Config form fields of r onto cfg, reporting the
-// fields the user has to correct.
-func applyConfigForm(cfg *config.Config, r *http.Request) []string {
-	var errs []string
-	applyRoots(cfg, lines(r.PostFormValue("roots")))
-	if err := applyFilters(cfg, lines(r.PostFormValue("filters"))); err != nil {
-		errs = append(errs, err.Error())
-	}
-	excl := lines(r.PostFormValue("exclusions"))
-	seeds := lines(r.PostFormValue("seed_paths"))
-	for i := range cfg.Roots {
-		cfg.Roots[i].ExcludeRelativePaths = excl
-		cfg.Roots[i].SeedPaths = nil
-		for _, p := range seeds {
-			cfg.Roots[i].SeedPaths = append(cfg.Roots[i].SeedPaths, config.SeedPath{Path: p})
+// configFormValues drops the form keys that are not configuration keys, so
+// Decode does not report the CSRF token, the revision or a typed password as
+// unknown fields.
+func configFormValues(v url.Values) url.Values {
+	out := make(url.Values, len(v))
+	for name, vals := range v {
+		switch {
+		case name == csrfField, name == "revision":
+		case strings.HasSuffix(name, ".password"), strings.HasSuffix(name, ".password_mode"):
+		default:
+			out[name] = vals
 		}
 	}
-	cfg.Discovery.Mode = r.PostFormValue("discovery_mode")
-	if dir := strings.TrimSpace(r.PostFormValue("cache_dir")); len(cfg.Repositories) > 0 {
-		cfg.Repositories[0].CacheDir = dir
-	}
-	switch raw := strings.TrimSpace(r.PostFormValue("refresh_interval")); raw {
-	case "":
-		cfg.Catalog.RefreshInterval = 0
-	default:
-		d, err := time.ParseDuration(raw)
+	return out
+}
+
+// applyCredentials writes the password typed for each repository to the
+// credential store and points that repository at the stored file, so the
+// secret itself never reaches the configuration.
+func (s *Server) applyCredentials(cfg *config.Config, form url.Values) error {
+	for i := range cfg.Repositories {
+		if credentialMode(form, i) != "typed" {
+			continue
+		}
+		secret := form.Get(fmt.Sprintf("repositories[%d].password", i))
+		path, err := storeCredential(s.opts.StateDir, cfg.Repositories[i].ID, secret)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("refresh interval %q: want a duration such as 15m", raw))
-			break
+			return err
 		}
-		cfg.Catalog.RefreshInterval = d
+		if path != "" {
+			cfg.Repositories[i].PasswordFile = path
+		}
 	}
-	return errs
+	return nil
 }
 
-// configFormView re-renders the Config form with the values the user just
-// submitted, so a rejected save does not lose their edits.
-func (s *Server) configFormView(r *http.Request, errs []string) webui.ConfigView {
-	return webui.ConfigView{
-		Chrome:          s.chrome(r, "config", "Config"),
-		Revision:        r.PostFormValue("revision"),
-		Roots:           lines(r.PostFormValue("roots")),
-		Filters:         lines(r.PostFormValue("filters")),
-		Exclusions:      lines(r.PostFormValue("exclusions")),
-		SeedPaths:       lines(r.PostFormValue("seed_paths")),
-		DiscoveryMode:   r.PostFormValue("discovery_mode"),
-		CacheDir:        r.PostFormValue("cache_dir"),
-		RefreshInterval: r.PostFormValue("refresh_interval"),
-		Errors:          errs,
+// configControls renders every key of cfg as a form control, carrying each
+// field's error and the password controls of every repository.
+func configControls(cfg *config.Config, byPath map[string]string, form url.Values) []webui.ConfigSection {
+	var out []webui.ConfigSection
+	for _, sec := range webui.Sections(Fields(cfg)) {
+		s := webui.ConfigSection{Title: sec.Title}
+		for _, f := range sec.Fields {
+			s.Controls = append(s.Controls, control(f, byPath[f.Path]))
+			if prefix, ok := strings.CutSuffix(f.Path, ".password_file"); ok {
+				s.Controls = append(s.Controls, passwordControls(prefix, byPath, form)...)
+			}
+		}
+		out = append(out, s)
 	}
+	return out
 }
 
-// handleConfigSave saves the Config form: it applies the fields to the stored
-// configuration and writes it under the revision the form carried, which
-// validates it through config.Save. It redirects on success and re-renders
-// the form with the submitted values on any failure.
+// control turns one field into its control, keeping a select value the
+// options do not list so a rejected choice stays visible on its control.
+func control(f webui.Field, msg string) webui.Control {
+	c := webui.Control{
+		Kind:    f.Kind,
+		Path:    f.Path,
+		Label:   f.Label,
+		Help:    f.Help,
+		Value:   f.Value,
+		Options: f.Options,
+		Error:   msg,
+	}
+	switch f.Kind {
+	case webui.KindChips:
+		c.Options = nil
+		for _, v := range f.Values {
+			c.Options = append(c.Options, webui.Option{Value: v, Label: v})
+		}
+	case webui.KindSelect:
+		listed := func(o webui.Option) bool { return o.Value == f.Value }
+		if f.Value != "" && !slices.ContainsFunc(c.Options, listed) {
+			c.Options = append(slices.Clone(c.Options), webui.Option{Value: f.Value, Label: f.Value})
+		}
+	}
+	return c
+}
+
+// passwordControls are the two controls a repository supplies its password
+// with: the mode, and the secret itself, which is never echoed back.
+func passwordControls(prefix string, byPath map[string]string, form url.Values) []webui.Control {
+	mode := form.Get(prefix + ".password_mode")
+	if mode != "typed" {
+		mode = "file"
+	}
+	return []webui.Control{{
+		Kind:  webui.KindSelect,
+		Path:  prefix + ".password_mode",
+		Label: "Password mode",
+		Value: mode,
+		Options: []webui.Option{
+			{Value: "file", Label: "Password file"},
+			{Value: "typed", Label: "Typed password"},
+		},
+		Error: byPath[prefix+".password_mode"],
+	}, {
+		Kind:  webui.KindPassword,
+		Path:  prefix + ".password",
+		Label: "Password",
+		Error: byPath[prefix+".password"],
+	}}
+}
+
+// renderConfigForm re-renders the Config form under status with the values
+// the user submitted, each error anchored to its own control.
+func (s *Server) renderConfigForm(w http.ResponseWriter, r *http.Request, cfg *config.Config, byPath map[string]string, banner []string, status int) {
+	v := webui.ConfigView{
+		Chrome:   s.chrome(r, "config", "Config"),
+		Revision: r.PostFormValue("revision"),
+		Errors:   banner,
+	}
+	if cfg != nil {
+		v.Sections = configControls(cfg, byPath, r.PostForm)
+	}
+	w.WriteHeader(status)
+	s.render(w, "config", v)
+}
+
+// handleConfigSave saves the Config form: every field is named after its YAML
+// key path, so the whole configuration is decoded from the form, written
+// under the revision the form carried and validated by config.Save. It
+// redirects on success and re-renders the submitted values on any failure.
 func (s *Server) handleConfigSave(w http.ResponseWriter, r *http.Request) {
-	cfg, _, err := s.baseConfig()
-	if err != nil {
-		s.render(w, "config", s.configFormView(r, []string{err.Error()}))
-		return
+	cfg, decoded := Decode(configFormValues(r.PostForm))
+	byPath := make(map[string]string, len(decoded))
+	for _, f := range decoded {
+		if _, seen := byPath[f.Path]; !seen {
+			byPath[f.Path] = f.Msg
+		}
 	}
-	if errs := applyConfigForm(cfg, r); len(errs) > 0 {
-		s.render(w, "config", s.configFormView(r, errs))
-		return
+	var banner []string
+	if err := s.applyCredentials(cfg, r.PostForm); err != nil {
+		banner = append(banner, err.Error())
 	}
 	config.ApplyDefaults(cfg)
+	if len(byPath) > 0 || len(banner) > 0 {
+		s.renderConfigForm(w, r, cfg, byPath, banner, http.StatusBadRequest)
+		return
+	}
 	if _, err := s.opts.Backend.SaveConfig(cfg, config.Revision(r.PostFormValue("revision"))); err != nil {
-		msg := err.Error()
+		byPath, banner = fieldErrors(err)
 		if errors.Is(err, config.ErrRevisionConflict) {
-			msg = "the configuration file changed since this page was loaded; reload and apply your edits again"
+			banner = []string{"the configuration file changed since this page was loaded; reload and apply your edits again"}
 		}
-		s.render(w, "config", s.configFormView(r, []string{msg}))
+		s.renderConfigForm(w, r, cfg, byPath, banner, http.StatusBadRequest)
 		return
 	}
 	http.Redirect(w, r, "/config?saved=1", http.StatusSeeOther)
