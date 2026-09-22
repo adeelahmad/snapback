@@ -1,5 +1,3 @@
-// agentic:shim
-
 package web
 
 import (
