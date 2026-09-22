@@ -4,7 +4,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 31
+- **Tick:** 32
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
 - **Phase:** SPRINT 2 EXECUTION — S2-01..S2-04 merged (stage-1 366b1a1); S2-08 T6 GREEN final in flight; wave 3 (S2-06, S2-07) RED started
 - **Last gate:** GREEN on stage-1 @ 366b1a1 (full standards matrix, cov 86.6%; integration suite PASS locally); master @ f0f0d5b green on GitHub
@@ -417,6 +417,13 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 31 | S2-04/T4 GREEN | green-worker | passed — catalog-darwin.json from real macFUSE run (darwin/arm64, go-fuse v2.11.0, 12 ops, pass); full matrix green (cov 89.9%) | — |
 | 31 | MERGE S2-04 → stage-1 | orchestrator | 366b1a1; full gate GREEN (cov 86.6%); integration suite (-tags integration, SNAPBACK_FUSE_TESTS=1) PASS on merged tree, no leftover mounts | wave 3 unblocked |
 | 31 | S2-06/T1,T2 RED, S2-07/T1,T2,T4 RED | red-worker ×5 | spawned 03:12Z (chains from stage-1 366b1a1) | — |
+| 32 | S2-08/T6 GREEN | green-worker | passed in isolation (5/5, full matrix, cov 82.2%); deps.go real wiring 0% covered (implemented but not tested here) | — |
+| 32 | MERGE S2-08 → stage-1 | orchestrator | GATE RED on scratch merge ce48066 (not applied; stage-1 untouched): T6 CLI fakes use 63-hex snapshot id that fix-id now rejects → TestRunWritesJSONAndExits0 / TestRunRemoteNotDeletedExits1Loudly FAIL | split → S2-08/fix-cli-id (test-data RED) |
+| 32 | S2-06/T1,T2 RED | red-worker ×2 | passed — combined 6c43d9e: 14 FAIL by assertion, lint 0 | — |
+| 32 | S2-07/T1,T2,T4 RED | red-worker ×3 | passed — combined c326407: 16 FAIL by assertion, -race, lint 0 | — |
+| 32 | C1 domain (human request: README → snapback.run) | red-worker | spawned 03:17Z. Facts: snapback.run 200 on GitHub Pages; /install.sh 404 → docs workflow must publish install.sh; install.sh base → github releases/latest/download | — |
+| 32 | C2 Makefile (human request) | red-worker | spawned 03:17Z | — |
+| 32 | S2-08/fix-cli-id RED, S2-06/T3+T4 RED, S2-07/T3 RED, S2-06 T1+T2 scaffold, S2-07 T1+T2+T4 scaffold | various | spawned 03:17Z (8 running) | — |
 
 ## Plugin issues found
 
