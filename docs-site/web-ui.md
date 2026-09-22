@@ -81,12 +81,25 @@ to the Status page. Every key is described in [Configuration](configuration.md).
 
 ## Security
 
-- **Loopback only.** The server binds only to a loopback address.
-- **Host check.** A request whose `Host` is not the bound loopback address and port is
+- **Loopback by default.** The server binds to `127.0.0.1` unless you say otherwise.
+  `--bind ADDRESS` (or `web.bind` in the config) moves it; a bind address that is not
+  loopback is refused unless you also pass `--allow-remote`. With the flag the server
+  serves that address and prints exactly one warning line:
+
+  ```
+  warning: snapback web is reachable from other machines on 0.0.0.0:7373; the session token is the only protection
+  ```
+
+- **No transport security.** Snapback does not serve TLS, so a non-loopback bind sends
+  the session cookie and every page in the clear; put it behind your own terminating
+  proxy or a tunnel if it must leave the machine.
+- **Host check.** A request whose `Host` is not the bound address and port is
   refused with 421.
 - **Origin check.** A write (any method other than GET, HEAD or OPTIONS) with an `Origin`
   other than its own host, or a `Sec-Fetch-Site` other than `same-origin` or `none`, is
-  refused with 403.
+  refused with 403. To let another browser origin through, name it with `--allow-origin`
+  (repeatable) or list it under `web.allowed_origins`; each one must be a bare
+  `scheme://host[:port]`.
 - **Session.** Every page and API route needs the session cookie from the one-time token.
   The cookie is `HttpOnly` and `SameSite=Strict`.
 - **CSRF.** Every write must carry the session's CSRF token, or it is refused with 403.
