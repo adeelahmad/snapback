@@ -1,6 +1,11 @@
 package resolver
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"path/filepath"
+	"strings"
+)
 
 // RootSpec is a configured backup root: its ID and its local path.
 type RootSpec struct {
@@ -22,5 +27,44 @@ var (
 
 // SelectRoot returns the root with the longest local path that contains dir.
 func SelectRoot(roots []RootSpec, dir string) (Match, error) {
-	panic("SUB-AGENT-TODO: T2 filepath.Clean dir+roots; relative dir -> ErrOutsideRoots; contain = equal or prefix root+\"/\" (\"/\" contains all); longest wins; tie -> ErrAmbiguousRoot; Rel no leading/trailing /; wrap fmt.Errorf(\"resolver: %q: %w\"), zero Match on error")
+	clean := filepath.Clean(dir)
+	if !filepath.IsAbs(clean) {
+		return Match{}, fmt.Errorf("resolver: %q: %w", dir, ErrOutsideRoots)
+	}
+	var best Match
+	bestLen := -1
+	ambiguous := false
+	for _, r := range roots {
+		root := filepath.Clean(r.LocalPath)
+		rel, ok := within(root, clean)
+		if !ok || len(root) < bestLen {
+			continue
+		}
+		if len(root) == bestLen {
+			ambiguous = true
+			continue
+		}
+		best, bestLen, ambiguous = Match{RootID: r.ID, Rel: rel}, len(root), false
+	}
+	switch {
+	case bestLen < 0:
+		return Match{}, fmt.Errorf("resolver: %q: %w", dir, ErrOutsideRoots)
+	case ambiguous:
+		return Match{}, fmt.Errorf("resolver: %q: %w", dir, ErrAmbiguousRoot)
+	}
+	return best, nil
+}
+
+// within reports whether the cleaned root contains the cleaned dir and
+// returns dir relative to root, without leading or trailing slashes.
+func within(root, dir string) (string, bool) {
+	if root == dir {
+		return "", true
+	}
+	prefix := root
+	if root != "/" {
+		prefix += "/"
+	}
+	rel, ok := strings.CutPrefix(dir, prefix)
+	return rel, ok
 }
