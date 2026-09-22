@@ -9,7 +9,8 @@ the current build. Restic is the only backend.
    latest tagged release, which predates v0.1.
 2. **Configure.** Write `~/.config/snapback/config.yaml` with your Restic repository, then run
    `snapback config`. It starts the local web UI and opens its setup page. `snapback web` serves
-   the same UI without jumping to setup.
+   the same UI without jumping to setup. See [Configuration](configuration.md) for every key,
+   `snapback config --file` and `snapback config validate`.
 3. **Install the service.** Run `snapback install service`. The default scope is the current user.
 4. **Check.** Run `snapback doctor` to check prerequisites and repository health.
 
