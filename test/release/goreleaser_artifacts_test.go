@@ -203,6 +203,70 @@ func TestGoreleaserHonestyWords(t *testing.T) {
 	}
 }
 
+// universalReplaceFalseRe pins replace: false so the per-arch darwin archives keep shipping.
+var universalReplaceFalseRe = regexp.MustCompile(`(?m)^\s*replace:\s*['"]?false['"]?\s*$`)
+
+// archiveNameTemplates returns every name_template declared under the top-level archives: key.
+func archiveNameTemplates(text string) []string {
+	var out []string
+	for _, line := range strings.Split(topLevelBlock(text, "archives"), "\n") {
+		trimmed := strings.TrimLeft(strings.TrimSpace(line), "- ")
+		if strings.HasPrefix(trimmed, "name_template:") {
+			out = append(out, yamlScalar(strings.TrimPrefix(trimmed, "name_template:")))
+		}
+	}
+	return out
+}
+
+func TestGoreleaserDarwinUniversalBinary(t *testing.T) {
+	text := readRepoFile(t, goreleaserFile)
+	block := topLevelBlock(text, "universal_binaries")
+	if block == "" {
+		t.Fatalf("%s has no top-level universal_binaries: block", goreleaserFile)
+	}
+	if !universalReplaceFalseRe.MatchString(block) {
+		t.Errorf("universal_binaries block lacks replace: false; per-arch darwin builds must survive:\n%s", block)
+	}
+	var name string
+	for _, line := range strings.Split(block, "\n") {
+		trimmed := strings.TrimLeft(strings.TrimSpace(line), "- ")
+		if strings.HasPrefix(trimmed, "name_template:") {
+			name = yamlScalar(strings.TrimPrefix(trimmed, "name_template:"))
+			break
+		}
+	}
+	if name != "snapback" {
+		t.Errorf("universal_binaries name_template = %q, want %q", name, "snapback")
+	}
+	if !strings.Contains(block, "snapback") {
+		t.Errorf("universal_binaries block does not reference the snapback build:\n%s", block)
+	}
+}
+
+func TestGoreleaserShipsDarwinUniversalArchive(t *testing.T) {
+	text := readRepoFile(t, goreleaserFile)
+	const want = "snapback_darwin_universal.tar.gz"
+	templates := archiveNameTemplates(text)
+	if len(templates) < 2 {
+		t.Fatalf("archives declares %d name_template(s); want a darwin universal entry too", len(templates))
+	}
+	for _, tmplText := range templates {
+		tmpl, err := template.New("archive").Parse(tmplText)
+		if err != nil {
+			t.Fatalf("parse name_template %q: %v", tmplText, err)
+		}
+		var buf bytes.Buffer
+		data := map[string]string{"ProjectName": "snapback", "Os": "darwin", "Arch": "all"}
+		if err := tmpl.Execute(&buf, data); err != nil {
+			t.Fatalf("execute name_template %q: %v", tmplText, err)
+		}
+		if buf.String()+".tar.gz" == want {
+			return
+		}
+	}
+	t.Errorf("no archives name_template in %v yields %q", templates, want)
+}
+
 func TestGoreleaserCheck(t *testing.T) {
 	bin, err := exec.LookPath("goreleaser")
 	if err != nil {
