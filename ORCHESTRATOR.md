@@ -4,10 +4,10 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 ## Current state
 
-- **Tick:** 30
+- **Tick:** 31
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
-- **Phase:** SPRINT 2 EXECUTION — wave 1 merged (S2-01, S2-02, S2-03 on stage-1 @ e893fea); S2-05 T1-T2 merged; wave 2: S2-04 (T1 scaffold), S2-08 (T1-T3 RED) in flight
-- **Last gate:** GREEN on stage-1 @ bc2a030 (full standards matrix, cov 88.2%); master @ f0f0d5b green on GitHub
+- **Phase:** SPRINT 2 EXECUTION — S2-01..S2-04 merged (stage-1 366b1a1); S2-08 T6 GREEN final in flight; wave 3 (S2-06, S2-07) RED started
+- **Last gate:** GREEN on stage-1 @ 366b1a1 (full standards matrix, cov 86.6%; integration suite PASS locally); master @ f0f0d5b green on GitHub
 - **Human gate pending:** none (human chose push+merge to master at 01:37Z)
 
 ## Stage table (README §22)
@@ -411,6 +411,12 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 30 | S2-08/T6 RED | red-worker | passed — 5 FAIL by assertion (TestMainIsThin t.Fatal on missing main.go); fakes injected via package var newConfig; lint 0; chain2/s2-08 → 2e97947 | — |
 | 30 | S2-04/T4 RED | red-worker | PASS-ON-RED — TestCatalogMountLifecycle passes on real macFUSE (T1-T3 already satisfy it); override on record, accepted (gate-red-verify has no PASS-ON-RED path → plugin issue). Orchestrator re-ran: PASS 1.42s, no leftover mount (first re-run FAILed only because orchestrator passed a non-existent SNAPBACK_EVIDENCE_DIR). chain2/s2-04 → 864025d | T4 GREEN = evidence + full matrix only |
 | 30 | S2-08/T5 GREEN, S2-04/T4 GREEN (evidence), S2-08/T6 scaffold | various | spawned 03:06Z | — |
+| 31 | S2-08/T5 GREEN | green-worker | passed — Run orchestration, 29 PASS -race, cov 84.3%; found testSnapshotID 63 chars → follow-up | S2-08/fix-id opened |
+| 31 | S2-08/T6 scaffold | scaffolder | passed — main.go real (4 lines), deps.go/run.go stubs; chain2/s2-08 → 664e9b7 | — |
+| 31 | S2-08/fix-id RED + GREEN | red/green | passed — 64-hex test id + TestRunRejectsShortSnapshotID; Run rejects non-64-hex ids, cleanup still runs; c425188 held for combine | — |
+| 31 | S2-04/T4 GREEN | green-worker | passed — catalog-darwin.json from real macFUSE run (darwin/arm64, go-fuse v2.11.0, 12 ops, pass); full matrix green (cov 89.9%) | — |
+| 31 | MERGE S2-04 → stage-1 | orchestrator | 366b1a1; full gate GREEN (cov 86.6%); integration suite (-tags integration, SNAPBACK_FUSE_TESTS=1) PASS on merged tree, no leftover mounts | wave 3 unblocked |
+| 31 | S2-06/T1,T2 RED, S2-07/T1,T2,T4 RED | red-worker ×5 | spawned 03:12Z (chains from stage-1 366b1a1) | — |
 
 ## Plugin issues found
 
@@ -447,7 +453,9 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 - Consolidate duplicated Go test helpers (repoRoot, readRepoFile, indentOf, topLevelBlock, jobBlock, section helpers) across test/ci, test/commitlint, test/release, test/docs, test/community, test/projectdocs into one shared test-support package — needs a test/**-scoped task (no single story may touch others' tests). Source: S1-02+S1-04 and S1-06 structural reviews.
 - Human decisions surfaced by workers: installer falls back to ~/.local/bin when /usr/local/bin is unwritable OR not on PATH (S1-03 T5); SECURITY.md promises 7-day acknowledgement (S1-05 T3).
 
-## Human decisions (Sprint 2)
+## Human decisions
+
+- 03:12Z 2026-09-22: human supplied `docs/agents/go-styleguide/` (Google Go Style Guide) — now MANDATORY in red/green protocols (guide.md + decisions.md normative, best-practices advisory; plan contracts win on conflict). Applies to workers spawned from tick 31 on. (Sprint 2)
 
 - Latency backend: `gdrive:snapback-stage1`; disposable restic repo with generated data only; delete after measuring; keep numbers in the report.
 - Linux FUSE proof: CI job with fuse3 on ubuntu-latest counts; macOS proof = local macFUSE test on this host.
