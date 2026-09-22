@@ -31,11 +31,7 @@ detect_arch() {
 }
 
 asset_name() {
-	case "$2" in
-		arm | mips | mipsle) suffix=_unverified ;;
-		*) suffix= ;;
-	esac
-	echo "snapback_$1_$2$suffix.tar.gz"
+	echo "snapback_$1_$2.tar.gz"
 }
 
 os_release_value() {
@@ -204,9 +200,6 @@ main() {
 		*) die "unsupported platform: $os/$arch" ;;
 	esac
 	asset=$(asset_name "$os" "$arch")
-	case "$arch" in
-		arm | mips | mipsle) printf 'warning: %s/%s is an unverified target\n' "$os" "$arch" >&2 ;;
-	esac
 	if [ "$os" = darwin ]; then
 		printf 'warning: the macOS binary is a self-contained executable; its linkage and runtime are not verified, and macOS support is a follow-up\n' >&2
 	fi

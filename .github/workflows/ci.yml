@@ -64,19 +64,19 @@ jobs:
         run: git ls-files '*.sh' | xargs -r shellcheck
 
   cross-compile:
-    name: Build ${{ matrix.goos }}/${{ matrix.goarch }} ${{ matrix.label }}
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - {goos: linux, goarch: amd64, label: ''}
-          - {goos: linux, goarch: arm64, label: ''}
-          - {goos: darwin, goarch: amd64, label: ''}
-          - {goos: darwin, goarch: arm64, label: ''}
-          - {goos: linux, goarch: arm, label: (unverified)}
-          - {goos: linux, goarch: mips, label: (unverified)}
-          - {goos: linux, goarch: mipsle, label: (unverified)}
+          - {goos: linux, goarch: amd64}
+          - {goos: linux, goarch: arm64}
+          - {goos: darwin, goarch: amd64}
+          - {goos: darwin, goarch: arm64}
+          - {goos: linux, goarch: arm}
+          - {goos: linux, goarch: mips}
+          - {goos: linux, goarch: mipsle}
     env:
       GOOS: ${{ matrix.goos }}
       GOARCH: ${{ matrix.goarch }}

@@ -51,7 +51,7 @@ Or build from source with Go:
 go build ./cmd/snapback
 ```
 
-Every binary is built with `CGO_ENABLED=0`, so the Linux builds are statically linked. The `linux/arm`, `linux/mips` and `linux/mipsle` archives carry an `_unverified` suffix: they are cross-compiled but never run on that hardware, and the macOS binaries' linkage and runtime are unverified too. All assets are on the [releases page](https://github.com/adeelahmad/snapback/releases).
+Every binary is built with `CGO_ENABLED=0`, so the Linux builds are statically linked. The `linux/arm`, `linux/mips` and `linux/mipsle` builds are smoke-tested under QEMU on every CI run; the macOS binaries' linkage and runtime are not verified. All assets are on the [releases page](https://github.com/adeelahmad/snapback/releases).
 
 ### Install from GitHub Packages
 

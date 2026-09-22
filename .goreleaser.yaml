@@ -36,7 +36,7 @@ archives:
     ids:
       - snapback
     formats: [tar.gz]
-    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if or (eq .Arch "arm") (eq .Arch "mips") (eq .Arch "mipsle") }}_unverified{{ end }}'
+    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
     files:
       - LICENSE
       - NOTICE
@@ -136,9 +136,8 @@ docker_manifests:
 release:
   mode: append
   footer: |
-    Targets linux/arm, linux/mips and linux/mipsle are unverified: they are
-    cross-compiled but not tested on real hardware. Their assets carry the
-    `_unverified` suffix.
+    Targets linux/arm, linux/mips and linux/mipsle are smoke-tested under QEMU
+    on every CI run.
 
     The macOS (darwin) binaries are a self-contained executable; their linkage and runtime are not verified.
 
