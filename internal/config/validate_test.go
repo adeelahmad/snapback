@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
 )
@@ -377,5 +378,63 @@ func TestValidateIncludesTopologyAndCredentials(t *testing.T) {
 		if findField(got, path) == nil {
 			t.Errorf("Validate(topology and credential errors) fields = %+v, want one at %s", got, path)
 		}
+	}
+}
+
+func TestValidateRejectsNegativePresenceCacheTTL(t *testing.T) {
+	tests := []struct {
+		name string
+		ttl  time.Duration
+	}{
+		{"minus one nanosecond", -1},
+		{"minus one second", -time.Second},
+		{"minus five minutes", -5 * time.Minute},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := validConfig(t)
+			c.Catalog.PresenceCacheTTL = tt.ttl
+			err := Validate(c)
+
+			fields := validationFields(t, err)
+			if findField(fields, "catalog.presence_cache_ttl") == nil {
+				t.Fatalf("Validate(presence_cache_ttl=%s) fields = %+v, want one at catalog.presence_cache_ttl", tt.ttl, fields)
+			}
+			if !strings.Contains(err.Error(), "catalog.presence_cache_ttl") {
+				t.Errorf("Validate(presence_cache_ttl=%s).Error() = %q, want it to name catalog.presence_cache_ttl", tt.ttl, err.Error())
+			}
+		})
+	}
+}
+
+func TestValidateRejectsRelativeXDGStateHome(t *testing.T) {
+	tests := []struct {
+		name    string
+		xdg     string
+		wantErr bool
+	}{
+		{"relative name", "state", true},
+		{"relative dot path", "./state", true},
+		{"absolute path", "/var/lib/state", false},
+		{"unset", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("XDG_STATE_HOME", tt.xdg)
+			err := Validate(validConfig(t))
+
+			if !tt.wantErr {
+				if err != nil {
+					t.Fatalf("Validate(XDG_STATE_HOME=%q) = %v, want nil", tt.xdg, err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("Validate(XDG_STATE_HOME=%q) = nil, want an error", tt.xdg)
+			}
+			if !strings.Contains(err.Error(), "XDG_STATE_HOME must be an absolute path") {
+				t.Errorf("Validate(XDG_STATE_HOME=%q).Error() = %q, want XDG_STATE_HOME must be an absolute path", tt.xdg, err.Error())
+			}
+		})
 	}
 }

@@ -315,21 +315,32 @@ func TestParseExplicitValuesOverrideDefaults(t *testing.T) {
 }
 
 func TestParseStateDirFallsBackToHome(t *testing.T) {
-	for _, xdg := range []string{"", "relative"} {
-		t.Run("XDG_STATE_HOME="+xdg, func(t *testing.T) {
-			tmp := t.TempDir()
-			writePasswordFile(t, tmp)
-			t.Setenv("XDG_STATE_HOME", xdg)
-			t.Setenv("HOME", tmp)
+	tmp := t.TempDir()
+	writePasswordFile(t, tmp)
+	t.Setenv("XDG_STATE_HOME", "")
+	t.Setenv("HOME", tmp)
 
-			c, err := Parse(minimalYAML(tmp, "", "", ""))
-			if err != nil {
-				t.Fatalf("Parse(minimal) = %v, want nil error", err)
-			}
-			if want := tmp + "/.local/state/snapback"; c.StateDir != want {
-				t.Errorf("Parse(minimal).StateDir = %q, want %q", c.StateDir, want)
-			}
-		})
+	c, err := Parse(minimalYAML(tmp, "", "", ""))
+	if err != nil {
+		t.Fatalf("Parse(minimal) = %v, want nil error", err)
+	}
+	if want := tmp + "/.local/state/snapback"; c.StateDir != want {
+		t.Errorf("Parse(minimal).StateDir = %q, want %q", c.StateDir, want)
+	}
+}
+
+func TestParseRejectsRelativeXDGStateHome(t *testing.T) {
+	tmp := t.TempDir()
+	writePasswordFile(t, tmp)
+	t.Setenv("XDG_STATE_HOME", "relative")
+	t.Setenv("HOME", tmp)
+
+	_, err := Parse(minimalYAML(tmp, "", "", ""))
+	if err == nil {
+		t.Fatalf("Parse(XDG_STATE_HOME=relative) = nil error, want an error")
+	}
+	if !strings.Contains(err.Error(), "XDG_STATE_HOME must be an absolute path") {
+		t.Errorf("Parse(XDG_STATE_HOME=relative) = %q, want XDG_STATE_HOME must be an absolute path", err.Error())
 	}
 }
 
