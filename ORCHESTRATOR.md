@@ -6,7 +6,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 
 - **Tick:** 21
 - **Stage:** 1 — Compatibility milestone (Sprint 2)
-- **Phase:** SPRINT 2 EXECUTION — PAUSED new spawns for history rewrite (strip AI trailers; human-approved force-push of master + tag move) once S2-01 T3 GREEN and S2-03 T7 RED finish
+- **Phase:** SPRINT 2 EXECUTION — history rewritten (0 AI trailers anywhere); resuming. Chains now: s2-01 36dd8a7, s2-02 b98f8d1, s2-03 218d3c9, s2-05 d9a4037
 - **Last gate:** GREEN on master @ 41722b6 locally (all checks incl. goreleaser check) and on GitHub (CI 35676870835, docs 35676870852, release 35676870860 — all success)
 - **Human gate pending:** none (human chose push+merge to master at 01:37Z)
 
@@ -362,6 +362,7 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 | 21 | domain | human | snapback.run is live → follow-up: replace example.invalid (install.sh), snapback.example.com (README), docs site_url; Pages custom domain (CNAME) pending human confirmation of hosting | follow-up task queued |
 | 21 | S2-01/T3 | green-worker | passed (task) / ESCALATED (story gate) — 8 T3 + all S2-01 tests PASS -race (re-run), cov 96.9%, lint 0; full matrix red ONLY on test/projectdocs TestNoticeCoversGoModRequires: NOTICE lacks go-fuse + golang.org/x/sys (S1-08 guard working as designed); commit af79267 (no trailer); chain2/s2-01 → af79267 | fix task: S2-01/fix-notice (NOTICE scope) before merge |
 | 21 | S2-03/T7 | red-worker | passed — 3 mount-supervisor unit tests FAIL by assertion; gated TestPathTemplateIntegration skips naming SNAPBACK_FUSE_TESTS; T1-T6 still PASS; lint 0 (incl. -tags integration); no trailer; chain2/s2-03 → 961ee77 | — |
+| 21 | HISTORY REWRITE | orchestrator | human-approved. Backup bundle saved (scratchpad/pre-rewrite-backup.bundle). filter-branch --msg-filter stripped `Co-Authored-By: Claude` / `Claude-Session:` from master, stage-0, stage-1, chain/*, chain2/*, v1.0.0, v1.0.1. Verified: 0 trailers; trees identical (stage-1, old origin/master); authors unchanged. Pushed: origin master 9b6a97d→f0f0d5b (--force-with-lease), tags v1.0.0→d8833fb, v1.0.1→f0f0d5b (v1.0.1 release keeps 10 assets). Deleted refs/original + 129 local worker scratch branches. Note: CHANGELOG.md / GitHub release notes reference pre-rewrite commit SHAs (now dangling links) | tech debt: refresh CHANGELOG commit links |
 
 ## Plugin issues found
 
@@ -381,6 +382,8 @@ Spec: `README.md` (Revision 2). Workflow: `agentic-agile` plugin. Agent artifact
 - gate-scaffold-verify counts symbols by bare name across the repo → a method `Op.String` collides with unrelated `version.String()`.
 
 ## Technical debt (for next planning session)
+
+- CHANGELOG.md and GitHub release notes for v1.0.0/v1.0.1 link pre-rewrite commit SHAs (dangling after the authorship rewrite).
 
 - Bump golang.org/x/sys (indirect via go-fuse) from v0.28.0 to ≥ v0.44.0 to clear module-level GO-2026-5024 (Windows-only, unreachable).
 
