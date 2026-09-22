@@ -1,9 +1,26 @@
 package fidelity
 
 import (
+	"encoding/json"
+	"fmt"
 	"io/fs"
+	"os"
+	"path/filepath"
+	"runtime"
 	"time"
 )
+
+const (
+	noteRecorded     = "FUSE-approximated; recorded, not claimed"
+	noteNotExposed   = "not exposed; recorded, not claimed"
+	evidenceFileMode = 0o644
+)
+
+type unclaimedJSON struct {
+	Value   *time.Time `json:"value"`
+	Claimed bool       `json:"claimed"`
+	Note    string     `json:"note"`
+}
 
 // Evidence is the per-platform fidelity record written as JSON.
 type Evidence struct {
@@ -49,21 +66,49 @@ type Unclaimed struct {
 
 // MarshalJSON encodes u as {value, claimed:false, note}.
 func (u Unclaimed) MarshalJSON() ([]byte, error) {
-	panic("SUB-AGENT-TODO: T4 encode {value: RFC3339Nano time or null when Value is nil, claimed: false, note: recorded-not-asserted, or not-exposed when Value is nil}")
+	note := noteRecorded
+	if u.Value == nil {
+		note = noteNotExposed
+	}
+	return json.Marshal(unclaimedJSON{Value: u.Value, Note: note})
 }
 
 // UnmarshalJSON decodes the {value, claimed, note} form into u.
 func (u *Unclaimed) UnmarshalJSON(data []byte) error {
-	panic("SUB-AGENT-TODO: T4 decode the object; Value is the parsed time, nil when value is null")
+	var v unclaimedJSON
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	u.Value = v.Value
+	return nil
 }
 
 // WriteEvidence writes ev as indented JSON to dir/fidelity-<GOOS>.json and
 // returns the path.
 func WriteEvidence(dir string, ev Evidence) (string, error) {
-	panic("SUB-AGENT-TODO: T4 error if dir does not exist; json.MarshalIndent; write filepath.Join(dir, fidelity-<runtime.GOOS>.json) with mode 0644; return the path")
+	if _, err := os.Stat(dir); err != nil {
+		return "", fmt.Errorf("evidence dir: %w", err)
+	}
+	data, err := json.MarshalIndent(ev, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("encode evidence: %w", err)
+	}
+	path := filepath.Join(dir, "fidelity-"+runtime.GOOS+".json")
+	if err := os.WriteFile(path, data, evidenceFileMode); err != nil {
+		return "", fmt.Errorf("write evidence %s: %w", path, err)
+	}
+	return path, nil
 }
 
 // ReadEvidence reads the evidence JSON at path.
 func ReadEvidence(path string) (Evidence, error) {
-	panic("SUB-AGENT-TODO: T4 os.ReadFile then json.Unmarshal into Evidence; wrap errors with the path")
+	var ev Evidence
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ev, fmt.Errorf("read evidence %s: %w", path, err)
+	}
+	if err := json.Unmarshal(data, &ev); err != nil {
+		return ev, fmt.Errorf("decode evidence %s: %w", path, err)
+	}
+	return ev, nil
 }
