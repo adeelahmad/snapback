@@ -64,8 +64,8 @@ func realProbes() Probes {
 
 // doctorUsage is the help text printed for doctor -h and for a bad flag.
 var doctorUsage = cli.Usage{
-	Synopsis: "doctor [flags]",
-	Args:     "doctor takes no positional arguments.",
+	Synopsis: "doctor [flags] [DIR]",
+	Args:     "DIR is where --bundle writes the archive; it defaults to the current directory.",
 	Example:  "snapback doctor --json --strict",
 }
 
@@ -79,6 +79,7 @@ func command(deps commandDeps) cli.Command {
 			jsonOut := fs.Bool("json", false, "print checks as a JSON array")
 			mountTest := fs.Bool("mount-test", false, "add a mount_test check that performs a real mount")
 			strict := fs.Bool("strict", false, "keep platform-inapplicable checks as failures")
+			bundle := fs.Bool("bundle", false, "write a local diagnostic bundle into DIR and print its path")
 			help, err := cli.ParseWithUsage(fs, args)
 			if err != nil {
 				_, _ = fmt.Fprintln(env.Stderr, err)
@@ -95,6 +96,10 @@ func command(deps commandDeps) cli.Command {
 			}
 
 			checks = applyPlatform(checks, deps.goos, *strict)
+
+			if *bundle {
+				return writeBundleFor(env, checks, cfg, fs.Arg(0))
+			}
 
 			if *jsonOut {
 				if err := json.NewEncoder(env.Stdout).Encode(checks); err != nil {
