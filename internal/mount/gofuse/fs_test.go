@@ -354,3 +354,180 @@ func TestObserverReceivesOneEventPerOp(t *testing.T) {
 		})
 	}
 }
+
+func implements[T any](n fs.InodeEmbedder) bool {
+	_, ok := n.(T)
+	return ok
+}
+
+func TestNodesImplementMutationInterfaces(t *testing.T) {
+	f := newFixture(t)
+	var dir fs.InodeEmbedder = f.root
+	dirChecks := []struct {
+		iface string
+		ok    bool
+	}{
+		{"NodeMkdirer", implements[fs.NodeMkdirer](dir)},
+		{"NodeCreater", implements[fs.NodeCreater](dir)},
+		{"NodeUnlinker", implements[fs.NodeUnlinker](dir)},
+		{"NodeRmdirer", implements[fs.NodeRmdirer](dir)},
+		{"NodeRenamer", implements[fs.NodeRenamer](dir)},
+		{"NodeSymlinker", implements[fs.NodeSymlinker](dir)},
+		{"NodeLinker", implements[fs.NodeLinker](dir)},
+		{"NodeSetattrer", implements[fs.NodeSetattrer](dir)},
+		{"NodeWriter", implements[fs.NodeWriter](dir)},
+	}
+	for _, c := range dirChecks {
+		if !c.ok {
+			t.Errorf("directory node does not implement fs.%s (go-fuse would answer ENOSYS/ENOTSUP)", c.iface)
+		}
+	}
+	link := lookupNode(t, f.root, "rel").Operations()
+	if !implements[fs.NodeSetattrer](link) {
+		t.Error("symlink node does not implement fs.NodeSetattrer (go-fuse would answer ENOSYS/ENOTSUP)")
+	}
+}
+
+// mutation invokes one mutation on the fixture root; ok is false when the root lacks the interface.
+type mutation func(t *testing.T, f fixture) (ino *fs.Inode, errno syscall.Errno, ok bool)
+
+func modeChange() fuse.SetAttrIn {
+	return fuse.SetAttrIn{SetAttrInCommon: fuse.SetAttrInCommon{Valid: fuse.FATTR_MODE, Mode: 0o777}}
+}
+
+func dirMutations() []struct {
+	name string
+	run  mutation
+} {
+	return []struct {
+		name string
+		run  mutation
+	}{
+		{"mkdir", func(t *testing.T, f fixture) (*fs.Inode, syscall.Errno, bool) {
+			n, ok := fs.InodeEmbedder(f.root).(fs.NodeMkdirer)
+			if !ok {
+				return nil, 0, false
+			}
+			var out fuse.EntryOut
+			ino, errno := n.Mkdir(t.Context(), "new", 0o755, &out)
+			return ino, errno, true
+		}},
+		{"create", func(t *testing.T, f fixture) (*fs.Inode, syscall.Errno, bool) {
+			n, ok := fs.InodeEmbedder(f.root).(fs.NodeCreater)
+			if !ok {
+				return nil, 0, false
+			}
+			var out fuse.EntryOut
+			ino, _, _, errno := n.Create(t.Context(), "new", 0, 0o644, &out)
+			return ino, errno, true
+		}},
+		{"unlink", func(t *testing.T, f fixture) (*fs.Inode, syscall.Errno, bool) {
+			n, ok := fs.InodeEmbedder(f.root).(fs.NodeUnlinker)
+			if !ok {
+				return nil, 0, false
+			}
+			return nil, n.Unlink(t.Context(), "rel"), true
+		}},
+		{"rmdir", func(t *testing.T, f fixture) (*fs.Inode, syscall.Errno, bool) {
+			n, ok := fs.InodeEmbedder(f.root).(fs.NodeRmdirer)
+			if !ok {
+				return nil, 0, false
+			}
+			return nil, n.Rmdir(t.Context(), "docs"), true
+		}},
+		{"rename", func(t *testing.T, f fixture) (*fs.Inode, syscall.Errno, bool) {
+			n, ok := fs.InodeEmbedder(f.root).(fs.NodeRenamer)
+			if !ok {
+				return nil, 0, false
+			}
+			return nil, n.Rename(t.Context(), "rel", f.root, "renamed", 0), true
+		}},
+		{"symlink", func(t *testing.T, f fixture) (*fs.Inode, syscall.Errno, bool) {
+			n, ok := fs.InodeEmbedder(f.root).(fs.NodeSymlinker)
+			if !ok {
+				return nil, 0, false
+			}
+			var out fuse.EntryOut
+			ino, errno := n.Symlink(t.Context(), "a/b", "new", &out)
+			return ino, errno, true
+		}},
+		{"link", func(t *testing.T, f fixture) (*fs.Inode, syscall.Errno, bool) {
+			n, ok := fs.InodeEmbedder(f.root).(fs.NodeLinker)
+			if !ok {
+				return nil, 0, false
+			}
+			target := lookupNode(t, f.root, "rel").Operations()
+			var out fuse.EntryOut
+			ino, errno := n.Link(t.Context(), target, "new", &out)
+			return ino, errno, true
+		}},
+		{"setattr", func(t *testing.T, f fixture) (*fs.Inode, syscall.Errno, bool) {
+			n, ok := fs.InodeEmbedder(f.root).(fs.NodeSetattrer)
+			if !ok {
+				return nil, 0, false
+			}
+			in := modeChange()
+			var out fuse.AttrOut
+			return nil, n.Setattr(t.Context(), nil, &in, &out), true
+		}},
+	}
+}
+
+func TestDirMutationsReturnEROFS(t *testing.T) {
+	for _, tc := range dirMutations() {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			before := readdirNames(t, f.root)
+			ino, errno, ok := tc.run(t, f)
+			if !ok {
+				t.Fatalf("%s: directory node does not implement the mutation interface (go-fuse would answer ENOSYS/ENOTSUP)", tc.name)
+			}
+			if errno != syscall.EROFS {
+				t.Errorf("%s errno = %v, want EROFS", tc.name, errno)
+			}
+			if ino != nil {
+				t.Errorf("%s returned inode %v, want nil", tc.name, ino)
+			}
+			if after := readdirNames(t, f.root); !slices.Equal(after, before) {
+				t.Errorf("%s changed listing: before %v, after %v", tc.name, before, after)
+			}
+		})
+	}
+}
+
+func TestSymlinkSetattrReturnsEROFS(t *testing.T) {
+	f := newFixture(t)
+	ops := lookupNode(t, f.root, "rel").Operations()
+	sa, ok := ops.(fs.NodeSetattrer)
+	if !ok {
+		t.Fatal("rel node is not a NodeSetattrer")
+	}
+	in := modeChange()
+	var out fuse.AttrOut
+	if errno := sa.Setattr(t.Context(), nil, &in, &out); errno != syscall.EROFS {
+		t.Errorf("Setattr(rel) errno = %v, want EROFS", errno)
+	}
+	rl, ok := ops.(fs.NodeReadlinker)
+	if !ok {
+		t.Fatal("rel node is not a NodeReadlinker")
+	}
+	got, errno := rl.Readlink(t.Context())
+	if errno != 0 || string(got) != "a/b" {
+		t.Errorf("Readlink(rel) after Setattr = (%q, %v), want (%q, 0)", got, errno, "a/b")
+	}
+}
+
+func TestWriteReturnsEROFS(t *testing.T) {
+	f := newFixture(t)
+	w, ok := fs.InodeEmbedder(f.root).(fs.NodeWriter)
+	if !ok {
+		t.Fatal("root node is not a NodeWriter")
+	}
+	n, errno := w.Write(t.Context(), nil, []byte("x"), 0)
+	if errno != syscall.EROFS {
+		t.Errorf("Write errno = %v, want EROFS", errno)
+	}
+	if n != 0 {
+		t.Errorf("Write count = %d, want 0", n)
+	}
+}
