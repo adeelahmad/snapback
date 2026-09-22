@@ -96,6 +96,7 @@ func Validate(c *Config) error {
 	if c.HistoryMount != "" && c.BackendMountDir != "" {
 		v.errs = append(v.errs, checkTopology(c)...)
 	}
+	v.errs = append(v.errs, checkMountPoints(c)...)
 	v.errs = append(v.errs, checkCredentials(c)...)
 	if len(v.errs) > 0 {
 		return &ValidationError{Fields: v.errs}
