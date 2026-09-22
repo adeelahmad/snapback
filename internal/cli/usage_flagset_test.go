@@ -41,11 +41,11 @@ func TestParseWithUsageHelp(t *testing.T) {
 	if !strings.HasPrefix(got, want) {
 		t.Errorf("ParseWithUsage(-h) stderr = %q, want prefix %q", got, want)
 	}
-	if !strings.Contains(got, "-count int") {
-		t.Errorf("ParseWithUsage(-h) stderr = %q, want the -count default", got)
+	if !strings.Contains(got, "--count INT") {
+		t.Errorf("ParseWithUsage(-h) stderr = %q, want the --count default", got)
 	}
 	if !strings.Contains(got, "how many snapshots to show") {
-		t.Errorf("ParseWithUsage(-h) stderr = %q, want the -count help text", got)
+		t.Errorf("ParseWithUsage(-h) stderr = %q, want the --count help text", got)
 	}
 }
 
@@ -69,7 +69,7 @@ func TestParseWithUsageUnknownFlag(t *testing.T) {
 	if n := strings.Count(got, "Usage: snapback demo [flags]"); n != 1 {
 		t.Errorf("ParseWithUsage(-nope) printed the usage %d times, want 1", n)
 	}
-	if !strings.Contains(got, "-count int") {
+	if !strings.Contains(got, "--count INT") {
 		t.Errorf("ParseWithUsage(-nope) stderr = %q, want the flag defaults", got)
 	}
 }

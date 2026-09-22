@@ -478,7 +478,7 @@ func TestSnapHelpPrintsUsage(t *testing.T) {
 				}
 			}
 			for _, name := range []string{"tag", "repository", "prefix", "wait", "timeout"} {
-				if want := "\n  -" + name; !strings.Contains(stderr, want) {
+				if want := "\n  --" + name; !strings.Contains(stderr, want) {
 					t.Errorf("snap %s stderr = %q, want a flag line %q", arg, stderr, want)
 				}
 			}

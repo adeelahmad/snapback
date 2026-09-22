@@ -153,9 +153,9 @@ func TestBindFlagsHelpDocumentsThem(t *testing.T) {
 	}
 	out := r.stderr.String()
 	tests := []struct{ flag, want string }{
-		{"-bind", "address"},
-		{"-allow-origin", "origin"},
-		{"-allow-remote", "loopback"},
+		{"--bind", "address"},
+		{"--allow-origin", "origin"},
+		{"--allow-remote", "loopback"},
 	}
 	for _, tt := range tests {
 		usage := flagUsage(out, tt.flag)
@@ -169,8 +169,8 @@ func TestBindFlagsHelpDocumentsThem(t *testing.T) {
 	}
 }
 
-// flagUsage returns the description PrintDefaults printed for flag name in
-// out, or "" when the flag is absent or undocumented.
+// flagUsage returns the description the shared flag printer printed for flag
+// name in out, or "" when the flag is absent or undocumented.
 func flagUsage(out, name string) string {
 	lines := strings.Split(out, "\n")
 	for i, line := range lines {

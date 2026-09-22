@@ -144,9 +144,9 @@ func TestLogWireWebHelpListsLogFlags(t *testing.T) {
 	}
 	out := r.stderr.String()
 	for _, tt := range []struct{ flag, want string }{
-		{"-log-level", "debug"},
-		{"-log-format", "json"},
-		{"-log-file", "file"},
+		{"--log-level", "debug"},
+		{"--log-format", "json"},
+		{"--log-file", "file"},
 	} {
 		usage := flagUsage(out, tt.flag)
 		if usage == "" {
