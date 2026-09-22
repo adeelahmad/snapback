@@ -2,7 +2,22 @@ package seed
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"sync"
 	"time"
+
+	"github.com/adeelahmad/snapback/internal/errcode"
+)
+
+const (
+	defaultBatchWindow = 100 * time.Millisecond
+	// maxPending bounds the queued directories; beyond it new ones are
+	// dropped and the watcher reports Degraded.
+	maxPending = 1 << 20
 )
 
 // WatchRoot is a directory tree the watcher observes.
@@ -14,22 +29,95 @@ type WatchRoot struct {
 // Watcher links new directories under its roots.
 type Watcher struct {
 	BatchWindow time.Duration
+
+	linker Linker
+	roots  []WatchRoot
+
+	mu       sync.Mutex
+	pending  map[string]struct{}
+	degraded bool
+	reason   string
 }
 
 // NewWatcher returns a Watcher for roots.
 func NewWatcher(l Linker, roots []WatchRoot) (*Watcher, error) {
-	panic("SUB-AGENT-TODO: T4 — validate each root is an existing directory, else return an InvalidConfig error; store l and roots, set a default BatchWindow, create the non-blocking batch queue")
+	clean := make([]WatchRoot, 0, len(roots))
+	for _, r := range roots {
+		fi, err := os.Stat(r.Root)
+		if err != nil {
+			return nil, errcode.New(errcode.InvalidConfig, "seed.NewWatcher", fmt.Errorf("watch root %q: %w", r.Root, err))
+		}
+		if !fi.IsDir() {
+			return nil, errcode.New(errcode.InvalidConfig, "seed.NewWatcher", fmt.Errorf("watch root %q is not a directory", r.Root))
+		}
+		clean = append(clean, WatchRoot{Root: filepath.Clean(r.Root), Excludes: r.Excludes})
+	}
+	return &Watcher{
+		BatchWindow: defaultBatchWindow,
+		linker:      l,
+		roots:       clean,
+		pending:     map[string]struct{}{},
+	}, nil
 }
 
 // Degraded reports whether the watcher is running with reduced coverage.
 func (w *Watcher) Degraded() (bool, string) {
-	panic("SUB-AGENT-TODO: T4 — return the degraded flag and reason recorded under the watcher's lock (e.g. queue overflow)")
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.degraded, w.reason
 }
 
 func (w *Watcher) enqueue(dirs []string) {
-	panic("SUB-AGENT-TODO: T4 — add dirs to the pending batch without blocking the caller; on overflow drop and mark Degraded instead of blocking")
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for _, d := range dirs {
+		if len(w.pending) >= maxPending {
+			w.degraded, w.reason = true, "watch queue overflow"
+			return
+		}
+		w.pending[filepath.Clean(d)] = struct{}{}
+	}
 }
 
 func (w *Watcher) drain(ctx context.Context) {
-	panic("SUB-AGENT-TODO: T4 — batching loop: every BatchWindow take pending dirs, skip excluded paths before linking, call Linker.Ensure per dir; exit when ctx is done")
+	t := time.NewTicker(w.BatchWindow)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		w.mu.Lock()
+		batch := w.pending
+		w.pending = map[string]struct{}{}
+		w.mu.Unlock()
+		for d := range batch {
+			if ctx.Err() != nil {
+				return
+			}
+			if !w.covered(d) {
+				continue
+			}
+			// Per-directory failures are left to the periodic sweep.
+			_, _ = w.linker.Ensure(ctx, d)
+		}
+	}
+}
+
+// covered reports whether dir lies under a root and is not excluded there.
+// Roots and dirs are compared as given (cleaned, not symlink-resolved), so
+// callers must report paths in the same form as the configured roots.
+func (w *Watcher) covered(dir string) bool {
+	for _, r := range w.roots {
+		if !within(dir, r.Root) {
+			continue
+		}
+		rel, err := filepath.Rel(r.Root, dir)
+		if err != nil || slices.Contains(strings.Split(rel, string(filepath.Separator)), ".snapshot") {
+			return false
+		}
+		return !excluded(r.Root, dir, r.Excludes)
+	}
+	return false
 }
