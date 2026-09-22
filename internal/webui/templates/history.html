@@ -13,12 +13,12 @@
 {{range .}}<li><a href="{{.URL}}">{{.Path}}</a></li>
 {{end}}</ul>{{end}}
 <ol class="timeline" data-js="timeline">
-{{range .Timeline}}<li>{{if .URL}}<a href="{{.URL}}"{{if .Selected}} aria-current="true"{{end}}>{{.Alias}}</a> <span>{{.Host}}</span> {{end}}<form method="get" action="/history"><input type="hidden" name="snapshot" value="{{.ID}}"><button type="submit" class="tick" data-snapshot="{{.ID}}"{{if .Selected}} aria-pressed="true"{{else}} aria-pressed="false"{{end}}>{{.Time}} {{if .Warm}}<span class="badge-ok">warm</span>{{else}}<span class="badge-muted">cold</span>{{end}}</button></form></li>
+{{range .Timeline}}<li>{{if .URL}}<a href="{{.URL}}"{{if .Selected}} aria-current="true"{{end}}>{{.Alias}}</a> <span>{{.Host}}</span> {{end}}<form method="get" action="/history"><input type="hidden" name="root" value="{{$.Root}}"><input type="hidden" name="path" value="{{$.Path}}"><input type="hidden" name="snapshot" value="{{.ID}}"><button type="submit" class="tick" data-snapshot="{{.ID}}"{{if .Selected}} aria-pressed="true"{{else}} aria-pressed="false"{{end}}>{{.Time}} {{if .Warm}}<span class="badge-ok">warm</span>{{else}}<span class="badge-muted">cold</span>{{end}}</button></form></li>
 {{end}}</ol>
 <table>
 <thead><tr><th>Name</th><th>Size</th><th>Modified</th><th>State</th></tr></thead>
 <tbody>
-{{range .Entries}}<tr class="state-{{.State}}"><td>{{.Name}}</td><td>{{.Size}}</td><td>{{.Modified}}</td><td>{{if eq .State "absent"}}<span class="badge-muted">absent</span>{{else if eq .State "failed"}}<span class="badge-warn">read failed</span>{{end}}</td></tr>
+{{range .Entries}}<tr class="state-{{.State}}"><td>{{.Name}}</td><td>{{.Size}}</td><td>{{.Modified}}</td><td>{{if eq .State "absent"}}<span class="badge-muted">absent</span>{{else if eq .State "failed"}}<span class="badge-warn">read failed</span>{{else}}<span class="badge-ok">{{.State}}</span>{{end}}</td></tr>
 {{end}}</tbody>
 </table>
 {{if .FileManagerPath}}<form method="post" action="/api/open">

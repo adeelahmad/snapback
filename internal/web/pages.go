@@ -216,6 +216,31 @@ func historyURL(root, p string) string {
 	return "/history?root=" + url.QueryEscape(root) + "&path=" + url.QueryEscape(p)
 }
 
+// rootRepoStates maps each configured root ID to its repository's state in
+// the daemon status. It is empty without a Backend or a daemon status.
+func (s *Server) rootRepoStates() map[string]string {
+	out := map[string]string{}
+	if s.opts.Backend == nil {
+		return out
+	}
+	st, ok := s.opts.Backend.Status().(status.Snapshot)
+	if !ok {
+		return out
+	}
+	cfg, _, err := s.opts.Backend.Config()
+	if err != nil || cfg == nil {
+		return out
+	}
+	repos := map[string]string{}
+	for _, repo := range st.Repos {
+		repos[repo.ID] = repo.State
+	}
+	for _, root := range cfg.Roots {
+		out[root.ID] = repos[root.RepositoryID]
+	}
+	return out
+}
+
 // handleHistory lists the roots and, when root and snapshot are given, the
 // entries of path in that snapshot. html/template escapes every name.
 func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
@@ -224,11 +249,15 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 		s.render(w, "history", v)
 		return
 	}
+	repoStates := s.rootRepoStates()
 	for _, root := range s.opts.History.Roots() {
-		v.Roots = append(v.Roots, webui.RootItem{Name: root.ID, Path: root.Path, RepoState: root.State})
+		v.Roots = append(v.Roots, webui.RootItem{
+			Name: root.ID, Path: root.Path, RepoState: repoStates[root.ID], MountState: root.State,
+		})
 	}
 	q := r.URL.Query()
 	root, id := q.Get("root"), provider.SnapshotID(q.Get("snapshot"))
+	v.Root, v.Path = root, q.Get("path")
 	if id != "" && !id.Valid() {
 		writeError(w, http.StatusBadRequest, errcode.InvalidConfig, errSnapshotID)
 		return
