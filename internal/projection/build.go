@@ -23,6 +23,12 @@ func Build(spec Spec) (*Generation, error) {
 	return &Generation{nodes: b.nodes}, nil
 }
 
+// BuildNext builds spec like Build, keeping prev's inode for every path whose
+// kind is unchanged so working directories survive a refresh.
+func BuildNext(prev *Generation, spec Spec) (*Generation, error) {
+	panic("SUB-AGENT-TODO: validate and deep-copy spec (dirs, links, files) like Build; reuse prev's inode for every path whose kind is unchanged; new or kind-changed paths get numbers above prev's highest inode; never reuse a freed inode; BuildNext(nil, spec) numbers exactly as Build does today")
+}
+
 type builder struct {
 	nodes map[uint64]node
 	next  uint64
