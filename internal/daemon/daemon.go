@@ -115,6 +115,9 @@ type Daemon struct {
 	refresh     RefreshResult
 	lastRefresh time.Time
 	recovery    *status.RecoverySummary
+	// mountFailed reports that a mount failed at startup; failed repos then
+	// carry errcode.MountFailure until a later refresh succeeds.
+	mountFailed bool
 	cancel      context.CancelFunc // stops Run; nil until Run starts
 }
 
@@ -191,15 +194,26 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.mu.Lock()
 	d.recovery = &status.RecoverySummary{Unmounted: rep.Unmounted, Foreign: rep.Foreign}
 	d.mu.Unlock()
+	mountFailed := false
 	if err := d.deps.Supervisor.Start(ctx); err != nil {
-		return err
+		if errcode.Of(err) != errcode.MountFailure {
+			return err
+		}
+		mountFailed = true
 	}
 	res, err := d.deps.Refresher.Refresh(ctx)
-	if err != nil && errcode.Of(err) != errcode.RepoUnavailable {
-		d.unmountStarted(context.WithoutCancel(ctx))
-		return err
+	switch errcode.Of(err) {
+	case errcode.MountFailure:
+		mountFailed = true
+	case errcode.RepoUnavailable:
+	default:
+		if err != nil {
+			d.unmountStarted(context.WithoutCancel(ctx))
+			return err
+		}
 	}
 	d.mu.Lock()
+	d.mountFailed = mountFailed
 	d.refresh = res
 	d.lastRefresh = d.deps.Clock()
 	d.mu.Unlock()
@@ -287,7 +301,7 @@ func mountErr(ctx context.Context, mount string, err error) error {
 // Status returns the daemon status.
 func (d *Daemon) Status() status.Snapshot {
 	d.mu.Lock()
-	phase, res, last, rec := d.phase, d.refresh, d.lastRefresh, d.recovery
+	phase, res, last, rec, mountFailed := d.phase, d.refresh, d.lastRefresh, d.recovery, d.mountFailed
 	d.mu.Unlock()
 
 	repos := d.deps.Supervisor.States()
@@ -295,6 +309,13 @@ func (d *Daemon) Status() status.Snapshot {
 		repos[id] = history.StateFailed
 	}
 	state, out := status.Derive(phase, repos)
+	if mountFailed {
+		for i := range out {
+			if out[i].Code == errcode.RepoUnavailable {
+				out[i].Code = errcode.MountFailure
+			}
+		}
+	}
 	return status.Snapshot{
 		State:         state,
 		Repos:         out,
