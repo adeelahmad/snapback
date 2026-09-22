@@ -113,6 +113,12 @@ func (s *Server) routes() http.Handler {
 	mux.Handle("PUT /api/config", s.requireSession(http.HandlerFunc(s.handleAPIConfigPut)))
 	mux.Handle("POST /api/setup/validate", s.requireSession(http.HandlerFunc(s.handleAPISetupValidate)))
 	mux.Handle("GET /api/integrations", s.requireSession(http.HandlerFunc(s.handleAPIIntegrations)))
+	if s.opts.History != nil {
+		mux.Handle("GET /api/roots", s.requireSession(http.HandlerFunc(s.handleAPIRoots)))
+		mux.Handle("GET /api/history", s.requireSession(http.HandlerFunc(s.handleAPIHistory)))
+		mux.Handle("GET /api/versions", s.requireSession(http.HandlerFunc(s.handleAPIVersions)))
+		mux.Handle("GET /api/download", s.requireSession(http.HandlerFunc(s.handleAPIDownload)))
+	}
 	mux.Handle("/", s.requireSession(http.NotFoundHandler()))
 	return mux
 }
