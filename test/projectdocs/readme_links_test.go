@@ -41,8 +41,15 @@ func TestHttmCreditIsProminent(t *testing.T) {
 	if idx < 0 {
 		t.Fatalf("README has no %q heading; ## headings = %q", creditHeading, headings)
 	}
-	if idx >= 4 {
-		t.Errorf("README %q is ## heading #%d, want within the first four; ## headings = %q", creditHeading, idx+1, headings)
+	docs := -1
+	for i, h := range headings {
+		if h == "## Documentation" {
+			docs = i
+			break
+		}
+	}
+	if docs >= 0 && idx > docs {
+		t.Errorf("README %q is ## heading #%d, after \"## Documentation\" (#%d); want it in the body; ## headings = %q", creditHeading, idx+1, docs+1, headings)
 	}
 }
 

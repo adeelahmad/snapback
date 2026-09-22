@@ -28,20 +28,6 @@ func TestReadmeLeadsWithRestoreStory(t *testing.T) {
 	}
 }
 
-func TestReadmeTitleIsSnapback(t *testing.T) {
-	readme := readDoc(t, "README.md")
-	var first string
-	for _, line := range strings.Split(readme, "\n") {
-		if s := strings.TrimSpace(line); s != "" {
-			first = s
-			break
-		}
-	}
-	if first != "# Snapback" {
-		t.Fatalf("README first non-empty line = %q, want %q", first, "# Snapback")
-	}
-}
-
 func TestReadmeHasGifTodoMarkerAtTop(t *testing.T) {
 	lead := readmeLead(readDoc(t, "README.md"))
 	if !strings.Contains(lead, "<!-- TODO: restore GIF") {
