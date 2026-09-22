@@ -269,3 +269,65 @@ func TestConfigPathNeverReadsOrCreatesFile(t *testing.T) {
 		t.Errorf("stat(%q) = %v after run, want it to still not exist (never created)", cfgPath, err)
 	}
 }
+
+func TestConfigHelpPrintsUsage(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "-h", args: []string{"-h"}},
+		{name: "--help", args: []string{"--help"}},
+		{name: "validate -h", args: []string{"validate", "-h"}},
+		{name: "show --help", args: []string{"show", "--help"}},
+		{name: "path -h", args: []string{"path", "-h"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := Deps{LoadConfig: failIfLoadConfigCalled(t)}
+			env, out, errb := newEnv(nil)
+
+			code := ConfigCommand(d, nil).Run(context.Background(), env, tt.args)
+
+			if code != 0 {
+				t.Fatalf("config %q = %d, want 0 (stderr %q)", tt.args, code, errb.String())
+			}
+			if out.Len() != 0 {
+				t.Errorf("config %q stdout = %q, want empty", tt.args, out.String())
+			}
+			got := errb.String()
+			for _, want := range []string{"Usage: snapback config", "Args:", "Example:"} {
+				if !strings.Contains(got, want) {
+					t.Errorf("config %q stderr = %q, want it to contain %q", tt.args, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestConfigUnknownFlagPrintsUsage(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "validate", args: []string{"validate", "--bogus"}},
+		{name: "path", args: []string{"path", "--bogus"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := Deps{LoadConfig: failIfLoadConfigCalled(t)}
+			env, _, errb := newEnv(nil)
+
+			code := ConfigCommand(d, nil).Run(context.Background(), env, tt.args)
+
+			if code != 2 {
+				t.Fatalf("config %q = %d, want 2", tt.args, code)
+			}
+			got := errb.String()
+			for _, want := range []string{"Usage: snapback config", "bogus"} {
+				if !strings.Contains(got, want) {
+					t.Errorf("config %q stderr = %q, want it to contain %q", tt.args, got, want)
+				}
+			}
+		})
+	}
+}
