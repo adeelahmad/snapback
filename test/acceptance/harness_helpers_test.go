@@ -24,6 +24,9 @@ type env struct {
 	Root   string
 	Home   string
 	Config string
+	// Runtime is a short dir under /tmp so the daemon socket path stays
+	// under the macOS 104-byte sun_path limit.
+	Runtime string
 }
 
 // fixture is the §20 restic repo built by buildFixture.
@@ -62,7 +65,12 @@ func (d *daemon) Kill() error {
 func newEnv(t *testing.T) env {
 	t.Helper()
 	root := t.TempDir()
-	e := env{Root: root, Home: filepath.Join(root, "home"), Config: filepath.Join(root, "xdg", "config")}
+	runtime, err := os.MkdirTemp("/tmp", "sb")
+	if err != nil {
+		t.Fatalf("newEnv: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(runtime) })
+	e := env{Root: root, Home: filepath.Join(root, "home"), Config: filepath.Join(root, "xdg", "config"), Runtime: runtime}
 	for _, d := range []string{e.Home, e.Config} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			t.Fatalf("newEnv: %v", err)
@@ -79,7 +87,7 @@ func (e env) environ() []string {
 		"XDG_STATE_HOME="+filepath.Join(xdg, "state"),
 		"XDG_CACHE_HOME="+filepath.Join(xdg, "cache"),
 		"XDG_DATA_HOME="+filepath.Join(xdg, "data"),
-		"XDG_RUNTIME_DIR="+filepath.Join(xdg, "run"),
+		"XDG_RUNTIME_DIR="+e.Runtime,
 	)
 }
 
