@@ -8,7 +8,11 @@
 
 body {
   margin: 0;
-  background: var(--canvas);
+  background:
+    radial-gradient(circle at 12% 8%, var(--glass-tint-green), transparent 45%),
+    radial-gradient(circle at 88% 92%, var(--glass-tint-blue), transparent 45%),
+    var(--canvas);
+  background-attachment: fixed;
   color: var(--ink-body);
   font-family: var(--font-sans);
   font-size: 15px;
@@ -58,10 +62,13 @@ pre,
 }
 
 .wordmark {
-  font-family: var(--font-mono-display);
-  font-weight: 800;
-  color: var(--ink);
-  text-decoration: none;
+  display: inline-flex;
+}
+
+.wordmark img {
+  display: block;
+  height: 28px;
+  width: auto;
 }
 
 main {
@@ -77,11 +84,36 @@ main {
 }
 
 .panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, var(--glass-highlight), transparent 45%),
+    var(--glass-fill);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--glass-edge);
+  outline: 1px solid var(--glass-stroke);
+  outline-offset: -0.5px;
+  box-shadow: var(--shadow-glass);
   border-radius: var(--radius-md);
   padding: var(--space-4);
   min-width: 0;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    outline: none;
+    box-shadow: none;
+  }
+}
+
+@media print {
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    outline: none;
+    box-shadow: none;
+  }
 }
 
 .panel h2 {
@@ -244,6 +276,43 @@ button,
   background: var(--surface);
   color: var(--ink);
   border-color: var(--line-strong);
+}
+
+.has-icon::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: var(--space-2);
+  vertical-align: -3px;
+  background-color: var(--ink-muted);
+  mask: center / contain no-repeat;
+}
+
+.icon-list::before { mask-image: url(icons/list.svg); }
+.icon-activity::before { mask-image: url(icons/activity.svg); }
+.icon-settings-2::before { mask-image: url(icons/settings-2.svg); }
+.icon-plug::before { mask-image: url(icons/plug.svg); }
+.icon-layers::before { mask-image: url(icons/layers.svg); }
+.icon-folder-open::before { mask-image: url(icons/folder-open.svg); }
+.icon-download::before { mask-image: url(icons/download.svg); }
+.icon-undo-2::before { mask-image: url(icons/undo-2.svg); }
+
+.icon-lg::before {
+  width: 20px;
+  height: 20px;
+}
+
+.has-icon:hover::before {
+  background-color: var(--ink);
+}
+
+.has-icon[aria-current]::before {
+  background-color: var(--blue);
+}
+
+.button.has-icon::before {
+  background-color: currentColor;
 }
 
 :focus-visible {

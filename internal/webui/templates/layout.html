@@ -12,14 +12,17 @@
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header">
-<a class="wordmark" href="/">snapback</a>
+<a class="wordmark" href="/"><picture>
+<source srcset="/assets/lockup-horizontal-inverse.svg" media="(prefers-color-scheme: dark)">
+<img src="/assets/lockup-horizontal.svg" alt="Snapback" height="28">
+</picture></a>
 <nav aria-label="Main">
 <ul>
-<li><a href="/history"{{if eq .Active "history"}} aria-current="page"{{end}}>History</a></li>
-<li><a href="/status"{{if eq .Active "status"}} aria-current="page"{{end}}>Status</a></li>
-<li><a href="/config"{{if eq .Active "config"}} aria-current="page"{{end}}>Config</a></li>
-<li><a href="/integrations"{{if eq .Active "integrations"}} aria-current="page"{{end}}>Integrations</a></li>
-<li><a href="/setup"{{if eq .Active "setup"}} aria-current="page"{{end}}>Setup</a></li>
+<li><a href="/history"{{if eq .Active "history"}} aria-current="page"{{end}} class="has-icon icon-list">History</a></li>
+<li><a href="/status"{{if eq .Active "status"}} aria-current="page"{{end}} class="has-icon icon-activity">Status</a></li>
+<li><a href="/config"{{if eq .Active "config"}} aria-current="page"{{end}} class="has-icon icon-settings-2">Config</a></li>
+<li><a href="/integrations"{{if eq .Active "integrations"}} aria-current="page"{{end}} class="has-icon icon-plug">Integrations</a></li>
+<li><a href="/setup"{{if eq .Active "setup"}} aria-current="page"{{end}} class="has-icon icon-layers">Setup</a></li>
 </ul>
 </nav>
 </header>

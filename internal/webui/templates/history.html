@@ -21,7 +21,7 @@
 {{if .FileManagerPath}}<form method="post" action="/api/open">
 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <input type="hidden" name="path" value="{{.FileManagerPath}}">
-<button type="submit" class="button">Open in file manager</button>
+<button type="submit" class="button has-icon icon-folder-open">Open in file manager</button>
 </form>{{end}}
 </section>
 {{with .Versions}}<section class="panel versions" data-js="versions">
@@ -32,12 +32,12 @@
 <ol>
 {{range .Occurrences}}<li>
 <span>{{.Time}}</span> <span>{{.Size}}</span> <span>{{.Modified}}</span>
-<a class="button" href="{{.DownloadURL}}">Download</a>
+<a class="button has-icon icon-download" href="{{.DownloadURL}}">Download</a>
 <form method="post" action="/api/restore" data-js="restore">
 <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
 <input type="hidden" name="snapshot" value="{{.SnapshotID}}">
 <input type="hidden" name="file" value="{{$.Versions.File}}">
-<button type="submit" class="button">Restore copy next to original</button>
+<button type="submit" class="button has-icon icon-undo-2">Restore copy next to original</button>
 <span>saves as {{.RestoreName}}</span>
 </form>
 </li>
