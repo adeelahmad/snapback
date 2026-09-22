@@ -34,7 +34,18 @@ func archiveFiles(t *testing.T, yaml string) map[string][]string {
 		}
 		if inFiles {
 			if indent > filesIndent && strings.HasPrefix(trimmed, "- ") {
-				out[id] = append(out[id], yamlScalar(strings.TrimPrefix(trimmed, "- ")))
+				item := yamlScalar(strings.TrimPrefix(trimmed, "- "))
+				if src, ok := strings.CutPrefix(item, "src:"); ok {
+					item = yamlScalar(src)
+				}
+				out[id] = append(out[id], item)
+				continue
+			}
+			if indent > filesIndent {
+				// Continuation of a "- src:/dst:" mapping: the packed path is the dst.
+				if dst, ok := strings.CutPrefix(trimmed, "dst:"); ok && len(out[id]) > 0 {
+					out[id][len(out[id])-1] = yamlScalar(dst)
+				}
 				continue
 			}
 			inFiles = false

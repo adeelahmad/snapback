@@ -58,6 +58,10 @@ archives:
     wrap_in_directory: false
     name_template: '{{ .ProjectName }}_all'
     files:
+      - src: LICENSE
+        dst: LICENSE
+      - src: NOTICE
+        dst: NOTICE
       - src: dist/snapback_darwin_amd64_v1/snapback
         dst: darwin_amd64/snapback
       - src: dist/snapback_darwin_arm64_v8.0/snapback
