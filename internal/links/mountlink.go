@@ -15,6 +15,9 @@ import (
 
 const mountOp = "links.EnsureMountLink"
 
+// mountRemoveOp names the operation that withdraws a mount link.
+const mountRemoveOp = "links.RemoveMountLink"
+
 // mountRootID marks registry records for repository mount points, which sit
 // outside every configured root.
 const mountRootID = "mount"
@@ -139,5 +142,38 @@ func writeMountLink(fd int, name, target string, act mountAction) error {
 // RemoveMountLink withdraws the managed link published in dir by
 // EnsureMountLink and deletes its registry record, leaving dir in place.
 func (e *Engine) RemoveMountLink(dir string) error {
-	return nil
+	clean := filepath.Clean(dir)
+	key := mountKeyPrefix + clean
+	unlock := e.lock(key)
+	defer unlock()
+
+	rec, ok, err := e.reg.Get(key)
+	if err != nil || !ok {
+		return err
+	}
+
+	// Mount records sit outside every configured root, so the mount point
+	// is opened directly rather than through rootPath.
+	fd, err := openDirChain(clean, "")
+	if err != nil {
+		return fsErr(err)
+	}
+	defer func() { _ = unix.Close(fd) }()
+
+	name := e.pol.LinkName
+	owned, err := linksTo(fd, name, rec.Target)
+	if errors.Is(err, unix.ENOENT) {
+		return e.reg.Delete(key)
+	}
+	if err != nil {
+		return fsErr(err)
+	}
+	if !owned {
+		link := filepath.Join(clean, name)
+		return errcode.New(errcode.LinkConflict, mountRemoveOp, fmt.Errorf("%q is not a managed link", link))
+	}
+	if err := unlinkAt(fd, name); err != nil {
+		return fsErr(err)
+	}
+	return e.reg.Delete(key)
 }

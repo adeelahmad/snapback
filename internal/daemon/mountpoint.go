@@ -3,7 +3,9 @@ package daemon
 import (
 	"context"
 	"log/slog"
+	"maps"
 	"path/filepath"
+	"slices"
 
 	"github.com/adeelahmad/snapback/internal/history"
 	"github.com/adeelahmad/snapback/internal/links"
@@ -45,11 +47,38 @@ func (d *Daemon) ensureMountLinks(ctx context.Context, gen uint64) {
 			continue
 		}
 		target := filepath.Join(d.cfg.BackendMountDir, r.ID)
+		d.mu.Lock()
+		if d.mountLinks == nil {
+			d.mountLinks = make(map[string]struct{})
+		}
+		d.mountLinks[r.MountPoint] = struct{}{}
+		d.mu.Unlock()
 		if _, err := d.deps.MountLinker.EnsureMountLink(ctx, r.MountPoint, target); err != nil {
 			d.deps.Log.Warn("mount point link failed",
 				slog.String("repo", r.ID),
 				slog.String("mount_point", r.MountPoint),
 				slog.String("remedy", "sudo mkdir -p "+r.MountPoint),
+				slog.Any("err", err))
+		}
+	}
+}
+
+// removeMountLinks withdraws the managed link of every mount point
+// ensureMountLinks published, exactly once. A link that cannot be withdrawn
+// is a warning, never a reason to fail shutdown.
+func (d *Daemon) removeMountLinks(ctx context.Context) {
+	if d.deps.MountLinker == nil {
+		return
+	}
+	d.mu.Lock()
+	dirs := slices.Sorted(maps.Keys(d.mountLinks))
+	d.mountLinks = nil
+	d.mu.Unlock()
+
+	for _, dir := range dirs {
+		if err := d.deps.MountLinker.RemoveMountLink(ctx, dir); err != nil {
+			d.deps.Log.Warn("mount point unlink failed",
+				slog.String("mount_point", dir),
 				slog.Any("err", err))
 		}
 	}

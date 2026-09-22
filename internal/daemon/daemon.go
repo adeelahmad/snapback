@@ -140,10 +140,13 @@ type Daemon struct {
 	mountFailed map[string]bool
 	// mountLinkGen is the catalog generation whose mount points are linked.
 	mountLinkGen uint64
-	cancel       context.CancelFunc // stops Run; nil until Run starts
-	loop         *refresh.Loop      // periodic refresh loop; nil until it starts
-	linkQueued   bool               // a refresh for new links is scheduled
-	linkTimer    *time.Timer        // fires the scheduled link refresh; nil when none
+	// mountLinks holds the mount points whose managed link was published,
+	// so shutdown withdraws exactly those.
+	mountLinks map[string]struct{}
+	cancel     context.CancelFunc // stops Run; nil until Run starts
+	loop       *refresh.Loop      // periodic refresh loop; nil until it starts
+	linkQueued bool               // a refresh for new links is scheduled
+	linkTimer  *time.Timer        // fires the scheduled link refresh; nil when none
 	// lastLog holds the attributes of the last refresh line logged, so an
 	// unchanged outcome is not logged again.
 	lastLog string
@@ -421,7 +424,7 @@ func (d *Daemon) logChanged(line string) bool {
 // shutdown stops the daemon in order: stop answering IPC, cancel finite
 // operations, then unmount the history view before the backend mounts. A
 // busy mount is reported as errcode.MountFailure and never forced. Managed
-// links are left in place.
+// placement links are left in place; the mount point links are withdrawn.
 func (d *Daemon) shutdown(ctx context.Context, l net.Listener) error {
 	d.mu.Lock()
 	d.phase = "stopping"
@@ -438,6 +441,7 @@ func (d *Daemon) shutdown(ctx context.Context, l net.Listener) error {
 	if err := d.deps.History.Unmount(ctx); err != nil {
 		errs = append(errs, mountErr(ctx, "history", err))
 	}
+	d.removeMountLinks(ctx)
 	if err := d.deps.Supervisor.Stop(ctx); err != nil {
 		errs = append(errs, mountErr(ctx, "backend", err))
 	}
