@@ -41,13 +41,17 @@ Backing up was never the problem; restoring is. Most tools make you leave the di
 curl -fsSL https://snapback.run/install.sh | sh
 ```
 
-The installer downloads the latest tagged build from the [releases page](https://github.com/adeelahmad/snapback/releases). That tag predates v0.1 and only prints build information. Until v0.1 is tagged, build from source with Go:
+The installer downloads the latest release (v1.4.0) for your operating system and architecture, verifies it against the signed `checksums.txt`, and installs the binary to `/usr/local/bin`, or to `~/.local/bin` when that directory is not writable or not on your `PATH`.
+
+Before running it you need FUSE (`fuse3` on Linux, [macFUSE](https://macfuse.github.io) on macOS), the `restic` CLI and an existing Restic repository; setup, the service and every command are in the [usage guide](docs-site/usage.md).
+
+Or build from source with Go:
 
 ```sh
 go build ./cmd/snapback
 ```
 
-The `.snapshot` view needs the `restic` CLI and FUSE (`fuse3` on Linux, [macFUSE](https://macfuse.github.io) on macOS). Setup, the service and every command are in the [usage guide](docs-site/usage.md).
+Every binary is built with `CGO_ENABLED=0`, so the Linux builds are statically linked. The `linux/arm`, `linux/mips` and `linux/mipsle` archives carry an `_unverified` suffix: they are cross-compiled but never run on that hardware, and the macOS binaries' linkage and runtime are unverified too. All assets are on the [releases page](https://github.com/adeelahmad/snapback/releases).
 
 ## How it works
 
