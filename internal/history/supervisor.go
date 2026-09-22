@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/provider"
 )
 
@@ -41,6 +42,7 @@ type Supervisor struct {
 	states   map[string]RepoState
 	handles  map[string]provider.MountHandle
 	order    []string
+	failures []string
 	stopping bool
 	stop     chan struct{}
 	wg       sync.WaitGroup
@@ -61,6 +63,13 @@ func NewSupervisor(mounts map[string]provider.Mounter, baseDir string, backoff B
 	}
 }
 
+// MountFailures returns the repos whose mount failed with errcode.MountFailure at startup.
+func (s *Supervisor) MountFailures() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.failures)
+}
+
 // Start mounts every repository and returns once each is ready or failed.
 func (s *Supervisor) Start(ctx context.Context) error {
 	// Mounts outlive Start, so they must not inherit its cancellation or deadline.
@@ -75,6 +84,9 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		s.mu.Lock()
 		if err != nil {
 			s.states[repo] = StateFailed
+			if errcode.Of(err) == errcode.MountFailure {
+				s.failures = append(s.failures, repo)
+			}
 		} else {
 			s.states[repo] = StateReady
 			s.handles[repo] = h

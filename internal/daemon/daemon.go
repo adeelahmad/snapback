@@ -117,9 +117,9 @@ type Daemon struct {
 	lastRefresh time.Time
 	recovery    *status.RecoverySummary
 	prewarmSum  status.PrewarmSummary
-	// mountFailed reports that a mount failed at startup; failed repos then
-	// carry errcode.MountFailure until a later refresh succeeds.
-	mountFailed bool
+	// mountFailed holds the repos whose mount failed; each carries
+	// errcode.MountFailure until it is ready again or a refresh succeeds.
+	mountFailed map[string]bool
 	cancel      context.CancelFunc // stops Run; nil until Run starts
 }
 
@@ -196,17 +196,23 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.mu.Lock()
 	d.recovery = &status.RecoverySummary{Unmounted: rep.Unmounted, Foreign: rep.Foreign}
 	d.mu.Unlock()
-	mountFailed := false
+	mountFailed := make(map[string]bool)
 	if err := d.deps.Supervisor.Start(ctx); err != nil {
 		if errcode.Of(err) != errcode.MountFailure {
 			return err
 		}
-		mountFailed = true
+		if pr, ok := d.deps.Supervisor.(interface{ MountFailures() []string }); ok {
+			for _, id := range pr.MountFailures() {
+				mountFailed[id] = true
+			}
+		} else {
+			markAll(mountFailed, d.deps.Supervisor.States())
+		}
 	}
 	res, err := d.deps.Refresher.Refresh(ctx)
 	switch errcode.Of(err) {
 	case errcode.MountFailure:
-		mountFailed = true
+		markAll(mountFailed, d.deps.Supervisor.States())
 	case errcode.RepoUnavailable:
 	default:
 		if err != nil {
@@ -315,20 +321,22 @@ func mountErr(ctx context.Context, mount string, err error) error {
 // Status returns the daemon status.
 func (d *Daemon) Status() status.Snapshot {
 	d.mu.Lock()
-	phase, res, last, rec, mountFailed := d.phase, d.refresh, d.lastRefresh, d.recovery, d.mountFailed
-	pre := d.prewarmSum
-	d.mu.Unlock()
+	defer d.mu.Unlock()
+	phase, res, last, rec, pre := d.phase, d.refresh, d.lastRefresh, d.recovery, d.prewarmSum
 
 	repos := d.deps.Supervisor.States()
 	for _, id := range res.Failed {
 		repos[id] = history.StateFailed
 	}
 	state, out := status.Derive(phase, repos)
-	if mountFailed {
-		for i := range out {
-			if out[i].Code == errcode.RepoUnavailable {
-				out[i].Code = errcode.MountFailure
-			}
+	for i := range out {
+		if !d.mountFailed[out[i].ID] {
+			continue
+		}
+		if out[i].Code == errcode.RepoUnavailable {
+			out[i].Code = errcode.MountFailure
+		} else {
+			delete(d.mountFailed, out[i].ID)
 		}
 	}
 	return status.Snapshot{
@@ -347,4 +355,11 @@ func (d *Daemon) Status() status.Snapshot {
 // Run builds a Daemon and runs it.
 func Run(ctx context.Context, cfg *config.Config, deps Deps) error {
 	return New(cfg, deps).Run(ctx)
+}
+
+// markAll adds every repo in repos to set.
+func markAll(set map[string]bool, repos map[string]history.RepoState) {
+	for id := range repos {
+		set[id] = true
+	}
 }

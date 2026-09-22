@@ -157,7 +157,7 @@ func (d *Daemon) runRefresh(ctx context.Context) error {
 	d.mu.Lock()
 	d.refresh = res
 	d.lastRefresh = d.deps.Clock()
-	d.mountFailed = false
+	d.mountFailed = nil
 	d.mu.Unlock()
 	return nil
 }
