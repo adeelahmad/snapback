@@ -244,7 +244,7 @@ func TestReadmeStatusSaysEarlyAndLinksStage1(t *testing.T) {
 	if strings.TrimSpace(status) == "" {
 		t.Fatal(`README "## Status" section is missing or empty`)
 	}
-	for _, want := range []string{"early", "linux acceptance evidence is pending", v01Report, stage1Link} {
+	for _, want := range []string{"early", "acceptance run on linux", v01Report, stage1Link} {
 		if !strings.Contains(status, want) {
 			t.Errorf(`README "## Status" section missing %q`, want)
 		}

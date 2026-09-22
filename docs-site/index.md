@@ -35,7 +35,7 @@ These backends are planned, not supported yet:
 
 ## Versions
 
-Versioned documentation is not yet available. Docs will be published per release once v0.1 is tagged.
+This site is built from the `master` branch by the docs workflow (`.github/workflows/docs.yml`) and describes the current release, v1.4.0; per-release documentation is not published. Released versions are listed on the [GitHub releases page](https://github.com/adeelahmad/snapback/releases).
 
 ## Privacy
 
