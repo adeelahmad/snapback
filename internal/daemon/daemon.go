@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"os"
 	"sync"
@@ -117,7 +118,10 @@ type Daemon struct {
 	lastRefresh time.Time
 	recovery    *status.RecoverySummary
 	prewarmSum  status.PrewarmSummary
-	links       int // owned link records, recounted on refresh and link ops
+	// warm is the single source of truth for per-snapshot warm state: the
+	// pre-warm pass and every refresh result merge into it.
+	warm  map[provider.SnapshotID]bool
+	links int // owned link records, recounted on refresh and link ops
 	// mountFailed holds the repos whose mount failed; each carries
 	// errcode.MountFailure until it is ready again or a refresh succeeds.
 	mountFailed map[string]bool
@@ -226,6 +230,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.mu.Lock()
 	d.mountFailed = mountFailed
 	d.refresh = res
+	d.mergeWarm(res.Warm)
 	d.lastRefresh = d.deps.Clock()
 	d.mu.Unlock()
 
@@ -301,8 +306,27 @@ func (d *Daemon) prewarm(ctx context.Context) []provider.PrewarmResult {
 	results := d.deps.Prewarmer.Prewarm(ctx)
 	d.mu.Lock()
 	d.prewarmSum = status.SummarizePrewarm(results, len(d.refresh.Pending), d.deps.Clock())
+	for _, r := range results {
+		d.setWarm(r.ID, r.Warm && r.Err == nil)
+	}
 	d.mu.Unlock()
 	return results
+}
+
+// mergeWarm folds a refresh result's warm state into d.warm. The caller
+// holds d.mu.
+func (d *Daemon) mergeWarm(m map[provider.SnapshotID]bool) {
+	for id, warm := range m {
+		d.setWarm(id, warm)
+	}
+}
+
+// setWarm records the warm state of one snapshot. The caller holds d.mu.
+func (d *Daemon) setWarm(id provider.SnapshotID, warm bool) {
+	if d.warm == nil {
+		d.warm = make(map[provider.SnapshotID]bool)
+	}
+	d.warm[id] = warm
 }
 
 // shutdown stops the daemon in order: stop answering IPC, cancel finite
@@ -379,7 +403,7 @@ func (d *Daemon) Status() status.Snapshot {
 		Generation:    res.Generation,
 		EligibleCount: res.EligibleCount,
 		Links:         d.links,
-		Warm:          res.Warm,
+		Warm:          maps.Clone(d.warm),
 		Prewarm:       pre,
 		Pending:       res.Pending,
 		Discovery:     d.cfg.Discovery.Mode,
