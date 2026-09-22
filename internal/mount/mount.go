@@ -18,6 +18,7 @@ type Entry struct {
 	Ino  uint64
 	Kind Kind
 	Name string
+	Size uint64
 }
 
 // RootIno is the root directory's inode in every catalog.
