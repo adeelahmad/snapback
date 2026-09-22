@@ -18,6 +18,13 @@ type Config struct {
 	Repositories    []Repository `yaml:"repositories"`
 	Roots           []Root       `yaml:"roots"`
 	Service         Service      `yaml:"service"`
+	Telemetry       Telemetry    `yaml:"telemetry,omitempty"`
+}
+
+// Telemetry records the answer to the setup opt-in question. It is off by
+// default; the exporter that would send the counters is a later sprint.
+type Telemetry struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 // Repository is one Restic repository.

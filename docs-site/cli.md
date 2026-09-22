@@ -31,6 +31,7 @@ snapback setup --repo /srv/restic ~/work
 |---|---|
 | `--dry-run` | report the configuration without writing it |
 | `--force` | overwrite an existing configuration |
+| `--no-prompt` | do not ask any question, keep every default |
 | `--no-service` | do not install a background service |
 | `--password-file` | repository password file to use instead of the detected one |
 | `--repo` | Restic repository to use instead of the detected one |

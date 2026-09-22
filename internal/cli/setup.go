@@ -137,6 +137,12 @@ func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) int {
 	for _, note := range advice.Notes {
 		_, _ = fmt.Fprintf(env.Stdout, "note: %s\n", note)
 	}
+	if !o.dryRun && !o.noPrompt {
+		if on, _ := setup.AskOptIn(setupStdin, env.Stdout, setupInteractive()); on {
+			cfg.Telemetry.Enabled = true
+			save = true
+		}
+	}
 	if o.dryRun {
 		b, err := config.Marshal(cfg)
 		if err != nil {
