@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
 )
@@ -48,6 +49,14 @@ func Detect(probe Probe) (Manager, error) {
 
 // ForManager returns the Installer for m.
 func ForManager(m Manager, unitDir, config string) (Installer, error) {
+	if m == "systemd" {
+		return &Systemd{UnitDir: unitDir, Run: execRunner}, nil
+	}
 	return nil, errcode.New(errcode.UnsupportedServiceManager, "service install",
 		fmt.Errorf("%w %q; run in the foreground instead: snapback run --config %s", ErrUnsupportedManager, m, config))
+}
+
+// execRunner runs name with args directly (no shell) and returns its stdout.
+func execRunner(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return exec.CommandContext(ctx, name, args...).Output()
 }
