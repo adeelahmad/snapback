@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"slices"
@@ -18,6 +19,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/provider/restic"
 	"github.com/adeelahmad/snapback/internal/rawpath"
 	"github.com/adeelahmad/snapback/internal/resolver"
+	"github.com/adeelahmad/snapback/internal/setup"
 )
 
 // productionOptions builds the Options that serve uses for cfg loaded from
@@ -31,6 +33,15 @@ func productionOptions(cfg *config.Config, configPath string) Options {
 		History:   mountHistory{cfg: cfg},
 		Validator: resticValidator{},
 		Opener:    openBrowser,
+		SetupDeps: setup.Deps{
+			Getenv:   os.Getenv,
+			LookPath: exec.LookPath,
+			Getwd:    os.Getwd,
+			Hostname: os.Hostname,
+		},
+		SetupRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			return exec.CommandContext(ctx, name, args...).Output()
+		},
 	}
 }
 

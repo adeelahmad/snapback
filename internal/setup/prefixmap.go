@@ -67,3 +67,10 @@ func matchingSourcePath(local, host string, snaps []ProbedSnapshot) string {
 	}
 	return best
 }
+
+// DerivePrefixMap is derivePrefixMap for callers outside this package: it
+// picks the snapshot hostname and the prefix mappings that make local resolve
+// against snaps.
+func DerivePrefixMap(local string, snaps []ProbedSnapshot) (hostname string, mappings []config.PrefixMapping, reason string) {
+	return derivePrefixMap(local, snaps)
+}

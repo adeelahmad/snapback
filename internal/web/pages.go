@@ -116,6 +116,29 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 			v.Roots = append(v.Roots, root.LocalPath)
 		}
 	}
+	d := s.detect(r.Context())
+	restic = append(restic, d.ResticPath)
+	rclone = append(rclone, d.RclonePath)
+	if v.RepoURI == "" {
+		v.RepoURI = d.RepoURI
+	}
+	if v.CredentialFile == "" {
+		v.CredentialFile = d.CredentialFile
+	}
+	if len(v.Roots) == 0 {
+		v.Roots = d.Roots
+	}
+	v.DetectedHost = webui.Control{
+		Path:  "hostname",
+		Label: "Snapshot hostname",
+		Value: d.Hostname,
+		Help:  "The hostname Snapback resolves snapshots under.",
+	}
+	v.DetectedPrefix = webui.Control{Path: "prefix_map", Label: "Detected prefix map"}
+	for _, m := range d.PrefixMap {
+		v.DetectedPrefix.Options = append(v.DetectedPrefix.Options,
+			webui.ControlOption{Value: m.SourcePath, Label: m.SourcePath})
+	}
 	v.ResticPaths = binaries(restic, "restic")
 	v.RclonePaths = binaries(rclone, "rclone")
 	s.render(w, "setup", v)

@@ -22,7 +22,19 @@
 <input type="text" id="repo-uri" name="repo_uri" value="{{.RepoURI}}" required>
 <label for="credential-file">Password file</label>
 <input type="text" id="credential-file" name="credential_file" value="{{.CredentialFile}}">
-<label for="roots">Roots, one per line</label>
+{{with .DetectedHost}}{{if .Value}}<div class="field">
+<label class="field__label" for="f-{{.Path}}">{{.Label}}</label>
+<input class="field__control" type="text" id="f-{{.Path}}" name="{{.Path}}" value="{{.Value}}" aria-describedby="f-{{.Path}}-help">
+<p class="field__help" id="f-{{.Path}}-help">{{.Help}}</p>
+</div>
+{{end}}{{end}}{{with .DetectedPrefix}}{{if .Options}}<fieldset class="field field--rows">
+<legend class="field__label">{{.Label}}</legend>
+{{range $i, $o := .Options}}<div class="field__row">
+<label class="field__label" for="f-{{$.DetectedPrefix.Path}}[{{$i}}]">{{$o.Label}}</label>
+<input class="field__control" type="text" id="f-{{$.DetectedPrefix.Path}}[{{$i}}]" name="{{$.DetectedPrefix.Path}}[{{$i}}]" value="{{$o.Value}}">
+</div>
+{{end}}</fieldset>
+{{end}}{{end}}<label for="roots">Roots, one per line</label>
 <textarea id="roots" name="roots" rows="4">{{range .Roots}}{{.}}
 {{end}}</textarea>
 <button type="submit">Save setup</button>
