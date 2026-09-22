@@ -1,0 +1,20 @@
+{
+  "platform": "darwin/arm64",
+  "go_fuse_version": "v2.11.0",
+  "operations": [
+    "mount",
+    "readdir /",
+    "readdir docs",
+    "readlink rel",
+    "readlink up",
+    "readlink abs",
+    "readlink docs/readme-link",
+    "mkdir",
+    "writefile",
+    "lstat docs x2",
+    "unmount",
+    "verify unmounted"
+  ],
+  "result": "pass",
+  "timestamp": "2026-09-22T03:07:01Z"
+}
