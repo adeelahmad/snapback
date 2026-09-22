@@ -2,11 +2,16 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"net"
+	"os"
+	"sync"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/history"
+	"github.com/adeelahmad/snapback/internal/ipc"
 	"github.com/adeelahmad/snapback/internal/links"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/readerpolicy"
@@ -82,22 +87,108 @@ type Deps struct {
 	Trace func(step string)
 }
 
+// defaultShutdownTimeout bounds shutdown when Deps leaves it unset.
+const defaultShutdownTimeout = 10 * time.Second
+
 // Daemon is a running Snapback daemon.
-type Daemon struct{}
+type Daemon struct {
+	cfg  *config.Config
+	deps Deps
+
+	mu          sync.Mutex
+	phase       string
+	refresh     RefreshResult
+	lastRefresh time.Time
+}
 
 // New returns a Daemon for cfg and deps.
 func New(cfg *config.Config, deps Deps) *Daemon {
-	panic("SUB-AGENT-TODO: store cfg and deps; default Clock to time.Now and ShutdownTimeout per Decisions; initial state starting")
+	if deps.Clock == nil {
+		deps.Clock = time.Now
+	}
+	if deps.ShutdownTimeout <= 0 {
+		deps.ShutdownTimeout = defaultShutdownTimeout
+	}
+	return &Daemon{cfg: cfg, deps: deps, phase: "starting"}
+}
+
+func (d *Daemon) trace(step string) {
+	if d.deps.Trace != nil {
+		d.deps.Trace(step)
+	}
 }
 
 // Run starts the daemon and blocks until ctx is done.
 func (d *Daemon) Run(ctx context.Context) error {
-	panic("SUB-AGENT-TODO: reject nil cfg or empty Roots with invalid_configuration before any side effect; then Lock(stateDir) (trace lock), serve ipc on Listener (trace ipc), Recover, Supervisor.Start, Refresh (failed repos -> degraded, not fatal), Discovery.Start, Prewarm; set ready/degraded; never walk roots; block until ctx done")
+	if d.cfg == nil || len(d.cfg.Repositories) == 0 || len(d.cfg.Roots) == 0 {
+		return errcode.New(errcode.InvalidConfig, "daemon run", errors.New("config needs repositories and roots"))
+	}
+
+	unlock, err := Lock(d.cfg.StateDir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	d.trace("lock")
+
+	go func() {
+		_ = ipc.Serve(ctx, d.deps.Listener, d.handle, ipc.ServeOptions{UID: uint32(os.Getuid())})
+	}()
+	d.trace("ipc")
+
+	if _, err := d.deps.Recoverer.Recover(ctx); err != nil {
+		return err
+	}
+	if err := d.deps.Supervisor.Start(ctx); err != nil {
+		return err
+	}
+	res, err := d.deps.Refresher.Refresh(ctx)
+	if err != nil && errcode.Of(err) != errcode.RepoUnavailable {
+		return err
+	}
+	d.mu.Lock()
+	d.refresh = res
+	d.lastRefresh = d.deps.Clock()
+	d.mu.Unlock()
+
+	if err := d.deps.Discovery.Start(ctx); err != nil {
+		return err
+	}
+	d.deps.Prewarmer.Prewarm(ctx)
+
+	d.mu.Lock()
+	d.phase = "ready"
+	d.mu.Unlock()
+
+	<-ctx.Done()
+	return nil
+}
+
+// handle answers IPC requests until the op handlers land.
+func (d *Daemon) handle(context.Context, ipc.Request) ipc.Response {
+	return ipc.Response{Code: errcode.InvalidConfig, Error: "unknown op"}
 }
 
 // Status returns the daemon status.
 func (d *Daemon) Status() status.Snapshot {
-	panic("SUB-AGENT-TODO: build status.Snapshot from daemon state, Supervisor.States and last RefreshResult: State starting/ready/degraded, per-repo Code (repository_unavailable for failed), Generation, LastRefresh from Clock")
+	d.mu.Lock()
+	phase, res, last := d.phase, d.refresh, d.lastRefresh
+	d.mu.Unlock()
+
+	repos := d.deps.Supervisor.States()
+	for _, id := range res.Failed {
+		repos[id] = history.StateFailed
+	}
+	state, out := status.Derive(phase, repos)
+	return status.Snapshot{
+		State:         state,
+		Repos:         out,
+		LastRefresh:   last,
+		Generation:    res.Generation,
+		EligibleCount: res.EligibleCount,
+		Warm:          res.Warm,
+		Pending:       res.Pending,
+	}
 }
 
 // Run builds a Daemon and runs it.
