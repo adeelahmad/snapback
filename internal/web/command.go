@@ -2,17 +2,23 @@ package web
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
+	"github.com/adeelahmad/snapback/internal/ipc"
+	"github.com/adeelahmad/snapback/internal/status"
 	"github.com/adeelahmad/snapback/internal/webui"
 )
 
@@ -159,8 +165,35 @@ type fileBackend struct {
 	path string
 }
 
+// statusTimeout bounds one status call to the daemon.
+const statusTimeout = 2 * time.Second
+
+// Status returns the daemon's status.Snapshot, or an error value whose code
+// is prerequisite_missing when the daemon is down.
 func (b fileBackend) Status() any {
-	return nil
+	cfg, _, err := config.Load(b.path)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), statusTimeout)
+	defer cancel()
+	c, err := ipc.Dial(ctx, ipc.SocketPath(os.Getenv, cfg.StateDir))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = c.Close() }()
+	resp, err := c.Call(ctx, ipc.Request{V: 1, Op: ipc.OpStatus})
+	if err != nil {
+		return errcode.New(errcode.PrereqMissing, "daemon status", err)
+	}
+	if !resp.OK {
+		return errcode.New(resp.Code, "daemon status", errors.New(resp.Error))
+	}
+	var snap status.Snapshot
+	if err := json.Unmarshal(resp.Data, &snap); err != nil {
+		return fmt.Errorf("decode daemon status: %w", err)
+	}
+	return snap
 }
 
 func (b fileBackend) Config() (*config.Config, config.Revision, error) {

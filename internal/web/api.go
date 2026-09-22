@@ -40,7 +40,12 @@ func writeError(w http.ResponseWriter, status int, code errcode.Code, err error)
 }
 
 func (s *Server) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, s.opts.Backend.Status())
+	st := s.opts.Backend.Status()
+	if err, ok := st.(error); ok {
+		writeError(w, http.StatusServiceUnavailable, errcode.Of(err), err)
+		return
+	}
+	writeJSON(w, http.StatusOK, st)
 }
 
 func (s *Server) handleAPIConfigGet(w http.ResponseWriter, r *http.Request) {
