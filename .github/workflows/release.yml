@@ -72,3 +72,17 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check Linux linkage
+        run: |
+          set -eu
+          : > linkage-linux.txt
+          for bin in dist/snapback_linux_amd64*/snapback dist/snapback_linux_arm64*/snapback; do
+            file "$bin" | tee -a linkage-linux.txt
+            ldd "$bin" >> linkage-linux.txt 2>&1 || true
+            file "$bin" | grep -q "statically linked"
+            ldd "$bin" 2>&1 | grep -q "not a dynamic executable"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linkage-linux
+          path: linkage-linux.txt
