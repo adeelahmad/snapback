@@ -86,7 +86,7 @@ repositories:
     repository: @REPO@
     restic_binary: @RESTIC@
     password_file: @PW@
-    no_cache: true
+    cache_dir: @STATE@/cache
     lock_mode: normal
 roots:
   - id: work

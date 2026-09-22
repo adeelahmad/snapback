@@ -93,8 +93,9 @@ func TestAcc12CrawlerZeroReadsAndThrottle(t *testing.T) {
 
 	// Watch only the pack files. The daemon's own restic processes open config,
 	// keys, locks, snapshots and index in the background; that is not a crawler
-	// read. Any file or directory content served through .snapshot comes from
-	// data/ packs, so opens there are the ones a crawler could cause.
+	// read. The repository has a cache_dir, so restic serves tree packs, the
+	// index and the snapshot list from the cache and only file content blobs
+	// still come out of data/, which makes opens there the crawler's reads.
 	c := watchOpens(t, filepath.Join(repo, "data"))
 	time.Sleep(crawlerSettle)
 	if got := c.n.Load(); got != 0 {
