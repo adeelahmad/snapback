@@ -1,6 +1,9 @@
 package projectdocs
 
 import (
+	"os/exec"
+	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -104,6 +107,107 @@ func TestSpecIsNotScanned(t *testing.T) {
 	for _, name := range publicDocs {
 		if name == "SPEC.md" {
 			t.Errorf("publicDocs contains SPEC.md")
+		}
+	}
+}
+
+// adoptionSurfaces are the files a new user reads before and during install.
+// They get the narrower pins below rather than the blanket banned-word scan
+// publicDocs gets.
+func adoptionSurfaces(t *testing.T) map[string]string {
+	t.Helper()
+	names := []string{"README.md", "install.sh", "web/src/content.ts"}
+	pages, err := filepath.Glob(filepath.Join(repoRoot(t), "docs-site", "*.md"))
+	if err != nil {
+		t.Fatalf("glob docs-site: %v", err)
+	}
+	if len(pages) == 0 {
+		t.Fatalf("no docs-site pages found")
+	}
+	for _, page := range pages {
+		names = append(names, path.Join("docs-site", filepath.Base(page)))
+	}
+	surfaces := map[string]string{}
+	for _, name := range names {
+		surfaces[name] = readDoc(t, name)
+	}
+	return surfaces
+}
+
+var (
+	macOSRe          = regexp.MustCompile(`(?i)(macos|darwin)`)
+	installServiceRe = regexp.MustCompile(`(?i)install service`)
+	caveatRe         = regexp.MustCompile(`(?i)(linux-only|\bnot\b)`)
+	sentenceSplitRe  = regexp.MustCompile(`[.!?;]\s+|\n`)
+	evidenceClaimRe  = regexp.MustCompile(`(?i)\b(production-ready|cross-platform|finder-integrated|static)\b`)
+	evidenceLinkRe   = regexp.MustCompile(`docs/reports/`)
+	quickStartCmdRe  = regexp.MustCompile(`snapback\s+([a-z][a-z-]*)`)
+	rootCommandRe    = regexp.MustCompile(`^  ([a-z][a-z-]*)  `)
+)
+
+// TestNoMacOSInstallServiceInstruction pins that no adoption surface tells a
+// macOS reader to run `snapback install service`: the login service is
+// Linux-only, so a sentence naming both must carry that caveat.
+func TestNoMacOSInstallServiceInstruction(t *testing.T) {
+	for name, doc := range adoptionSurfaces(t) {
+		t.Run(name, func(t *testing.T) {
+			for _, s := range sentenceSplitRe.Split(doc, -1) {
+				if !macOSRe.MatchString(s) || !installServiceRe.MatchString(s) {
+					continue
+				}
+				if !caveatRe.MatchString(s) {
+					t.Errorf("%s: macOS sentence names `install service` without a caveat: %s", name, strings.TrimSpace(s))
+				}
+			}
+		})
+	}
+}
+
+// TestBigClaimsCiteEvidence pins that the strongest adoption claims appear
+// only on lines that link the evidence file under docs/reports/.
+func TestBigClaimsCiteEvidence(t *testing.T) {
+	for name, doc := range adoptionSurfaces(t) {
+		t.Run(name, func(t *testing.T) {
+			for i, line := range strings.Split(doc, "\n") {
+				for _, m := range evidenceClaimRe.FindAllString(line, -1) {
+					if !evidenceLinkRe.MatchString(line) {
+						t.Errorf("%s:%d: claim %q without a docs/reports/ link: %s", name, i+1, m, strings.TrimSpace(line))
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestQuickStartNamesRegisteredCommandsOnly pins the README's quick start
+// against the commands the binary actually registers.
+func TestQuickStartNamesRegisteredCommandsOnly(t *testing.T) {
+	quick := section(readDoc(t, "README.md"), "## Quick start")
+	if strings.TrimSpace(quick) == "" {
+		t.Fatalf("README.md has no `## Quick start` section")
+	}
+
+	bin := filepath.Join(t.TempDir(), "snapback")
+	build := exec.Command("go", "build", "-o", bin, "./cmd/snapback")
+	build.Dir = repoRoot(t)
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("go build ./cmd/snapback: %v\n%s", err, out)
+	}
+	// --help may exit non-zero; the text is what matters.
+	help, _ := exec.Command(bin, "--help").CombinedOutput()
+	registered := map[string]bool{}
+	for _, line := range strings.Split(string(help), "\n") {
+		if m := rootCommandRe.FindStringSubmatch(line); m != nil {
+			registered[m[1]] = true
+		}
+	}
+	if len(registered) == 0 {
+		t.Fatalf("no commands parsed from `snapback --help`:\n%s", help)
+	}
+
+	for _, m := range quickStartCmdRe.FindAllStringSubmatch(quick, -1) {
+		if !registered[m[1]] {
+			t.Errorf("README.md quick start names `snapback %s`, which the binary does not register", m[1])
 		}
 	}
 }
