@@ -252,10 +252,28 @@ func TestIntegrationUserServiceInstallReadyUninstall(t *testing.T) {
 		t.Fatalf("Ready() = %q, %v, want %q, nil", state, err, "ready")
 	}
 
+	// Seeding is explicit (SPEC.md §"Seeding"): the daemon links nothing by
+	// itself, so the root gets its .snapshot entry from an explicit link.
+	link := exec.CommandContext(ctx, exe, "--config", cfgPath, "link", root)
+	if out, err := link.CombinedOutput(); err != nil {
+		t.Fatalf("snapback --config %s link %s = %v\n%s", cfgPath, root, err, out)
+	}
+
+	// The daemon publishes the history entry after a debounced refresh, so
+	// poll instead of reading the directory once.
 	latest := filepath.Join(root, ".snapshot", "latest") + "/"
-	ls, err := exec.CommandContext(ctx, "sh", "-c", `ls "$1"`, "sh", latest).CombinedOutput()
-	if err != nil || !strings.Contains(string(ls), "fixture.txt") {
-		t.Errorf("sh -c ls %s = %q, %v, want it to list fixture.txt", latest, ls, err)
+	var ls []byte
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		ls, err = exec.CommandContext(ctx, "sh", "-c", `ls "$1"`, "sh", latest).CombinedOutput()
+		if err == nil && strings.Contains(string(ls), "fixture.txt") {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Errorf("sh -c ls %s = %q, %v, want it to list fixture.txt", latest, ls, err)
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	if err := s.Uninstall(ctx); err != nil {
