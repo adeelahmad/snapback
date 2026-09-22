@@ -17,6 +17,9 @@ import (
 
 const likelyIdentical = "likely identical"
 
+// errSnapshotID answers a snapshot parameter that is not a full 64-hex ID.
+var errSnapshotID = errors.New("use the full snapshot id")
+
 type rootJSON struct {
 	ID    string `json:"id"`
 	Path  string `json:"path"`
@@ -73,13 +76,21 @@ func (s *Server) handleAPIRoots(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAPIHistory(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	root := q.Get("root")
+	root, id := q.Get("root"), provider.SnapshotID(q.Get("snapshot"))
+	if id != "" && !id.Valid() {
+		writeError(w, http.StatusBadRequest, errcode.InvalidConfig, errSnapshotID)
+		return
+	}
 	dir, err := s.resolve(root, q.Get("path"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, errcode.InvalidConfig, err)
 		return
 	}
-	entries, err := s.opts.History.List(r.Context(), root, dir, provider.SnapshotID(q.Get("snapshot")))
+	entries, err := s.opts.History.List(r.Context(), root, dir, id)
+	if errcode.Of(err) == errcode.MappingAbsent {
+		writeError(w, http.StatusNotFound, errcode.MappingAbsent, err)
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, errcode.Of(err), err)
 		return
@@ -102,6 +113,10 @@ func (s *Server) handleAPIVersions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	versions, err := s.opts.History.Versions(r.Context(), root, file)
+	if errcode.Of(err) == errcode.MappingAbsent {
+		writeError(w, http.StatusNotFound, errcode.MappingAbsent, err)
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, errcode.Of(err), err)
 		return
@@ -125,13 +140,17 @@ func (s *Server) handleAPIVersions(w http.ResponseWriter, r *http.Request) {
 // opened through os.OpenRoot so ".." and symlinks cannot leave the snapshot.
 func (s *Server) handleAPIDownload(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	root := q.Get("root")
+	root, id := q.Get("root"), provider.SnapshotID(q.Get("snapshot"))
+	if !id.Valid() {
+		writeError(w, http.StatusBadRequest, errcode.InvalidConfig, errSnapshotID)
+		return
+	}
 	file, err := s.resolve(root, q.Get("path"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, errcode.InvalidConfig, err)
 		return
 	}
-	snapDir, _, err := s.opts.History.SnapshotDir(root, provider.SnapshotID(q.Get("snapshot")))
+	snapDir, _, err := s.opts.History.SnapshotDir(root, id)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, errcode.InvalidConfig, err)
 		return

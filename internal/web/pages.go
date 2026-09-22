@@ -1,12 +1,18 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
+	"os/exec"
+	"slices"
 	"strconv"
 	"time"
 
+	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/provider"
+	"github.com/adeelahmad/snapback/internal/status"
 	"github.com/adeelahmad/snapback/internal/webui"
 )
 
@@ -25,11 +31,136 @@ func (s *Server) render(w http.ResponseWriter, name webui.PageName, data any) {
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "status", webui.StatusView{Chrome: s.chrome(r, "status", "Status")})
+	v := webui.StatusView{Chrome: s.chrome(r, "status", "Status")}
+	if s.opts.Backend != nil {
+		switch st := s.opts.Backend.Status().(type) {
+		case status.Snapshot:
+			v = statusView(v, st)
+		case error:
+			v.Errors = append(v.Errors, st.Error())
+		}
+		if cfg, _, err := s.opts.Backend.Config(); err == nil && cfg != nil {
+			v.DiscoveryMode = cfg.Discovery.Mode
+		}
+		if lc, ok := s.opts.Backend.(linkCounter); ok {
+			if n, err := lc.ManagedLinks(); err == nil {
+				v.ManagedLinks = &n
+			}
+		}
+	}
+	s.render(w, "status", v)
 }
 
+// linkCounter is a Backend that can count the registry-owned links.
+type linkCounter interface {
+	ManagedLinks() (int, error)
+}
+
+// statusView fills v from the daemon snapshot st. Metrics the snapshot does
+// not report stay nil, so the page shows them as not reported.
+func statusView(v webui.StatusView, st status.Snapshot) webui.StatusView {
+	for _, repo := range st.Repos {
+		state := repo.State
+		if state == "ready" {
+			state = "mounted"
+		}
+		v.Mounts = append(v.Mounts, webui.MountStatus{Name: repo.ID, State: state})
+		if repo.Code != "" {
+			v.Errors = append(v.Errors, repo.ID+": "+string(repo.Code))
+		}
+	}
+	if !st.LastRefresh.IsZero() {
+		last := st.LastRefresh.Format(time.RFC3339)
+		v.LastRefresh = &last
+	}
+	if st.EligibleCount != nil {
+		n := 0
+		for _, c := range st.EligibleCount {
+			n += c
+		}
+		v.EligibleSnapshots = &n
+	}
+	if st.Throttle != nil {
+		n := len(st.Throttle)
+		v.ThrottleEvents = &n
+	}
+	p := st.Prewarm
+	v.Prewarm = fmt.Sprintf("%d warm, %d cold, %d pending", p.Warm, p.Cold, p.Pending)
+	v.DiscoveryMode = st.Discovery
+	return v
+}
+
+// handleSetup prefills the Setup form from the stored config and offers the
+// configured and PATH-detected restic and rclone binaries.
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "setup", webui.SetupView{Chrome: s.chrome(r, "setup", "Setup")})
+	v := webui.SetupView{Chrome: s.chrome(r, "setup", "Setup")}
+	var cfg *config.Config
+	if s.opts.Backend != nil {
+		c, _, err := s.opts.Backend.Config()
+		if err != nil {
+			v.Errors = append(v.Errors, err.Error())
+		}
+		cfg = c
+	}
+	var restic, rclone []string
+	if cfg != nil {
+		for _, repo := range cfg.Repositories {
+			restic = append(restic, repo.ResticBinary)
+			rclone = append(rclone, repo.RcloneBinary)
+		}
+		if len(cfg.Repositories) > 0 {
+			v.RepoURI = cfg.Repositories[0].Repository
+			v.CredentialFile = cfg.Repositories[0].PasswordFile
+		}
+		for _, root := range cfg.Roots {
+			v.Roots = append(v.Roots, root.LocalPath)
+		}
+	}
+	v.ResticPaths = binaries(restic, "restic")
+	v.RclonePaths = binaries(rclone, "rclone")
+	s.render(w, "setup", v)
+}
+
+// binaries returns the non-empty configured paths followed by name's PATH
+// lookup, without duplicates.
+func binaries(configured []string, name string) []string {
+	if p, err := exec.LookPath(name); err == nil {
+		configured = append(configured, p)
+	}
+	var out []string
+	for _, p := range configured {
+		if p != "" && !slices.Contains(out, p) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// fillConfigView copies the fields the Config form shows from cfg into v.
+func fillConfigView(v *webui.ConfigView, cfg *config.Config) {
+	for _, root := range cfg.Roots {
+		v.Roots = append(v.Roots, root.LocalPath)
+		if root.Snapshots.Hostname != "" {
+			v.Filters = append(v.Filters, "host="+root.Snapshots.Hostname)
+		}
+		for _, tag := range root.Snapshots.TagsAll {
+			v.Filters = append(v.Filters, "tag="+tag)
+		}
+		v.Exclusions = append(v.Exclusions, root.ExcludeRelativePaths...)
+		for _, seed := range root.SeedPaths {
+			v.SeedPaths = append(v.SeedPaths, seed.Path)
+		}
+	}
+	for _, repo := range cfg.Repositories {
+		if repo.CacheDir != "" {
+			v.CacheDir = repo.CacheDir
+			break
+		}
+	}
+	v.DiscoveryMode = cfg.Discovery.Mode
+	if cfg.Catalog.RefreshInterval > 0 {
+		v.RefreshInterval = cfg.Catalog.RefreshInterval.String()
+	}
 }
 
 func (s *Server) handleIntegrations(w http.ResponseWriter, r *http.Request) {
@@ -39,13 +170,75 @@ func (s *Server) handleIntegrations(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	v := webui.ConfigView{Chrome: s.chrome(r, "config", "Config")}
 	if s.opts.Backend != nil {
-		_, rev, err := s.opts.Backend.Config()
+		cfg, rev, err := s.opts.Backend.Config()
 		if err != nil {
 			v.Errors = append(v.Errors, err.Error())
 		}
 		v.Revision = string(rev)
+		if cfg != nil {
+			fillConfigView(&v, cfg)
+		}
 	}
 	s.render(w, "config", v)
+}
+
+// browse fills v's linked directories when p is empty, else p's snapshots
+// newest first with id marked selected. Absent history for p leaves both
+// empty.
+func (s *Server) browse(v *webui.HistoryView, b snapshotBrowser, root, p string, id provider.SnapshotID) error {
+	dir, err := s.resolve(root, p)
+	if err != nil {
+		return err
+	}
+	if p == "" {
+		dirs, _ := b.LinkedDirs(root)
+		for _, d := range dirs {
+			v.LinkedDirs = append(v.LinkedDirs, webui.LinkedDir{Path: d, URL: historyURL(root, d)})
+		}
+		return nil
+	}
+	snaps, _ := b.Snapshots(root, dir)
+	for _, sn := range snaps {
+		v.Timeline = append(v.Timeline, webui.SnapshotTick{
+			ID:       string(sn.ID),
+			Time:     sn.Time.Format(time.RFC3339),
+			Alias:    sn.Alias,
+			Host:     sn.Host,
+			URL:      historyURL(root, p) + "&snapshot=" + url.QueryEscape(string(sn.ID)),
+			Selected: sn.ID == id,
+		})
+	}
+	return nil
+}
+
+// historyURL is the history page for p in root, root first.
+func historyURL(root, p string) string {
+	return "/history?root=" + url.QueryEscape(root) + "&path=" + url.QueryEscape(p)
+}
+
+// rootRepoStates maps each configured root ID to its repository's state in
+// the daemon status. It is empty without a Backend or a daemon status.
+func (s *Server) rootRepoStates() map[string]string {
+	out := map[string]string{}
+	if s.opts.Backend == nil {
+		return out
+	}
+	st, ok := s.opts.Backend.Status().(status.Snapshot)
+	if !ok {
+		return out
+	}
+	cfg, _, err := s.opts.Backend.Config()
+	if err != nil || cfg == nil {
+		return out
+	}
+	repos := map[string]string{}
+	for _, repo := range st.Repos {
+		repos[repo.ID] = repo.State
+	}
+	for _, root := range cfg.Roots {
+		out[root.ID] = repos[root.RepositoryID]
+	}
+	return out
 }
 
 // handleHistory lists the roots and, when root and snapshot are given, the
@@ -56,11 +249,25 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 		s.render(w, "history", v)
 		return
 	}
+	repoStates := s.rootRepoStates()
 	for _, root := range s.opts.History.Roots() {
-		v.Roots = append(v.Roots, webui.RootItem{Name: root.ID, Path: root.Path, RepoState: root.State})
+		v.Roots = append(v.Roots, webui.RootItem{
+			Name: root.ID, Path: root.Path, RepoState: repoStates[root.ID], MountState: root.State,
+		})
 	}
 	q := r.URL.Query()
 	root, id := q.Get("root"), provider.SnapshotID(q.Get("snapshot"))
+	v.Root, v.Path = root, q.Get("path")
+	if id != "" && !id.Valid() {
+		writeError(w, http.StatusBadRequest, errcode.InvalidConfig, errSnapshotID)
+		return
+	}
+	if b, ok := s.opts.History.(snapshotBrowser); ok && root != "" {
+		if err := s.browse(&v, b, root, q.Get("path"), id); err != nil {
+			writeError(w, http.StatusBadRequest, errcode.InvalidConfig, err)
+			return
+		}
+	}
 	if root != "" && id != "" {
 		dir, err := s.resolve(root, q.Get("path"))
 		if err != nil {

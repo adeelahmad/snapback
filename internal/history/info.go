@@ -34,6 +34,7 @@ type infoSnapshot struct {
 	ID    string `json:"id"`
 	Alias string `json:"alias"`
 	Time  string `json:"time"`
+	Host  string `json:"host,omitempty"`
 }
 
 // infoJSON renders info.json for d with the given state and linked snapshots.
@@ -52,7 +53,11 @@ func infoJSON(d Dir, state string, stale bool, linked []resolver.Eligible) ([]by
 		doc.Code = string(errcode.RepoUnavailable)
 	}
 	for _, e := range linked {
-		s := infoSnapshot{ID: string(e.Snapshot.ID), Time: e.Snapshot.Time.UTC().Format(time.RFC3339)}
+		s := infoSnapshot{
+			ID:   string(e.Snapshot.ID),
+			Time: e.Snapshot.Time.UTC().Format(time.RFC3339),
+			Host: e.Snapshot.Hostname,
+		}
 		for _, a := range d.Aliases.Aliases {
 			if a.ID == e.Snapshot.ID {
 				s.Alias = a.Name

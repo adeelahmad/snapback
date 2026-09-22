@@ -15,6 +15,21 @@ type History interface {
 	Versions(ctx context.Context, root, file string) ([]Version, error)
 }
 
+// snapshotBrowser is implemented by History readers that can list a path's
+// snapshots and a root's linked directories for page navigation.
+type snapshotBrowser interface {
+	Snapshots(root, rel string) ([]SnapshotInfo, error)
+	LinkedDirs(root string) ([]string, error)
+}
+
+// SnapshotInfo is one snapshot of a linked directory.
+type SnapshotInfo struct {
+	ID    provider.SnapshotID
+	Alias string
+	Time  time.Time
+	Host  string
+}
+
 // Root is one configured backup root.
 type Root struct {
 	ID, Path string

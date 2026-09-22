@@ -3,8 +3,11 @@ package webui
 // HistoryView is the History page model.
 type HistoryView struct {
 	Chrome
+	// Root and Path are the selected root and path; snapshot forms keep them.
+	Root, Path      string
 	Roots           []RootItem
 	Timeline        []SnapshotTick
+	LinkedDirs      []LinkedDir
 	Entries         []Entry
 	Versions        *VersionsPanel
 	FileManagerPath string
@@ -16,11 +19,19 @@ type RootItem struct {
 	RepoState, MountState string
 }
 
-// SnapshotTick is one snapshot on the timeline.
+// LinkedDir is one linked directory of the selected root; URL opens its
+// history.
+type LinkedDir struct {
+	Path, URL string
+}
+
+// SnapshotTick is one snapshot on the timeline; URL selects it.
 type SnapshotTick struct {
-	ID, Time string
-	Warm     bool
-	Selected bool
+	ID, Time    string
+	Alias, Host string
+	URL         string
+	Warm        bool
+	Selected    bool
 }
 
 // Entry is one row of the file list; State is ok, absent or failed.

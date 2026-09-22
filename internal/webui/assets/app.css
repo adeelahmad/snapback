@@ -61,6 +61,15 @@ pre,
   border-bottom: 1px solid var(--line);
 }
 
+.site-header nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .wordmark {
   display: inline-flex;
 }
@@ -134,7 +143,7 @@ main {
 .versions {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: var(--space-4);
 }
 
 .roots li,

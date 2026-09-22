@@ -6,13 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/provider/restic"
+	"github.com/adeelahmad/snapback/internal/rawpath"
 	"github.com/adeelahmad/snapback/internal/resolver"
 )
 
@@ -38,10 +42,13 @@ type mountHistory struct {
 
 // mountInfo is the part of a directory's info.json that the web UI reads.
 type mountInfo struct {
-	State     string `json:"state"`
+	Rel       rawpath.Path `json:"rel"`
+	State     string       `json:"state"`
 	Snapshots []struct {
-		ID   provider.SnapshotID `json:"id"`
-		Time time.Time           `json:"time"`
+		ID    provider.SnapshotID `json:"id"`
+		Alias string              `json:"alias"`
+		Time  time.Time           `json:"time"`
+		Host  string              `json:"host"`
 	} `json:"snapshots"`
 }
 
@@ -85,7 +92,11 @@ func (h mountHistory) List(ctx context.Context, root, dir string, id provider.Sn
 		}
 		snap = filepath.Join("snapshots", string(id))
 	}
-	des, err := os.ReadDir(filepath.Join(h.dirPath(root, rel), snap))
+	linked, sub, err := h.linkedAncestor(root, rel)
+	if err != nil {
+		return nil, err
+	}
+	des, err := os.ReadDir(filepath.Join(h.dirPath(root, linked), snap, sub))
 	if err != nil {
 		return nil, err
 	}
@@ -105,17 +116,17 @@ func (h mountHistory) Versions(ctx context.Context, root, file string) ([]Versio
 	if err != nil {
 		return nil, err
 	}
-	parent, name := filepath.Dir(rel), filepath.Base(rel)
-	if parent == "." {
-		parent = ""
+	linked, sub, err := h.linkedAncestor(root, rel)
+	if err != nil {
+		return nil, err
 	}
-	inf, err := h.info(root, parent)
+	inf, err := h.info(root, linked)
 	if err != nil {
 		return nil, err
 	}
 	var out []Version
 	for _, s := range inf.Snapshots {
-		fi, err := os.Stat(filepath.Join(h.dirPath(root, parent), "snapshots", string(s.ID), name))
+		fi, err := os.Stat(filepath.Join(h.dirPath(root, linked), "snapshots", string(s.ID), sub))
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
@@ -124,6 +135,56 @@ func (h mountHistory) Versions(ctx context.Context, root, file string) ([]Versio
 		}
 		out = append(out, Version{Snapshot: s.ID, Time: s.Time, Size: fi.Size(), ModTime: fi.ModTime()})
 	}
+	return out, nil
+}
+
+// Snapshots lists the snapshots of rel's nearest linked directory from its
+// info.json, newest first.
+func (h mountHistory) Snapshots(root, rel string) ([]SnapshotInfo, error) {
+	r, err := h.rel(root, rel)
+	if err != nil {
+		return nil, err
+	}
+	linked, _, err := h.linkedAncestor(root, r)
+	if err != nil {
+		return nil, err
+	}
+	inf, err := h.info(root, linked)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SnapshotInfo, 0, len(inf.Snapshots))
+	for _, s := range inf.Snapshots {
+		out = append(out, SnapshotInfo{ID: s.ID, Alias: s.Alias, Time: s.Time, Host: s.Host})
+	}
+	slices.SortFunc(out, func(a, b SnapshotInfo) int { return b.Time.Compare(a.Time) })
+	return out, nil
+}
+
+// LinkedDirs lists the paths, relative to root, of root's linked directories.
+func (h mountHistory) LinkedDirs(root string) ([]string, error) {
+	des, err := os.ReadDir(filepath.Join(h.cfg.HistoryMount, "roots", root, "dirs"))
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, de := range des {
+		data, err := os.ReadFile(filepath.Join(h.cfg.HistoryMount, "roots", root, "dirs", de.Name(), "info.json"))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		var inf mountInfo
+		if err := json.Unmarshal(data, &inf); err != nil {
+			return nil, fmt.Errorf("parse info.json for %s/%s: %w", root, de.Name(), err)
+		}
+		if len(inf.Rel) > 0 {
+			out = append(out, string(inf.Rel))
+		}
+	}
+	slices.Sort(out)
 	return out, nil
 }
 
@@ -154,6 +215,26 @@ func (h mountHistory) rel(root, p string) (string, error) {
 		return "", nil
 	}
 	return p, nil
+}
+
+// linkedAncestor splits rel into the nearest directory at or above it that
+// has a history entry and the path below that directory. The mount has
+// entries only for linked directories, so an unlinked subdirectory is read
+// through its linked ancestor's snapshot trees. It returns a mapping_absent
+// error when no directory at or above rel is linked.
+func (h mountHistory) linkedAncestor(root, rel string) (linked, sub string, err error) {
+	for dir := rel; ; dir = path.Dir(dir) {
+		if dir == "." {
+			dir = ""
+		}
+		if _, err := os.Stat(filepath.Join(h.dirPath(root, dir), "info.json")); err == nil {
+			return dir, filepath.FromSlash(strings.TrimPrefix(strings.TrimPrefix(rel, dir), "/")), nil
+		}
+		if dir == "" {
+			return "", "", errcode.New(errcode.MappingAbsent, "web history",
+				fmt.Errorf("no linked directory at or above %q in root %q; run snapback link <dir>", rel, root))
+		}
+	}
 }
 
 func (h mountHistory) dirPath(root, rel string) string {

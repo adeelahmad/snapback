@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -9,14 +10,17 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/daemon"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/ipc"
+	"github.com/adeelahmad/snapback/internal/links"
 	"github.com/adeelahmad/snapback/internal/webui"
 )
 
@@ -230,10 +234,68 @@ func (b fileBackend) Status() any {
 	return snap
 }
 
+// ManagedLinks counts the registry-owned links the daemon reports through
+// links_list. With the daemon down it counts the owned records in the
+// registry directly. It fails when the config does not load, or when the
+// daemon holds its lock but does not answer: the registry is then the
+// daemon's to open.
+func (b fileBackend) ManagedLinks() (int, error) {
+	cfg, _, err := config.Load(b.path)
+	if err != nil {
+		return 0, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), statusTimeout)
+	defer cancel()
+	c, err := ipc.Dial(ctx, ipc.SocketPath(os.Getenv, cfg.StateDir))
+	if err != nil {
+		if daemon.Running(cfg.StateDir) {
+			return 0, err
+		}
+		return registryLinks(filepath.Join(cfg.StateDir, "links.db"))
+	}
+	defer func() { _ = c.Close() }()
+	resp, err := c.Call(ctx, ipc.Request{V: 1, Op: ipc.OpLinksList})
+	if err != nil {
+		return 0, err
+	}
+	if !resp.OK {
+		return 0, errors.New(resp.Error)
+	}
+	var recs []json.RawMessage
+	if err := json.Unmarshal(resp.Data, &recs); err != nil {
+		return 0, fmt.Errorf("decode links_list: %w", err)
+	}
+	return len(recs), nil
+}
+
 func (b fileBackend) Config() (*config.Config, config.Revision, error) {
 	return loadOrDefault(b.path)
 }
 
 func (b fileBackend) SaveConfig(c *config.Config, rev config.Revision) (config.Revision, error) {
 	return config.Save(b.path, c, rev)
+}
+
+// registryLinks counts the owned records in the registry at path. A missing
+// registry is an error rather than created.
+func registryLinks(path string) (int, error) {
+	if _, err := os.Stat(path); err != nil {
+		return 0, err
+	}
+	reg, err := links.OpenRegistry(path)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = reg.Close() }()
+	recs, err := reg.List()
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, rec := range recs {
+		if rec.State == links.StateOwned {
+			n++
+		}
+	}
+	return n, nil
 }

@@ -350,3 +350,25 @@ func TestAppCSSFontsFromTokens(t *testing.T) {
 		t.Fatal("app.css has no font-family: declarations, want the token font stacks")
 	}
 }
+
+// TestAppCSSStylesMainNav pins NAV-1: the layout's <nav><ul> must not fall
+// back to the browser's bulleted list.
+func TestAppCSSStylesMainNav(t *testing.T) {
+	want := map[string]string{"list-style": "none", "display": "flex"}
+	got := map[string]string{}
+	for _, r := range parseRules(appCSS(t)) {
+		for sel := range strings.SplitSeq(r.selector, ",") {
+			if strings.TrimSpace(sel) != ".site-header nav ul" {
+				continue
+			}
+			for _, d := range r.decls {
+				got[d.prop] = d.value
+			}
+		}
+	}
+	for prop, value := range want {
+		if got[prop] != value {
+			t.Errorf(".site-header nav ul { %s: %q }, want %q", prop, got[prop], value)
+		}
+	}
+}

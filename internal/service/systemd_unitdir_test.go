@@ -54,3 +54,28 @@ func TestInstallCreatesMissingUnitDir(t *testing.T) {
 		t.Errorf("stat unit dir after Uninstall() = %v, want dir kept", err)
 	}
 }
+
+func TestInstallKeepsExistingUnitDirMode(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "user")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatalf("create unit dir: %v", err)
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatalf("chmod unit dir: %v", err)
+	}
+	run := &fakeRunner{}
+	ready := &scriptedReady{states: []string{"ready"}}
+	s := &Systemd{UnitDir: dir, Run: run.run, Ready: ready.ready, ReadyTimeout: 5 * time.Second}
+
+	if err := s.Install(t.Context(), userOpts); err != nil {
+		t.Fatalf("Install(userOpts) with existing unit dir = %v, want nil", err)
+	}
+
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("stat unit dir: %v", err)
+	}
+	if got, want := info.Mode().Perm(), fs.FileMode(0o700); got != want {
+		t.Errorf("existing unit dir mode after Install() = %o, want %o", got, want)
+	}
+}

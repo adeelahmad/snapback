@@ -68,10 +68,7 @@ func (s *Systemd) Install(ctx context.Context, o UnitOptions) error {
 		return err
 	}
 	if cur == nil || string(cur) != unit {
-		if err := os.MkdirAll(s.UnitDir, 0o755); err != nil {
-			return fmt.Errorf("%s: create unit dir: %w", op, err)
-		}
-		if err := os.Chmod(s.UnitDir, 0o755); err != nil {
+		if err := ensureUnitDir(s.UnitDir); err != nil {
 			return fmt.Errorf("%s: create unit dir: %w", op, err)
 		}
 		if err := writeAtomic(s.unitPath(), []byte(unit)); err != nil {
@@ -119,6 +116,19 @@ func (s *Systemd) waitReady(ctx context.Context, op string) error {
 	return errcode.New(errcode.StaleState, op, fmt.Errorf(
 		"service installed and enabled at %s but daemon not ready (state %q) after %s; see journalctl --user -u snapback",
 		s.unitPath(), state, s.ReadyTimeout))
+}
+
+// ensureUnitDir creates dir with mode 0755 when it is missing. An existing
+// directory belongs to the user, so its mode is left untouched.
+func ensureUnitDir(dir string) error {
+	if _, err := os.Stat(dir); !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	// MkdirAll's mode is filtered by the umask; set the new dir's mode exactly.
+	return os.Chmod(dir, 0o755)
 }
 
 // writeAtomic writes data to a temp file beside path and renames it into place.
