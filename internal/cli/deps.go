@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/discovery/seed"
 	"github.com/adeelahmad/snapback/internal/links"
 	"github.com/adeelahmad/snapback/internal/provider"
 )
@@ -44,4 +45,10 @@ type Deps struct {
 	Sleep func(ctx context.Context, d time.Duration) error
 	// Now reports the current time.
 	Now func() time.Time
+	// PlanPath plans the directories to seed under root.
+	PlanPath func(root, seedPath string, maxDepth int, excludes []string) (seed.Plan, error)
+	// Preflight checks the inode budget for p; force overrides the budget.
+	Preflight func(p seed.Plan, force bool) error
+	// RunSeed creates the links planned in p.
+	RunSeed func(ctx context.Context, l seed.Linker, p seed.Plan) (seed.Report, error)
 }
