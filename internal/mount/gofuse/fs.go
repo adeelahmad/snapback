@@ -89,7 +89,7 @@ func (d *dirNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 	case mount.KindFile:
 		data, _ := cat.ReadFile(ino)
 		e.Size = uint64(len(data))
-		node = &fileNode{cat: cat, obs: d.obs, ino: ino, path: path}
+		node = &fileNode{cat: d.cat, obs: d.obs, ino: ino, path: path}
 	default:
 		e = entry(ino, false, name)
 		node = &symlinkNode{cat: d.cat, obs: d.obs, ino: ino, path: path}
