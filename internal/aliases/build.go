@@ -18,5 +18,13 @@ type Set struct {
 
 // Build renders the alias names, per-date groups and rsnapshot views for snaps.
 func Build(snaps []provider.Snapshot, opts Options) Set {
-	panic("SUB-AGENT-TODO: T2 render baseName/dateOf per snapshot in renderZone(opts), resolve name collisions deterministically, group into ByDate; leave Rsnapshot nil")
+	zone := renderZone(opts)
+	names := resolveCollisions(snaps, zone, opts.Local)
+	set := Set{Aliases: make([]Alias, len(snaps)), ByDate: make(map[string][]Alias)}
+	for i, s := range snaps {
+		a := Alias{Name: names[i], ID: s.ID, Date: dateOf(s.Time, zone)}
+		set.Aliases[i] = a
+		set.ByDate[a.Date] = append(set.ByDate[a.Date], a)
+	}
+	return set
 }
