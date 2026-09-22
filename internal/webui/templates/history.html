@@ -1,0 +1,47 @@
+{{define "content"}}
+<div class="history">
+<nav class="panel roots" aria-label="Backup roots">
+<h2>Roots</h2>
+<ul>
+{{range .Roots}}<li><span class="root-name">{{.Name}}</span> <span class="root-path">{{.Path}}</span> <span class="badge-muted">repo {{.RepoState}}</span> <span class="badge-muted">mount {{.MountState}}</span></li>
+{{end}}</ul>
+</nav>
+<section class="panel files" aria-label="Snapshots and files">
+<h2>Snapshots</h2>
+<ol class="timeline" data-js="timeline">
+{{range .Timeline}}<li><button type="button" class="tick" data-snapshot="{{.ID}}"{{if .Selected}} aria-pressed="true"{{else}} aria-pressed="false"{{end}}>{{.Time}} {{if .Warm}}<span class="badge-ok">warm</span>{{else}}<span class="badge-muted">cold</span>{{end}}</button></li>
+{{end}}</ol>
+<table>
+<thead><tr><th>Name</th><th>Size</th><th>Modified</th><th>State</th></tr></thead>
+<tbody>
+{{range .Entries}}<tr class="state-{{.State}}"><td>{{.Name}}</td><td>{{.Size}}</td><td>{{.Modified}}</td><td>{{if eq .State "absent"}}<span class="badge-muted">absent</span>{{else if eq .State "failed"}}<span class="badge-warn">read failed</span>{{end}}</td></tr>
+{{end}}</tbody>
+</table>
+{{if .FileManagerPath}}<form method="post" action="/api/open">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+<input type="hidden" name="path" value="{{.FileManagerPath}}">
+<button type="submit" class="button">Open in file manager</button>
+</form>{{end}}
+</section>
+{{with .Versions}}<section class="panel versions" data-js="versions">
+<h2>Versions</h2>
+<p class="field">{{.File}}</p>
+{{range .Groups}}<section class="group">
+{{if .LikelyIdentical}}<p class="caution">likely identical (same size and modified time)</p>{{end}}
+<ol>
+{{range .Occurrences}}<li>
+<span>{{.Time}}</span> <span>{{.Size}}</span> <span>{{.Modified}}</span>
+<a class="button" href="{{.DownloadURL}}">Download</a>
+<form method="post" action="/api/restore" data-js="restore">
+<input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+<input type="hidden" name="snapshot" value="{{.SnapshotID}}">
+<input type="hidden" name="file" value="{{$.Versions.File}}">
+<button type="submit" class="button">Restore copy next to original</button>
+<span>saves as {{.RestoreName}}</span>
+</form>
+</li>
+{{end}}</ol>
+</section>
+{{end}}</section>{{end}}
+</div>
+{{end}}
