@@ -1,6 +1,8 @@
 package status
 
 import (
+	"maps"
+	"slices"
 	"sort"
 	"time"
 
@@ -65,5 +67,9 @@ func Derive(phase string, repos map[string]RepoState) (string, []Repo) {
 // FromRefresh returns a deep copy of r, so the status model never shares
 // slices or maps with the refresh loop that produced it.
 func FromRefresh(r refresh.Result) refresh.Result {
-	panic("SUB-AGENT-TODO: deep copy of refresh.Result: copy slices and maps")
+	r.Failed = slices.Clone(r.Failed)
+	r.Pending = slices.Clone(r.Pending)
+	r.EligibleCount = maps.Clone(r.EligibleCount)
+	r.Warm = maps.Clone(r.Warm)
+	return r
 }
