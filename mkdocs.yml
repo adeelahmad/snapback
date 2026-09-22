@@ -12,6 +12,7 @@ nav:
   - Home: index.md
   - Usage: usage.md
   - Configuration: configuration.md
+  - Logging: logging.md
   - Web UI: web-ui.md
   - CLI reference: cli.md
   - Privacy: privacy.md
