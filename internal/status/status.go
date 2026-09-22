@@ -1,6 +1,7 @@
 package status
 
 import (
+	"sort"
 	"time"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
@@ -37,5 +38,25 @@ type Snapshot struct {
 // Derive computes the overall daemon state and the sorted per-repository
 // status from the daemon's phase and each repository's current state.
 func Derive(phase string, repos map[string]RepoState) (string, []Repo) {
-	panic("SUB-AGENT-TODO: derive overall state from phase and repos per tasks.md § T2a; degraded on any failed repo or empty ready map; sort Repos by ID")
+	out := make([]Repo, 0, len(repos))
+	for id, state := range repos {
+		out = append(out, Repo{ID: id, State: string(state)})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+
+	if phase == "starting" || phase == "stopping" {
+		return phase, out
+	}
+
+	state := "ready"
+	if len(out) == 0 {
+		state = "degraded"
+	}
+	for i := range out {
+		if out[i].State != string(history.StateReady) {
+			state = "degraded"
+			out[i].Code = errcode.RepoUnavailable
+		}
+	}
+	return state, out
 }
