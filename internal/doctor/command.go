@@ -3,7 +3,6 @@ package doctor
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -15,7 +14,6 @@ import (
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/discovery/seed"
 	"github.com/adeelahmad/snapback/internal/errcode"
-	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/service"
 )
 
@@ -36,10 +34,7 @@ func Command() cli.Command {
 	})
 }
 
-// realProbes wires the doctor's probes to the running system. Repository
-// validation, the daemon socket and the mount test are not yet wired to a
-// running provider, daemon or mount; each reports itself unavailable until a
-// later task connects it.
+// realProbes wires the doctor's probes to the running system.
 func realProbes() Probes {
 	return Probes{
 		LookPath: exec.LookPath,
@@ -50,9 +45,7 @@ func realProbes() Probes {
 		Mountinfo: func() (io.Reader, error) {
 			return os.Open("/proc/self/mountinfo")
 		},
-		Repos: func(config.Repository) (provider.Validator, provider.Lister) {
-			return nil, nil
-		},
+		Repos: resticRepos,
 		Detect: func() (service.Manager, error) {
 			return service.Detect(service.Probe{
 				PID1Comm: func() (string, error) {
@@ -75,12 +68,8 @@ func realProbes() Probes {
 			}
 			return st.FreeFiles, st.Files, nil
 		},
-		DialStatus: func(context.Context) (string, error) {
-			return "", errors.New("daemon status is not available yet")
-		},
-		MountTest: func(context.Context) error {
-			return errcode.New(errcode.MountFailure, "mount_test", errors.New("mount test is not implemented yet"))
-		},
+		DialStatus: dialStatus,
+		MountTest:  mountTest,
 	}
 }
 
