@@ -18,7 +18,7 @@ import (
 
 const (
 	wantRemote     = "gdrive:snapback-stage1"
-	testSnapshotID = "4f1d2c3b4a5968778695a4b3c2d1e0f00112233445566778899aabbccddeeff"
+	testSnapshotID = "4f1d2c3b4a5968778695a4b3c2d1e0f000112233445566778899aabbccddeeff"
 )
 
 var resticValueFlags = map[string]bool{"-r": true, "--repo": true, "--password-file": true, "--cache-dir": true}
