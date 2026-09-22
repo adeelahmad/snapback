@@ -2,6 +2,10 @@ package links
 
 import (
 	"context"
+	"errors"
+	"path/filepath"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/rawpath"
@@ -22,5 +26,73 @@ type RepairReport struct {
 // Repair finishes pending records and rewrites owned links whose expected
 // target changed.
 func (e *Engine) Repair(ctx context.Context) (RepairReport, error) {
-	panic("SUB-AGENT-TODO: honour ctx; for each registry record: finish pending records per the plan decision (Completed); for owned records whose expected target changed, unlink + symlink only after record+exact-target proof (Repaired); a replaced entry is Preserved with link_conflict and never touched")
+	var rep RepairReport
+	recs, err := e.reg.List()
+	if err != nil {
+		return rep, err
+	}
+	for _, rec := range recs {
+		if err := ctx.Err(); err != nil {
+			return rep, err
+		}
+		unlock := e.lock(rec.Key)
+		err := e.repairOne(rec, &rep)
+		unlock()
+		if err != nil {
+			return rep, err
+		}
+	}
+	return rep, nil
+}
+
+// repairOne resolves one record and appends the outcome to rep.
+func (e *Engine) repairOne(rec Record, rep *RepairReport) error {
+	fd, err := openDirChain(e.rootPath(rec.RootID), string(rec.Rel))
+	if err != nil {
+		return fsErr(err)
+	}
+	defer func() { _ = unix.Close(fd) }()
+
+	name := e.pol.LinkName
+	ent := RepairEntry{Key: rec.Key, Dir: rec.Dir}
+	owned, err := linksTo(fd, name, rec.Target)
+	absent := errors.Is(err, unix.ENOENT)
+	if err != nil && !absent {
+		return fsErr(err)
+	}
+
+	if rec.State == StatePending {
+		switch {
+		case absent:
+			if err := symlinkAt(fd, name, rec.Target); err != nil {
+				return fsErr(err)
+			}
+		case !owned:
+			ent.Code = errcode.LinkConflict
+			rep.Preserved = append(rep.Preserved, ent)
+			return e.reg.Delete(rec.Key)
+		}
+		rec.State = StateOwned
+		rep.Completed = append(rep.Completed, ent)
+		return e.reg.Put(rec)
+	}
+
+	want := filepath.Join(e.pol.HistoryMount, "roots", rec.RootID, "dirs", rec.Key)
+	if absent || rec.Target == want {
+		return nil
+	}
+	if !owned {
+		ent.Code = errcode.LinkConflict
+		rep.Preserved = append(rep.Preserved, ent)
+		return nil
+	}
+	if err := unlinkAt(fd, name); err != nil {
+		return fsErr(err)
+	}
+	if err := symlinkAt(fd, name, want); err != nil {
+		return fsErr(err)
+	}
+	rec.Target = want
+	rep.Repaired = append(rep.Repaired, ent)
+	return e.reg.Put(rec)
 }
