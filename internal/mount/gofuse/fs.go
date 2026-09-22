@@ -88,7 +88,7 @@ func (d *dirNode) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) {
 	entries := make([]fuse.DirEntry, 0, len(names))
 	for _, name := range names {
 		ino, kind, _ := d.cat.Lookup(d.ino, name)
-		entries = append(entries, fuse.DirEntry{Name: name, Ino: ino, Mode: StableAttr(entry(ino, kind == mount.KindDir, name)).Mode})
+		entries = append(entries, fuse.DirEntry{Name: name, Ino: ino, Mode: StableAttr(mount.Entry{Ino: ino, Kind: kind, Name: name}).Mode})
 	}
 	return fs.NewListDirStream(entries), 0
 }
