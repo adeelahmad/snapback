@@ -272,6 +272,20 @@ func TestFuseJobNoLatestAndActionsPinned(t *testing.T) {
 	}
 }
 
+func TestFuseJobUploadFailsOnMissingEvidence(t *testing.T) {
+	step := stepContaining(fuseJobBlock(t), "actions/upload-artifact")
+	if step == "" {
+		t.Fatalf("fuse-linux job has no actions/upload-artifact step")
+	}
+	m := noFilesFoundRe.FindStringSubmatch(step)
+	if m == nil {
+		t.Fatalf("upload step has no if-no-files-found: key:\n%s", step)
+	}
+	if got, want := m[1], "error"; got != want {
+		t.Errorf("upload step if-no-files-found = %q, want %q", got, want)
+	}
+}
+
 func TestFuseJobHasNoSecrets(t *testing.T) {
 	block := fuseJobBlock(t)
 	for _, bad := range []string{"secrets.", "continue-on-error"} {
