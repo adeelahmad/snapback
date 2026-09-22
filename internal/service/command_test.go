@@ -216,3 +216,74 @@ func TestServiceUninstallNotInstalled(t *testing.T) {
 		t.Errorf("service uninstall stdout = %q, want it to contain %q", f.stdout.String(), "not installed")
 	}
 }
+
+func TestInstallServiceUsage(t *testing.T) {
+	for _, arg := range []string{"-h", "--help"} {
+		f := newCommandFixture(t, fakeProbe("systemd"))
+
+		code := installCommand(f.deps).Run(t.Context(), f.env, []string{"service", arg})
+
+		if code != 0 {
+			t.Errorf("install service %s exit = %d, want 0", arg, code)
+		}
+		got := f.stderr.String()
+		for _, want := range []string{"Usage: snapback install service", "Args:", "Example:", "--scope", "-user", "-manager"} {
+			if !strings.Contains(got, want) {
+				t.Errorf("install service %s stderr = %q, want it to contain %q", arg, got, want)
+			}
+		}
+	}
+}
+
+func TestServiceUsage(t *testing.T) {
+	for _, args := range [][]string{{"-h"}, {"--help"}, {"start", "-h"}} {
+		f := newCommandFixture(t, fakeProbe("systemd"))
+
+		code := serviceCommand(f.deps).Run(t.Context(), f.env, args)
+
+		if code != 0 {
+			t.Errorf("service %q exit = %d, want 0", args, code)
+		}
+		got := f.stderr.String()
+		for _, want := range []string{"Usage: snapback service", "Args:", "Example:", "--scope",
+			"start", "stop", "restart", "status", "uninstall"} {
+			if !strings.Contains(got, want) {
+				t.Errorf("service %q stderr = %q, want it to contain %q", args, got, want)
+			}
+		}
+		if calls := f.run.argv(); len(calls) != 0 {
+			t.Errorf("service %q runner calls = %q, want none", args, calls)
+		}
+	}
+}
+
+func TestServiceSummaryNamesStatus(t *testing.T) {
+	got := ServiceCommand().Summary
+	if !strings.Contains(got, "status") {
+		t.Errorf("ServiceCommand().Summary = %q, want it to name %q", got, "status")
+	}
+	if strings.Contains(got, "inspect") {
+		t.Errorf("ServiceCommand().Summary = %q, want it not to say %q", got, "inspect")
+	}
+}
+
+func TestCommandsWriteNextStep(t *testing.T) {
+	want := cli.Next("snapback status")
+
+	f := newCommandFixture(t, fakeProbe("systemd"), "ready")
+	if code := installCommand(f.deps).Run(t.Context(), f.env, []string{"service"}); code != 0 {
+		t.Fatalf("install service exit = %d, want 0 (stderr %q)", code, f.stderr.String())
+	}
+	if got := f.stdout.String(); !strings.HasSuffix(got, want) {
+		t.Errorf("install service stdout = %q, want it to end with %q", got, want)
+	}
+
+	f.reset()
+	writeUnit(t, f.unitDir, readGolden(t, "user.service.golden"))
+	if code := serviceCommand(f.deps).Run(t.Context(), f.env, []string{"start"}); code != 0 {
+		t.Fatalf("service start exit = %d, want 0 (stderr %q)", code, f.stderr.String())
+	}
+	if got := f.stdout.String(); !strings.HasSuffix(got, want) {
+		t.Errorf("service start stdout = %q, want it to end with %q", got, want)
+	}
+}
