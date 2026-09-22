@@ -3,9 +3,12 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"os/exec"
+	"slices"
 	"strconv"
 	"time"
 
+	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/status"
@@ -73,8 +76,77 @@ func statusView(v webui.StatusView, st status.Snapshot) webui.StatusView {
 	return v
 }
 
+// handleSetup prefills the Setup form from the stored config and offers the
+// configured and PATH-detected restic and rclone binaries.
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "setup", webui.SetupView{Chrome: s.chrome(r, "setup", "Setup")})
+	v := webui.SetupView{Chrome: s.chrome(r, "setup", "Setup")}
+	var cfg *config.Config
+	if s.opts.Backend != nil {
+		c, _, err := s.opts.Backend.Config()
+		if err != nil {
+			v.Errors = append(v.Errors, err.Error())
+		}
+		cfg = c
+	}
+	var restic, rclone []string
+	if cfg != nil {
+		for _, repo := range cfg.Repositories {
+			restic = append(restic, repo.ResticBinary)
+			rclone = append(rclone, repo.RcloneBinary)
+		}
+		if len(cfg.Repositories) > 0 {
+			v.RepoURI = cfg.Repositories[0].Repository
+			v.CredentialFile = cfg.Repositories[0].PasswordFile
+		}
+		for _, root := range cfg.Roots {
+			v.Roots = append(v.Roots, root.LocalPath)
+		}
+	}
+	v.ResticPaths = binaries(restic, "restic")
+	v.RclonePaths = binaries(rclone, "rclone")
+	s.render(w, "setup", v)
+}
+
+// binaries returns the non-empty configured paths followed by name's PATH
+// lookup, without duplicates.
+func binaries(configured []string, name string) []string {
+	if p, err := exec.LookPath(name); err == nil {
+		configured = append(configured, p)
+	}
+	var out []string
+	for _, p := range configured {
+		if p != "" && !slices.Contains(out, p) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// fillConfigView copies the fields the Config form shows from cfg into v.
+func fillConfigView(v *webui.ConfigView, cfg *config.Config) {
+	for _, root := range cfg.Roots {
+		v.Roots = append(v.Roots, root.LocalPath)
+		if root.Snapshots.Hostname != "" {
+			v.Filters = append(v.Filters, "host="+root.Snapshots.Hostname)
+		}
+		for _, tag := range root.Snapshots.TagsAll {
+			v.Filters = append(v.Filters, "tag="+tag)
+		}
+		v.Exclusions = append(v.Exclusions, root.ExcludeRelativePaths...)
+		for _, seed := range root.SeedPaths {
+			v.SeedPaths = append(v.SeedPaths, seed.Path)
+		}
+	}
+	for _, repo := range cfg.Repositories {
+		if repo.CacheDir != "" {
+			v.CacheDir = repo.CacheDir
+			break
+		}
+	}
+	v.DiscoveryMode = cfg.Discovery.Mode
+	if cfg.Catalog.RefreshInterval > 0 {
+		v.RefreshInterval = cfg.Catalog.RefreshInterval.String()
+	}
 }
 
 func (s *Server) handleIntegrations(w http.ResponseWriter, r *http.Request) {
@@ -84,11 +156,14 @@ func (s *Server) handleIntegrations(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	v := webui.ConfigView{Chrome: s.chrome(r, "config", "Config")}
 	if s.opts.Backend != nil {
-		_, rev, err := s.opts.Backend.Config()
+		cfg, rev, err := s.opts.Backend.Config()
 		if err != nil {
 			v.Errors = append(v.Errors, err.Error())
 		}
 		v.Revision = string(rev)
+		if cfg != nil {
+			fillConfigView(&v, cfg)
+		}
 	}
 	s.render(w, "config", v)
 }
