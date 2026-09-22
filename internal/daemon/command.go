@@ -20,7 +20,7 @@ const callTimeout = 5 * time.Second
 
 // Command returns the "snapback run" command, which runs the daemon in the
 // foreground until its context is canceled or a shutdown request arrives.
-func Command() cli.Command {
+func Command(_ Builder) cli.Command {
 	return cli.Command{
 		Name:    "run",
 		Summary: "run the daemon in the foreground",
