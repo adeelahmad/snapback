@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	specSHA256    = "df0ca14ebab015e6c5ace364dca5d4ce231bf18227e678242c21507ea44711b6"
-	specSize      = 68955
+	specSHA256    = "4f3abdb041a9a0bd99b3e1dc1cb57693b319e438bfd7b8c9d583797f15ff3136"
+	specSize      = 69214
 	specFirstLine = "# Snapback — Implementation Specification"
 	// specPointerLine is the Addendum A pointer the human mandated as SPEC.md's
 	// first line; the Addendum B pointer follows on line 2 and the spec title
