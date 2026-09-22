@@ -15,6 +15,7 @@ const RootIno uint64 = 1
 type Spec struct {
 	Dirs  []Dir
 	Links []Link
+	Files []File
 }
 
 // Dir describes a directory node and its children.
@@ -22,9 +23,16 @@ type Dir struct {
 	Name  string
 	Dirs  []Dir
 	Links []Link
+	Files []File
 }
 
 // Link describes a symlink node and its verbatim target.
 type Link struct {
 	Name, Target string
+}
+
+// File describes a generated read-only file node and its bytes.
+type File struct {
+	Name string
+	Data []byte
 }
