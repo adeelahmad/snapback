@@ -165,6 +165,25 @@ func TestMarshalRoundTrip(t *testing.T) {
 	}
 }
 
+func TestParseRejectsDiscoveryFinder(t *testing.T) {
+	tmp := t.TempDir()
+	writePasswordFile(t, tmp)
+	data := minimalYAML(tmp, "discovery:\n  finder: true\n", "", "")
+
+	_, err := Parse(data)
+	if err == nil {
+		t.Fatalf("Parse(discovery.finder) = nil error, want unknown-field error")
+	}
+	if got := errcode.Of(err); got != errcode.InvalidConfig {
+		t.Errorf("errcode.Of(Parse(discovery.finder)) = %q, want %q", got, errcode.InvalidConfig)
+	}
+	msg := err.Error()
+	low := strings.ToLower(msg)
+	if !strings.Contains(low, "finder") || !strings.Contains(low, "discovery") || !strings.Contains(msg, "line") {
+		t.Errorf("Parse(discovery.finder) error = %q, want it to name discovery.finder and a line", msg)
+	}
+}
+
 func TestParseRejectsUnknownField(t *testing.T) {
 	tmp := t.TempDir()
 	writePasswordFile(t, tmp)
