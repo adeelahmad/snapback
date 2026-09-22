@@ -1,9 +1,8 @@
-// agentic:shim
+// Package cli implements the snapback subcommands behind a shared contract.
 package cli
 
 import (
 	"context"
-	"flag"
 	"io"
 )
 
@@ -27,23 +26,16 @@ type UsageError struct {
 	Msg string
 }
 
-func (e *UsageError) Error() string { return "shim" }
+func (e *UsageError) Error() string {
+	panic("SUB-AGENT-TODO: return e.Msg")
+}
 
 // Dispatch routes args to the named command.
 func Dispatch(ctx context.Context, env Env, usage string, cmds []Command, args []string) int {
-	return -1
+	panic("SUB-AGENT-TODO: route args[0] by exact name to cmds[i].Run(ctx, env, args[1:]); help|-h|--help prints sorted 'Name  Summary' list, exit 0; otherwise print usage header plus list on stderr, exit 2")
 }
 
 // ExitCode maps an error to a process exit code.
-func ExitCode(err error) int { return -1 }
-
-// WriteOK writes a success result.
-func WriteOK(env Env, jsonOut bool, data any) int { return -1 }
-
-// WriteError writes a failure result.
-func WriteError(env Env, cmd string, jsonOut bool, err error) int { return -1 }
-
-// ParseFlags parses args with fs, adding --json.
-func ParseFlags(fs *flag.FlagSet, args []string) (jsonOut bool, pos []string, err error) {
-	return false, nil, nil
+func ExitCode(err error) int {
+	panic("SUB-AGENT-TODO: nil -> 0; *UsageError (errors.As) -> 2; any other error -> 1")
 }
