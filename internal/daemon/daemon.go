@@ -177,6 +177,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 	res, err := d.deps.Refresher.Refresh(ctx)
 	if err != nil && errcode.Of(err) != errcode.RepoUnavailable {
+		d.unmountStarted(context.WithoutCancel(ctx))
 		return err
 	}
 	d.mu.Lock()
@@ -185,6 +186,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.mu.Unlock()
 
 	if err := d.deps.Discovery.Start(ctx); err != nil {
+		d.unmountStarted(context.WithoutCancel(ctx))
 		return err
 	}
 	d.deps.Prewarmer.Prewarm(ctx)
@@ -220,6 +222,18 @@ func (d *Daemon) shutdown(ctx context.Context, l net.Listener) error {
 		errs = append(errs, mountErr(ctx, "backend", err))
 	}
 	return errors.Join(errs...)
+}
+
+// unmountStarted best-effort unmounts the mounts Supervisor.Start already
+// brought up when a later startup step fails: the history catalog first,
+// then the backend mounts, bounded by the shutdown timeout. It never kills
+// a process and discards its own errors; the caller returns the original
+// startup error.
+func (d *Daemon) unmountStarted(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, d.deps.ShutdownTimeout)
+	defer cancel()
+	_ = d.deps.History.Unmount(ctx)
+	_ = d.deps.Supervisor.Stop(ctx)
 }
 
 // mountErr reports a failed unmount of the named mount, naming a timeout
