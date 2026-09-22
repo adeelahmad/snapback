@@ -17,6 +17,8 @@ URL is written to `web.url` in the state directory (mode 0600) and removed when 
 stops.
 
 Every page has the same navigation bar: History, Status, Config, Integrations and Setup.
+The instances page is served at `/instances` and is not in that bar; open it by typing the
+address once you have a session.
 
 ## Status
 
@@ -33,6 +35,27 @@ the daemon does not report shows "not reported".
 | Throttle events | how many reader throttle events the daemon has recorded |
 | Prewarm | snapshots counted as warm, cold and pending |
 | Discovery mode | how `.snapshot` links are created, for example `seed` |
+
+When the server was given a daemon to control, the page also shows a **Daemon** panel: a
+badge reading "running" or "stopped", and buttons that start and stop the daemon.
+The buttons are plain forms that post to `/api/daemon/start` and
+`/api/daemon/stop` and redirect back to `/status`, so they work with JavaScript off; with
+it on, the badge updates in place. The daemon the panel controls is the one
+`snapback web --with-daemon` runs for the lifetime of the command, so it stops when the
+web server does. Without a daemon seam the panel is absent and the control API answers
+503.
+
+## Instances
+
+`/instances` shows one card per configured repository: the repository's id, its type, its
+own controls (repository URI, binaries, password, cache directory, lock mode) and the
+roots bound to it. A root whose `repository_id` matches no repository lands on a final
+"unassigned" card, so nothing is silently dropped. The page ends with the note it renders
+verbatim:
+
+> Named instances arrive with config schema v2 (SPEC-ADDENDUM-A §2) and are not implemented yet.
+
+Under today's schema an instance is exactly one `repositories[i]` entry plus its roots.
 
 ## History
 
@@ -62,13 +85,41 @@ size and modified time are marked "likely identical". Each version has two actio
 
 ![Configuration page with fields for roots, filters, exclusions, seed paths, discovery mode, cache directory and refresh interval](img/webui-config.png)
 
-The Configuration page edits the roots, filters, exclusions and seed paths (one per line),
-the discovery mode, the cache directory and the refresh interval, filled from the current
-configuration. The **Save configuration** button posts the form to `/config`, which writes
+The Configuration page renders one control per configuration key, filled from the current
+configuration, grouped into these sections in this order.
+
+| Section | What it holds |
+|---|---|
+| General | the file's schema version, the `.snapshot` link name, whether times are shown in UTC or local time, and the state, history-mount and backend-mount directories |
+| Web | whether the local web UI runs, the listen and bind addresses, extra allowed browser origins, whether a browser is opened, and an assets directory |
+| Catalog | how often the snapshot catalog is refreshed, how many snapshots are prewarmed and with what concurrency, the presence cache size and lifetime, and the reader policy that throttles processes which enumerate snapshots |
+| Views | whether the rsnapshot-style view is offered, and how many hourly, daily, weekly and monthly snapshots it shows |
+| Discovery | whether `.snapshot` links are seeded or created on access, the shell helper, the seed thresholds, and the processes and timeout on-access discovery answers |
+| Repositories | one row per Restic repository: its id, the repository URI, the restic and rclone binaries, the password file, the cache directory, the lock mode, an optional mount point and extra environment variables |
+| Roots | one row per local directory tree: its id, the local path, the repository it reads, the host-to-tree prefix map, which snapshots it shows, the seed paths, the relative paths it excludes and the tags ad-hoc snapshots get |
+| Service | which service manager installs Snapback, whether it runs for a user or the system, and the user it runs as |
+| Telemetry | the opt-in answer from setup; it is off by default and nothing is sent today |
+| Logging | the log level, the log format and the file logs are written to |
+| Files | the directory and file modes Snapback creates things with, or a umask instead |
+
+The form arrives split in two. The basic block is open on arrival and holds only the few
+keys a first run has to answer: the repository, its password file and the directory to
+cover. Everything else sits in an **Advanced** disclosure: the advanced block is
+collapsed, behind a badge whose count is the number of advanced fields hidden inside it.
+
+Each repository row offers its password either as a path you already have or as a
+password typed into the form. A typed password is written to
+`credentials/<id>.pass` under the state directory, with the directory created 0700 and
+the file 0600, and it replaces the old file atomically. Leaving the field empty keeps the
+password file that is already configured.
+
+The YAML holds only the `password_file` path, never the password itself.
+
+The **Save configuration** button posts the form to `/config`, which writes
 the configuration file under the revision the page was loaded with: it redirects back with
 a "Saved." notice, or re-renders the form with your values and the reason it was rejected,
-including when the file changed underneath you. See
-[Configuration](configuration.md) for every key.
+each message anchored to the control it belongs to, including when the file changed
+underneath you. See [Configuration](configuration.md) for every key.
 
 ## Setup
 
@@ -78,6 +129,12 @@ The Setup page picks the Restic binary and, if one is used, the Rclone binary, t
 repository, the password file and the roots. The **Save setup** button posts the form to
 `/setup`, which checks the repository and then writes the configuration file, and sends you
 to the Status page. Every key is described in [Configuration](configuration.md).
+
+On a first run, before any configuration file exists, the page also shows a short tour:
+one numbered step beside each of the repository, the password file, the restic binary and
+the roots, explaining what to put there. **Got it** dismisses the tour and it
+stays dismissed in that browser. Once a configuration exists the tour is not rendered at
+all.
 
 ## Security
 
