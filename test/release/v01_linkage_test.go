@@ -97,3 +97,20 @@ func TestDarwinBinaryClaimedSelfContainedOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestReleaseWorkflowGatesOnV01ExitCriterion(t *testing.T) {
+	gr := jobBlock(t, readWorkflow(t), "goreleaser")
+	step := strings.Index(gr, "TestV01ExitCriterionMet")
+	if step < 0 {
+		t.Fatalf("%s goreleaser job has no step running TestV01ExitCriterionMet", workflowPath)
+	}
+	action := strings.Index(gr, "goreleaser/goreleaser-action")
+	if action >= 0 && step > action {
+		t.Errorf("%s runs TestV01ExitCriterionMet after goreleaser, want it before", workflowPath)
+	}
+	for _, want := range []string{"go test ./test/reports/", `SNAPBACK_RELEASE_GATE: "1"`} {
+		if !strings.Contains(gr, want) {
+			t.Errorf("%s goreleaser job does not contain %q", workflowPath, want)
+		}
+	}
+}
