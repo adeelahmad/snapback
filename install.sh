@@ -38,11 +38,54 @@ asset_name() {
 	echo "snapback_$1_$2$suffix.tar.gz"
 }
 
+os_release_value() {
+	sed -n "s/^$1=//p" "$2" | tr -d "\"'" | tr '[:upper:]' '[:lower:]'
+}
+
+# fuse_command prints the command that installs fuse3 on this distribution, or
+# fails when the distribution is unknown, so we never name a command that would
+# not work there.
+fuse_command() {
+	release="${SNAPBACK_OS_RELEASE:-/etc/os-release}"
+	[ -r "$release" ] || return 1
+	for name in $(os_release_value ID "$release") $(os_release_value ID_LIKE "$release"); do
+		case "$name" in
+			debian | ubuntu | raspbian)
+				echo 'sudo apt install fuse3'
+				return 0
+				;;
+			fedora | rhel | centos | rocky | almalinux | alma)
+				echo 'sudo dnf install fuse3'
+				return 0
+				;;
+			arch | manjaro)
+				echo 'sudo pacman -S fuse3'
+				return 0
+				;;
+			alpine)
+				echo 'sudo apk add fuse3'
+				return 0
+				;;
+			opensuse* | sles | sled | suse)
+				echo 'sudo zypper install fuse3'
+				return 0
+				;;
+		esac
+	done
+	return 1
+}
+
 next_steps() {
 	printf '\nNext steps:\n'
 	case "$1" in
 		darwin) printf '  1. Install macFUSE: https://macfuse.github.io/\n' ;;
-		linux) printf '  1. Install the fuse3 package with your distribution package manager\n' ;;
+		linux)
+			if fuse_cmd=$(fuse_command); then
+				printf '  1. Install fuse3: %s\n' "$fuse_cmd"
+			else
+				printf '  1. Install the fuse3 package with your distribution package manager\n'
+			fi
+			;;
 	esac
 	printf '  2. Run: snapback config to create your configuration\n'
 	case "$1" in
@@ -99,7 +142,7 @@ usage() {
 	printf '%s\n' \
 		'Usage: install.sh [options]' \
 		'' \
-		'Downloads the snapback release binary for this OS and architecture,' \
+		'Downloads the release binary for this OS and architecture,' \
 		'verifies its checksum and copies it into an install directory.' \
 		'' \
 		'Options:' \
@@ -114,7 +157,8 @@ usage() {
 		'  SNAPBACK_DRY_RUN=1     same as --dry-run' \
 		'  SNAPBACK_BASE_URL      base URL to download the release assets from' \
 		'  SNAPBACK_OS            override the detected OS' \
-		'  SNAPBACK_ARCH          override the detected architecture'
+		'  SNAPBACK_ARCH          override the detected architecture' \
+		'  SNAPBACK_OS_RELEASE    read distribution facts from this file instead of /etc/os-release'
 }
 
 parse_args() {
