@@ -84,9 +84,11 @@ func assertNextSteps(t *testing.T, osName, arch, fuseHint string) {
 var snapbackSubcommand = regexp.MustCompile(`\bsnapback ([a-z][a-z0-9-]*)`)
 
 // TestNextStepsNameOnlyExistingCommands guards against the installer telling
-// users to run a snapback subcommand that does not exist. Today the binary
-// only supports `snapback version`.
+// users to run a snapback subcommand that does not exist: every command the
+// next steps name must be listed by the built binary's `snapback help`, and
+// `snapback version` stays the last step.
 func TestNextStepsNameOnlyExistingCommands(t *testing.T) {
+	known := helpCommands(t, buildSnapback(t))
 	for _, tc := range []struct {
 		osName, arch string
 	}{
@@ -109,9 +111,12 @@ func TestNextStepsNameOnlyExistingCommands(t *testing.T) {
 			if len(matches) == 0 {
 				t.Fatalf("next steps name no snapback command, want %q; steps=%q", "snapback version", steps)
 			}
+			if got, want := matches[len(matches)-1][1], "version"; got != want {
+				t.Errorf("final next step names `snapback %s`, want `snapback %s`; steps=%q", got, want, steps)
+			}
 			for _, m := range matches {
-				if got, want := m[1], "version"; got != want {
-					t.Errorf("next steps suggest `snapback %s`, want only `snapback %s`; steps=%q", got, want, steps)
+				if !known[m[1]] {
+					t.Errorf("next steps name `snapback %s`, which `snapback help` does not list; steps=%q", m[1], steps)
 				}
 			}
 		})
