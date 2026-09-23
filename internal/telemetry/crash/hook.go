@@ -1,5 +1,11 @@
 package crash
 
+import (
+	"context"
+	"runtime/debug"
+	"time"
+)
+
 // RecoverAndReport installs the panic-only crash-reporting recover hook.
 // Call it directly inside a defer statement so recover() runs in the
 // deferred function it returns, the only place recover() is effective:
@@ -16,5 +22,25 @@ package crash
 // in the process, so this hook's recover() is simply never invoked on that
 // path -- no special-casing is possible or needed.
 func RecoverAndReport(opts Options) func() {
-	panic("SUB-AGENT-TODO: implement RecoverAndReport (S6-08/T4)")
+	if !opts.CrashReports {
+		return func() {}
+	}
+	return func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+
+		eventID, _ := NewEventID()
+		ev := PanicEvent{
+			Panic:   r,
+			Frames:  Frames(debug.Stack()),
+			Version: opts.Version,
+			EventID: eventID,
+			SentAt:  time.Now(),
+		}
+		_ = Report(context.Background(), opts, Envelope(ev))
+
+		panic(r)
+	}
 }
