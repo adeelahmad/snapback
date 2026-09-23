@@ -2,10 +2,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { hero } from './content';
+import { hero, restoreCompare } from './content';
 import { Header } from './sections/Header';
 import { Hero } from './sections/Hero';
 import { HowItWorks } from './sections/HowItWorks';
+import { RestoreCompare } from './sections/RestoreCompare';
 import { TwoProblems } from './sections/TwoProblems';
 
 const installCommand = 'curl -fsSL https://snapback.run/install.sh | sh';
@@ -181,6 +182,41 @@ describe('sections', () => {
     );
 
     expect(renderedText(markup)).not.toMatch(/\b(borg|kopia|duplicati|time machine)\b/i);
+  });
+
+  it('restoreCompareShowsResticStepsAndOneCp', () => {
+    const markup = renderToStaticMarkup(<RestoreCompare />);
+    const lines = rawText(markup).split('\n').map((l) => l.trim());
+
+    expect(
+      markup.startsWith('<section id="restore-compare"'),
+      'root section has id="restore-compare"',
+    ).toBe(true);
+
+    const captions = [...markup.matchAll(/<figcaption class="terminal__label">([\s\S]*?)<\/figcaption>/g)].map(
+      (m) => rawText(m[1]),
+    );
+    expect(captions).toEqual(['restic only', 'with snapback']);
+
+    expect(restoreCompare.before.lines.length, 'restoreCompare.before.lines length').toBeGreaterThanOrEqual(3);
+
+    const beforeResticLines = restoreCompare.before.lines.filter((l) => l.text.startsWith('restic '));
+    expect(beforeResticLines.length, `before lines starting "restic " in ${JSON.stringify(restoreCompare.before.lines)}`).toBeGreaterThanOrEqual(2);
+    expect(
+      beforeResticLines.some((l) => l.text.startsWith('restic restore ')),
+      `a before line starting "restic restore " in ${JSON.stringify(restoreCompare.before.lines)}`,
+    ).toBe(true);
+
+    const afterCpLines = restoreCompare.after.lines.filter((l) => l.text.startsWith('cp '));
+    expect(afterCpLines.length, `after lines starting "cp " in ${JSON.stringify(restoreCompare.after.lines)}`).toBe(1);
+    expect(afterCpLines[0].text.startsWith('cp .snapshot/latest/')).toBe(true);
+
+    for (const l of [...restoreCompare.before.lines, ...restoreCompare.after.lines]) {
+      expect(['cmd', 'out']).toContain(l.kind);
+    }
+
+    expect(lines.some((l) => l.length > 0), 'rendered terminal lines present').toBe(true);
+    expect(restoreCompare.intro).toContain('one cp');
   });
 
   it('headerLinksDocsAndGitHub', () => {

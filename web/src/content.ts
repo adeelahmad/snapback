@@ -32,6 +32,23 @@ export interface TwoProblemsContent {
   closing: string;
 }
 
+export interface TerminalLine {
+  kind: 'cmd' | 'out';
+  text: string;
+}
+
+export interface TerminalPane {
+  label: string;
+  lines: TerminalLine[];
+}
+
+export interface RestoreCompareContent {
+  heading: string;
+  intro: string;
+  before: TerminalPane;
+  after: TerminalPane;
+}
+
 export interface HowItWorksContent {
   heading: string;
   label: string;
@@ -73,6 +90,30 @@ export const twoProblems: TwoProblemsContent = {
   },
   closing:
     'snapback is only the restore half. It reads the Restic repository you already have and puts earlier versions of a file next to the file, as ordinary read-only directories any program can read.',
+};
+
+export const restoreCompare: RestoreCompareContent = {
+  heading: 'Restore without a restore session',
+  intro:
+    'Getting report.docx back with Restic alone takes a snapshot ID, a path and a scratch directory. With snapback it is one cp.',
+  before: {
+    label: 'restic only',
+    lines: [
+      { kind: 'cmd', text: 'restic snapshots --path ~/Documents' },
+      {
+        kind: 'cmd',
+        text: 'restic restore 4f2a9c1e --target /tmp/restore --include ~/Documents/report.docx',
+      },
+      { kind: 'cmd', text: 'cp /tmp/restore/home/you/Documents/report.docx ~/Documents/' },
+    ],
+  },
+  after: {
+    label: 'with snapback',
+    lines: [
+      { kind: 'cmd', text: 'cd ~/Documents' },
+      { kind: 'cmd', text: 'cp .snapshot/latest/report.docx .' },
+    ],
+  },
 };
 
 export const howItWorks: HowItWorksContent = {

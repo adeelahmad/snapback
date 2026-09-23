@@ -111,6 +111,7 @@ describe('copy', () => {
     expect(got, '<section id> values in <App/>').toEqual([
       'hero',
       'two-problems',
+      'restore-compare',
       'how-it-works',
       'limits',
       'install',
@@ -234,7 +235,10 @@ describe('copy', () => {
     );
     expect(usageCommands.size, 'commands parsed from docs-site/usage.md').toBeGreaterThanOrEqual(10);
 
-    const proseWords = new Set(['puts', 'v0.1', 'never', 'supports', 'needs', 'makes', 'does', 'is']);
+    const proseWords = new Set(['puts', 'v0.1', 'never', 'supports', 'needs', 'makes', 'does', 'is', 'it']);
+    expect(proseWords).toEqual(
+      new Set(['puts', 'v0.1', 'never', 'supports', 'needs', 'makes', 'does', 'is', 'it']),
+    );
     const captures = contentStrings(content).flatMap((s) =>
       [...s.matchAll(/\bsnapback\s+([a-z][a-z0-9.-]*[a-z0-9])/g)].map((m) => m[1]),
     );
