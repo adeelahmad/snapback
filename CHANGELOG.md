@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.0](https://github.com/adeelahmad/snapback/compare/v1.4.2...v1.5.0) (2026-09-23)
+
+### Features
+
+* reposition snapback as the restore layer, not a backup tool (S7-02) ([00939dd](https://github.com/adeelahmad/snapback/commit/00939dd7440b7be77f0a5ea4d280583b2b9462e5))
+
 ## [1.4.2](https://github.com/adeelahmad/snapback/compare/v1.4.1...v1.4.2) (2026-09-23)
 
 ### Bug Fixes
