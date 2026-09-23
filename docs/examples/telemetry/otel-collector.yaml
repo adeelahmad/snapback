@@ -1,0 +1,32 @@
+# Example OpenTelemetry Collector config for the compose stack in
+# docker-compose.yml. Receives Snapback's OTLP metrics over HTTP only (the
+# gRPC protocol is deliberately left out) and forwards them to your
+# self-hosted GlitchTip instance's ingest endpoint.
+#
+# GlitchTip speaks the Sentry protocol rather than OTLP natively; depending
+# on your GlitchTip version you may need to put a small OTLP-to-Sentry
+# adapter in front of it, or point this exporter at whatever ingest endpoint
+# your GlitchTip deployment documents. Adjust the exporter endpoint and
+# GLITCHTIP_INGEST_TOKEN in your .env to match.
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+
+exporters:
+  otlphttp:
+    endpoint: http://glitchtip:8000
+    headers:
+      Authorization: "Bearer ${GLITCHTIP_INGEST_TOKEN}"
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp]

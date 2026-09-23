@@ -1,0 +1,35 @@
+# Example stack for a self-hosted telemetry collector, referenced from
+# docs-site/telemetry-collector.md. Snapback ships neither of these services
+# and sets no default endpoint; you run and own this stack yourself.
+#
+# Copy this file and otel-collector.yaml next to it, write a .env file with
+# your own secrets (never commit it), then:
+#
+#   docker compose up -d
+#
+# GlitchTip needs a Postgres database and a Redis instance of your own;
+# point DATABASE_URL and REDIS_URL in .env at instances you already run, or
+# add them to your own compose override.
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.114.0
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otel-collector.yaml:ro
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:4318:4318"
+
+  glitchtip:
+    image: glitchtip/glitchtip:v4.2.1
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
+    ports:
+      - "127.0.0.1:8000:8000"
