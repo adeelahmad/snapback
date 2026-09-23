@@ -80,6 +80,10 @@ a:focus-visible {
   .problems {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .limits__lists {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 360px) {
@@ -242,6 +246,11 @@ a:focus-visible {
   padding: var(--space-8) 0;
 }
 
+.limits__lists {
+  display: grid;
+  gap: var(--space-8);
+}
+
 .install p {
   margin: var(--space-4) 0 0;
 }
@@ -250,8 +259,49 @@ a:focus-visible {
   color: var(--ink-muted);
 }
 
+.ways {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+.way {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: var(--surface);
+}
+
+.releases {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.release {
+  border-left: 2px solid var(--line-strong);
+  padding-left: var(--space-4);
+}
+
+.release__name {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.release__state {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--ink-muted);
+}
+
 .site-footer {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-6);
   padding-top: var(--space-8);
   border-top: 1px solid var(--line);

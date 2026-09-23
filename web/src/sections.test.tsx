@@ -466,4 +466,40 @@ describe('sections', () => {
     expect(css.length, 'web/src/styles/site.css is non-empty').toBeGreaterThan(0);
     expect(css).not.toMatch(/color:\s*var\(--(blue|blue-alt|yellow|yellow-text|red)\)/);
   });
+
+  it('stylesheetGridsTheRestoreWays', () => {
+    const css = readStylesheet();
+
+    const ways = ruleBody(css, '.ways');
+    expect(ways).toContain('list-style: none');
+    expect(ways).toContain('display: grid');
+    expect(ways).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr))');
+
+    const way = ruleBody(css, '.way');
+    expect(way).toContain('border: 1px solid var(--line)');
+    expect(way).toContain('border-radius: var(--radius-md)');
+    expect(way).toContain('background: var(--surface)');
+  });
+
+  it('stylesheetSplitsLimitsListsAndStylesReleases', () => {
+    const css = readStylesheet();
+
+    expect(ruleBody(css, '.limits__lists')).toContain('display: grid');
+
+    const desktop = mediaBlock(css, '(min-width: 768px)');
+    expect(desktop, '@media (min-width: 768px) block present').not.toBe('');
+    expect(ruleBody(desktop, '.limits__lists')).toContain(
+      'grid-template-columns: repeat(2, minmax(0, 1fr))',
+    );
+
+    const releases = ruleBody(css, '.releases');
+    expect(releases).toContain('list-style: none');
+    expect(releases).toContain('display: grid');
+
+    expect(ruleBody(css, '.release')).toContain('border-left: 2px solid var(--line-strong)');
+    expect(ruleBody(css, '.release__name')).toContain('font-weight: 600');
+    expect(ruleBody(css, '.release__state')).toContain('var(--font-mono)');
+
+    expect(ruleBody(css, '.site-footer')).toContain('flex-wrap: wrap');
+  });
 });
