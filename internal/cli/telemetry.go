@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"strings"
 )
@@ -51,8 +50,10 @@ func TelemetryCommand(d Deps) Command {
 				return runTelemetryStatus(ctx, env, d, *jsonOut)
 			case "show":
 				return runTelemetryShow(ctx, env, d, *jsonOut)
-			case "enable", "disable":
-				return WriteError(env, "telemetry", false, errors.New("not implemented"))
+			case "enable":
+				return runTelemetryEnable(ctx, env, d, *jsonOut)
+			case "disable":
+				return runTelemetryDisable(ctx, env, d, *jsonOut)
 			}
 			return 2
 		},
