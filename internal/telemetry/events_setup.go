@@ -16,14 +16,18 @@ func SetupCompleted(version, outcome string, d time.Duration, now time.Time) (Ev
 	if !isSetupOutcome(outcome) {
 		return Event{}, fmt.Errorf("telemetry: setup outcome %q is not one of ok, failed, abandoned", outcome)
 	}
+	versionAttr, err := NewVersionAttr(version)
+	if err != nil {
+		return Event{}, err
+	}
 	pairs := [...][2]string{
-		{"version", version},
 		{"os", runtime.GOOS},
 		{"arch", runtime.GOARCH},
 		{"outcome", outcome},
 		{"duration", Bucket(d)},
 	}
-	attrs := make([]Attr, 0, len(pairs))
+	attrs := make([]Attr, 0, len(pairs)+1)
+	attrs = append(attrs, versionAttr)
 	for _, p := range pairs {
 		a, err := NewAttr(p[0], p[1])
 		if err != nil {

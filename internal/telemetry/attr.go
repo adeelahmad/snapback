@@ -41,6 +41,23 @@ func NewAttr(key, value string) (Attr, error) {
 	return Attr{Key: key, Value: value}, nil
 }
 
+// NewVersionAttr returns the version attribute for version. In addition to
+// NewAttr's checks, it rejects a value shaped like a hostname or a 64-hex
+// snapshot id, mirroring ScanProhibited's hostname and snapshot_id rules so a
+// version string can never smuggle either. Snapback's own module path is
+// exempt, per ruling S6-R1.
+func NewVersionAttr(version string) (Attr, error) {
+	if !snapbackModulePath.MatchString(version) {
+		if hostnamePattern.MatchString(version) {
+			return Attr{}, fmt.Errorf("telemetry: value for key %q looks like a hostname", "version")
+		}
+		if snapshotIDPattern.MatchString(version) {
+			return Attr{}, fmt.Errorf("telemetry: value for key %q looks like a snapshot id", "version")
+		}
+	}
+	return NewAttr("version", version)
+}
+
 // Keys returns the closed attribute key set in its documented order.
 func Keys() []string {
 	out := make([]string, len(keys))

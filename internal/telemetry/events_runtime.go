@@ -31,12 +31,16 @@ func MountReady(version string, d time.Duration, now time.Time) (Event, error) {
 // runtimeAttrs returns the version, os and arch attributes every runtime event
 // carries, in schema order.
 func runtimeAttrs(version string) ([]Attr, error) {
+	versionAttr, err := NewVersionAttr(version)
+	if err != nil {
+		return nil, err
+	}
 	pairs := []struct{ key, value string }{
-		{"version", version},
 		{"os", runtime.GOOS},
 		{"arch", runtime.GOARCH},
 	}
-	attrs := make([]Attr, 0, len(pairs)+1)
+	attrs := make([]Attr, 0, len(pairs)+2)
+	attrs = append(attrs, versionAttr)
 	for _, p := range pairs {
 		attr, err := NewAttr(p.key, p.value)
 		if err != nil {

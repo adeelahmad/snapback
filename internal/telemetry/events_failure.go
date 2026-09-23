@@ -39,8 +39,11 @@ func DoctorFailed(version, check string, now time.Time) (Event, error) {
 	if !slices.Contains(doctorChecks, check) {
 		return Event{}, fmt.Errorf("telemetry: doctor check %q is not one of %s", check, strings.Join(doctorChecks, ", "))
 	}
+	versionAttr, err := NewVersionAttr(version)
+	if err != nil {
+		return Event{}, err
+	}
 	pairs := [...][2]string{
-		{"version", version},
 		{"os", runtime.GOOS},
 		{"arch", runtime.GOARCH},
 		{"check", check},
@@ -49,6 +52,7 @@ func DoctorFailed(version, check string, now time.Time) (Event, error) {
 	if err != nil {
 		return Event{}, err
 	}
+	attrs = append([]Attr{versionAttr}, attrs...)
 	return Event{Name: "doctor.failed", Attrs: attrs, Time: now}, nil
 }
 
@@ -83,8 +87,11 @@ func ErrorEvent(version string, code errcode.Code, now time.Time) (Event, error)
 		}
 		return Event{}, fmt.Errorf("telemetry: error code %q is not one of %s", code, strings.Join(names, ", "))
 	}
+	versionAttr, err := NewVersionAttr(version)
+	if err != nil {
+		return Event{}, err
+	}
 	pairs := [...][2]string{
-		{"version", version},
 		{"os", runtime.GOOS},
 		{"arch", runtime.GOARCH},
 		{"code", string(code)},
@@ -93,6 +100,7 @@ func ErrorEvent(version string, code errcode.Code, now time.Time) (Event, error)
 	if err != nil {
 		return Event{}, err
 	}
+	attrs = append([]Attr{versionAttr}, attrs...)
 	return Event{Name: "error", Attrs: attrs, Time: now}, nil
 }
 

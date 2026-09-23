@@ -20,6 +20,16 @@ type prohibitedRule struct {
 	re   *regexp.Regexp
 }
 
+// hostnamePattern matches a bare hostname or FQDN (e.g. a machine name or a
+// dotted username like "j.doe"). versionAttrs mirrors this rule to reject the
+// same shape in a version string, so the two checks stay consistent.
+var hostnamePattern = regexp.MustCompile(`\b[A-Za-z][\w-]*(?:\.[A-Za-z0-9][\w-]*)*\.[A-Za-z]{2,}\b`)
+
+// snapshotIDPattern matches a 64-character hex snapshot id. versionAttrs
+// mirrors this rule to reject the same shape in a version string, so the two
+// checks stay consistent.
+var snapshotIDPattern = regexp.MustCompile(`\b[0-9a-f]{64}\b`)
+
 // prohibitedRules is the closed rule set, in report order. Adding a rule is one
 // row here; the patterns stay tight enough that version strings, duration
 // buckets and outcome labels never match.
@@ -29,8 +39,8 @@ var prohibitedRules = []prohibitedRule{
 	{"relative_path", regexp.MustCompile(`(?:^|[^:/\w])\w+/\w+`)},
 	{"uri_scheme", regexp.MustCompile(`(?i)\b(?:sftp|scp|ssh|s3|b2|gs|azure|swift|rclone|rest|https?|ftps?):(?://)?[\w.~@/-]+`)},
 	{"at_host", regexp.MustCompile(`\w[\w.-]*@[\w.-]+`)},
-	{"hostname", regexp.MustCompile(`\b[A-Za-z][\w-]*(?:\.[A-Za-z0-9][\w-]*)*\.[A-Za-z]{2,}\b`)},
-	{"snapshot_id", regexp.MustCompile(`\b[0-9a-f]{64}\b`)},
+	{"hostname", hostnamePattern},
+	{"snapshot_id", snapshotIDPattern},
 	{"short_id", regexp.MustCompile(`\b[0-9a-f]{8}\b`)},
 	{"ipv4", regexp.MustCompile(`\b\d{1,3}(?:\.\d{1,3}){3}\b`)},
 	{"ipv6", regexp.MustCompile(`(?i)\b[0-9a-f]{1,4}(?::[0-9a-f]{0,4}){2,7}`)},
