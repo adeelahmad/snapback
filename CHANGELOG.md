@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.2](https://github.com/adeelahmad/snapback/compare/v1.4.1...v1.4.2) (2026-09-23)
+
+### Bug Fixes
+
+* site and README tell the truth about v1.4.1 (S7-01) ([a605729](https://github.com/adeelahmad/snapback/commit/a6057290db283323a908c4811d0f22982160a296))
+
 ## [1.4.1](https://github.com/adeelahmad/snapback/compare/v1.4.0...v1.4.1) (2026-09-22)
 
 ### Bug Fixes
