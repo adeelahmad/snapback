@@ -75,6 +75,15 @@ func eventNameAlternation() string {
 	return `\b(?:` + strings.Join(parts, "|") + `)\b`
 }
 
+// crashReleasePattern matches Snapback's own crash-envelope release string,
+// per ruling S6-R4: "snapback@" followed by a version-looking token (digits,
+// dots, and an optional pre-release/build suffix), exactly the shape
+// crash.Envelope builds ("snapback@<Version>", envelope.go). This must stay
+// narrow: it exempts only that version-shaped identifier, never an arbitrary
+// "snapback@<anything>" string, so a leaked value that merely starts with
+// "snapback@" followed by non-version-shaped content still matches at_host.
+var crashReleasePattern = regexp.MustCompile(`\bsnapback@\d+\.\d+\.\d+(?:-[\w.]+)?\b`)
+
 // blank replaces m with spaces of the same length, so masking a match never
 // shifts the byte offsets later rules see.
 func blank(m []byte) []byte {
@@ -85,6 +94,7 @@ func blank(m []byte) []byte {
 func ScanProhibited(b []byte) []Finding {
 	masked := snapbackModulePath.ReplaceAllFunc(b, blank)
 	masked = eventNamePattern.ReplaceAllFunc(masked, blank)
+	masked = crashReleasePattern.ReplaceAllFunc(masked, blank)
 	var findings []Finding
 	for _, rule := range prohibitedRules {
 		for _, m := range rule.re.FindAll(masked, -1) {

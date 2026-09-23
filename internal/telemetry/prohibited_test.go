@@ -131,6 +131,31 @@ func TestScanProhibitedExemptsSnapbackModulePath(t *testing.T) {
 	}
 }
 
+// TestScanProhibitedExemptsCrashReleaseString pins ruling S6-R4: the crash
+// envelope's own "snapback@<version>" release identifier is not a leaked
+// email or user@host string, so it must yield zero findings.
+func TestScanProhibitedExemptsCrashReleaseString(t *testing.T) {
+	const payload = `{"release":"snapback@0.1.0"}`
+	if got := ScanProhibited([]byte(payload)); len(got) != 0 {
+		t.Fatalf("ScanProhibited(%q) = %+v, want no findings", payload, got)
+	}
+}
+
+// TestScanProhibitedStillFlagsNonVersionSnapbackAtHost pins the narrow half
+// of ruling S6-R4: a value that merely starts with "snapback@" but is not
+// version-shaped (attacker- or user-controlled content) must still be
+// caught by at_host, proving the exemption is not "snapback@<anything>".
+func TestScanProhibitedStillFlagsNonVersionSnapbackAtHost(t *testing.T) {
+	const payload = `{"release":"snapback@evil.example.com"}`
+	got := ScanProhibited([]byte(payload))
+	for _, f := range got {
+		if f.Rule == "at_host" {
+			return
+		}
+	}
+	t.Fatalf("ScanProhibited(%q) = %+v, want a finding with rule %q", payload, got, "at_host")
+}
+
 func TestScanProhibitedPassesACleanPayload(t *testing.T) {
 	payloads := []struct {
 		name string
