@@ -12,9 +12,9 @@
 
 # snapback
 
-**Restoring a file should be as easy as it was in 2008.**
+**Backup is a solved problem. Restore isn't.**
 
-snapback is a restore tool for your backups. It supports Restic today; other backends are on the [roadmap](#roadmap).
+snapback is a restore tool for your backups. It supports Restic today; other backends are on the [roadmap](#roadmap). Restic keeps doing the backup, on your schedule and under your retention rules. snapback does the restore, because restoring a file should be as easy as it was in 2008.
 
 snapback puts a read-only `.snapshot` entry inside your directories, backed by the Restic snapshots you already have. The v0.1 acceptance run on Linux (CI, fuse3) exercised this restore, with macOS (macFUSE) as supplementary evidence; the results are in [docs/reports/v0.1-acceptance.md](docs/reports/v0.1-acceptance.md):
 
