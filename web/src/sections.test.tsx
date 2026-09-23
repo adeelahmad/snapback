@@ -64,11 +64,14 @@ describe('sections', () => {
     expect(inCode.length, `install command inside <code> or <pre>`).toBe(1);
   });
 
-  it('heroStatesWhatExistsToday', () => {
+  it('heroStatesTheShippedRelease', () => {
     const text = renderedText(renderToStaticMarkup(<Hero />));
 
-    expect(text).toMatch(/stage 0/i);
-    expect(text).toMatch(/not yet/i);
+    expect(text).toContain('v0.1');
+    expect(text).toContain('pre-release');
+    expect(text).toContain('Restic');
+    expect(text).toMatch(/\blinux\b/i);
+    expect(text).not.toMatch(/stage 0|not yet|only command|is building/i);
   });
 
   it('howItWorksShowsSnapshotAndCp', () => {
@@ -81,7 +84,14 @@ describe('sections', () => {
       lines.some((l) => l.startsWith('cp .snapshot/')),
       `a line starting "cp .snapshot/" in ${JSON.stringify(lines)}`,
     ).toBe(true);
-    expect(text).toMatch(/planned/i);
+    expect(text).not.toMatch(/planned|not yet|\bwill\b/i);
+
+    const aliasMatches = [...text.matchAll(/\b\d{4}-\d{2}-\d{2}_\d{4}Z\b/g)];
+    expect(aliasMatches.length, `occurrences of the shipped alias format in ${JSON.stringify(lines)}`).toBeGreaterThanOrEqual(2);
+    expect(text).toContain('latest');
+    expect(lines.some((l) => /T\d{2}:\d{2}:\d{2}Z/.test(l)), `no line uses the old timestamp format in ${JSON.stringify(lines)}`).toBe(false);
+
+    expect(text).toContain('How it works');
   });
 
   it('headerLinksDocsAndGitHub', () => {

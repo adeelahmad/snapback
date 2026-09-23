@@ -33,21 +33,21 @@ export const header: HeaderContent = {
 };
 
 export const hero: HeroContent = {
-  pitch: 'snapback is building Time Machine-style restore for Restic backups, in every directory.',
+  pitch: 'snapback puts Time Machine-style restore inside the directories your Restic backups cover.',
   installCommand: 'curl -fsSL https://snapback.run/install.sh | sh',
-  status:
-    'Today snapback is the stage 0 skeleton, whose only command is snapback version, plus stage 1 compatibility evidence. The .snapshot view is not yet built.',
+  status: 'snapback v0.1 is early, pre-release software for Linux.',
 };
 
 export const howItWorks: HowItWorksContent = {
-  heading: 'How it will work',
-  label: 'Planned behaviour, not yet built.',
+  heading: 'How it works',
+  label:
+    'Each directory your backups cover gets one read-only .snapshot entry: a folder per Restic snapshot that contains it, plus a latest alias.',
   terminalLines: [
     'ls -a',
     '.  ..  .snapshot  report.docx',
     'ls .snapshot/',
-    '2026-09-20T09:00:00Z  2026-09-21T09:00:00Z  latest',
-    'cp .snapshot/2026-09-21T09:00:00Z/report.docx ./report.docx',
+    '2026-09-21_0300Z  2026-09-22_0300Z  latest',
+    'cp .snapshot/latest/report.docx .',
   ],
 };
 
