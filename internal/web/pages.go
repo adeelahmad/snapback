@@ -254,6 +254,11 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		if cfg != nil {
 			v.FormSections = FormSections(cfg, nil, nil)
 			fillConfigView(&v, cfg)
+			telemetry, err := TelemetryPanel(cfg.Telemetry.Enabled)
+			if err != nil {
+				v.Errors = append(v.Errors, err.Error())
+			}
+			v.Telemetry = telemetry
 		}
 	}
 	s.render(w, "config", v)

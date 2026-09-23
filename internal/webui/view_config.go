@@ -54,6 +54,7 @@ type ConfigView struct {
 	Revision        string
 	Sections        []ConfigSection
 	FormSections    FormSections
+	Telemetry       template.HTML
 	Roots           []string
 	Filters         []string
 	Exclusions      []string

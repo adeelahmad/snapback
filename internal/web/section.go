@@ -48,10 +48,24 @@ func Split(fields []webui.Field) (basic, advanced Group) {
 func FormSections(cfg *config.Config, byPath map[string]string, form url.Values) webui.FormSections {
 	basic, advanced := Split(Fields(cfg))
 	return webui.FormSections{
-		Basic:         groupSections(basic.Fields, byPath, form),
-		Advanced:      groupSections(advanced.Fields, byPath, form),
+		Basic:         groupSections(withoutTelemetry(basic.Fields), byPath, form),
+		Advanced:      groupSections(withoutTelemetry(advanced.Fields), byPath, form),
 		AdvancedCount: advanced.Count,
 	}
+}
+
+// withoutTelemetry drops the Telemetry section's fields: the dedicated
+// TelemetryPanel renders its one telemetry.enabled checkbox instead of the
+// generic per-field controls this walk would otherwise add.
+func withoutTelemetry(fields []webui.Field) []webui.Field {
+	out := make([]webui.Field, 0, len(fields))
+	for _, f := range fields {
+		if strings.HasPrefix(f.Path, "telemetry.") {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
 }
 
 // groupSections turns one group's fields into its sections, keeping the

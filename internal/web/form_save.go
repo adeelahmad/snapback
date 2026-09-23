@@ -189,6 +189,11 @@ func (s *Server) renderConfigForm(w http.ResponseWriter, r *http.Request, cfg *c
 	}
 	if cfg != nil {
 		v.FormSections = FormSections(cfg, byPath, r.PostForm)
+		telemetry, err := TelemetryPanel(cfg.Telemetry.Enabled)
+		if err != nil {
+			v.Errors = append(v.Errors, err.Error())
+		}
+		v.Telemetry = telemetry
 	}
 	w.WriteHeader(status)
 	s.render(w, "config", v)
