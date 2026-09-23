@@ -87,6 +87,7 @@ func TestClient_Export_5xxRetriedThenFails(t *testing.T) {
 // handler is abandoned at Timeout rather than blocking forever.
 func TestClient_Export_TimeoutAbandonsHungRequest(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
 		<-r.Context().Done()
 	}))
 	defer srv.Close()
