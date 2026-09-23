@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.0](https://github.com/adeelahmad/snapback/compare/v1.5.0...v1.6.0) (2026-09-23)
+
+### Features
+
+* redesign the layout within the existing brand system (S7-03) ([d25da71](https://github.com/adeelahmad/snapback/commit/d25da710f04f7ba22b48d4e8e3e33253018468c1))
+
 ## [1.5.0](https://github.com/adeelahmad/snapback/compare/v1.4.2...v1.5.0) (2026-09-23)
 
 ### Features
