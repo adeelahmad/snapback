@@ -204,15 +204,7 @@ func TestTelemetryDisableIsIdempotent(t *testing.T) {
 	}
 }
 
-// countingRoundTripper counts every RoundTrip call and fails it, so a test
-// using it as http.DefaultTransport can assert that no code path under test
-// ever tried to make a network call.
-type countingRoundTripper struct{ calls int }
-
-func (c *countingRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
-	c.calls++
-	return nil, errors.New("countingRoundTripper: unexpected network call")
-}
+// countingRoundTripper is defined in telemetry_show_test.go.
 
 // TestTelemetryToggleMakesNoNetworkCall pins that neither `enable` nor
 // `disable` ever dials the network, even though enable's config carries a
