@@ -53,6 +53,7 @@ export interface HowItWorksContent {
   heading: string;
   label: string;
   terminalLines: string[];
+  details: string[];
 }
 
 export const header: HeaderContent = {
@@ -126,6 +127,11 @@ export const howItWorks: HowItWorksContent = {
     'ls .snapshot/',
     '2026-09-21_0300Z  2026-09-22_0300Z  latest',
     'cp .snapshot/latest/report.docx .',
+  ],
+  details: [
+    'The only change snapback makes to a live directory is one managed .snapshot symlink.',
+    'It points into a read-only FUSE catalog that lists the Restic snapshots containing that directory, plus a latest alias, and reads files from the repository only when you open them.',
+    'While the daemon runs, a new snapshot can take up to about a minute to appear under .snapshot; snapback refresh asks it to reload sooner.',
   ],
 };
 

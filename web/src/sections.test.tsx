@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { hero, restoreCompare, waysToRestore } from './content';
+import { hero, howItWorks, restoreCompare, waysToRestore } from './content';
 import { Header } from './sections/Header';
 import { Hero } from './sections/Hero';
 import { HowItWorks } from './sections/HowItWorks';
@@ -147,6 +147,26 @@ describe('sections', () => {
     expect(lines.some((l) => /T\d{2}:\d{2}:\d{2}Z/.test(l)), `no line uses the old timestamp format in ${JSON.stringify(lines)}`).toBe(false);
 
     expect(text).toContain('How it works');
+  });
+
+  it('howItWorksRendersMechanismDetailsAfterTheTerminal', () => {
+    const markup = renderToStaticMarkup(<HowItWorks />);
+
+    const detailTexts = [...markup.matchAll(/<p class="how__detail">([\s\S]*?)<\/p>/g)].map((m) =>
+      decodeEntities(m[1].replace(/<[^>]*>/g, '')),
+    );
+    expect(detailTexts).toEqual(howItWorks.details);
+    expect(detailTexts).toEqual([
+      'The only change snapback makes to a live directory is one managed .snapshot symlink.',
+      'It points into a read-only FUSE catalog that lists the Restic snapshots containing that directory, plus a latest alias, and reads files from the repository only when you open them.',
+      'While the daemon runs, a new snapshot can take up to about a minute to appear under .snapshot; snapback refresh asks it to reload sooner.',
+    ]);
+
+    const terminalIndex = markup.indexOf('class="glass terminal"');
+    const firstDetailIndex = markup.indexOf('<p class="how__detail">');
+    expect(terminalIndex, 'terminal present').toBeGreaterThan(-1);
+    expect(firstDetailIndex, 'how__detail present').toBeGreaterThan(-1);
+    expect(firstDetailIndex, 'details render after the terminal').toBeGreaterThan(terminalIndex);
   });
 
   it('twoProblemsNamesResticForBackupAndSnapbackForRestore', () => {
