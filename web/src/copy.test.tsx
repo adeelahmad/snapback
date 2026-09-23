@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import App from './App';
@@ -5,6 +7,7 @@ import * as content from './content';
 import { Footer } from './sections/Footer';
 import { Install } from './sections/Install';
 import { Limits } from './sections/Limits';
+import { Status } from './sections/Status';
 
 const installCommand = 'curl -fsSL https://snapback.run/install.sh | sh';
 const repoURL = 'https://github.com/adeelahmad/snapback';
@@ -41,6 +44,14 @@ const bannedClaims = [
   'tarsnap',
   'rustic',
   'multi-backend',
+  'never writes',
+  'only reads',
+  'snapback setup',
+  'telemetry',
+  'docker',
+  'stage 0',
+  'not yet built',
+  'only command',
 ];
 
 function decodeEntities(s: string): string {
@@ -142,8 +153,12 @@ describe('copy', () => {
       if (!s.includes('.snapshot')) {
         continue;
       }
-      const claimsNow = /\b(today|now)\b/i.test(s) && !/not yet/i.test(s);
-      expect(claimsNow, `sentence claims .snapshot works now: ${JSON.stringify(s)}`).toBe(false);
+      expect(s, `.snapshot sentence claims future or unshipped: ${JSON.stringify(s)}`).not.toMatch(
+        /\b(will|planned|not yet built)\b/i,
+      );
+      expect(s, `.snapshot sentence names macOS or Windows: ${JSON.stringify(s)}`).not.toMatch(
+        /\b(macos|windows)\b/i,
+      );
     }
     for (const s of sentences) {
       if (!roadmapBackends.test(s)) {
@@ -153,6 +168,7 @@ describe('copy', () => {
     }
     expect(text).toContain('not yet');
     expect(text).toContain('Restic');
+    expect(text).toContain('Linux');
   });
 
   it('TestLimitsSection', () => {
@@ -161,8 +177,14 @@ describe('copy', () => {
     expect(text).toMatch(/schedul/i);
     expect(text).toMatch(/retention/i);
     expect(text).toContain('Windows');
-    expect(text, '"never writes" near "Restic repository"').toMatch(
-      /never writes[^.]{0,60}Restic repository/i,
+    expect(text, '"snapback snap" is the only command that adds a snapshot').toMatch(
+      /snapback snap[^.]{0,80}only when you run it/i,
+    );
+    expect(text, 'never deletes or prunes repository data').toMatch(
+      /never (deletes|prunes)[^.]{0,40}repository/i,
+    );
+    expect(text, 'no "never writes" or "only reads" claim').not.toMatch(
+      /never writes|only reads/i,
     );
   });
 
@@ -170,8 +192,71 @@ describe('copy', () => {
     const text = renderedText(renderToStaticMarkup(<Install />));
 
     expect(countOccurrences(text, installCommand), 'occurrences of the install command').toBe(1);
-    expect(text).toContain('snapback version');
+    expect(text).toContain('fuse3');
+    expect(text).toContain('restic CLI');
+    expect(text).toContain('Restic repository');
+    expect(text).toContain('snapback doctor');
     expect(text).toMatch(/checksum/i);
+    expect(text).not.toContain('snapback version');
+    expect(text).not.toContain('only command');
+  });
+
+  it('TestNamedCommandsAreShipped', () => {
+    const usage = readFileSync(fileURLToPath(new URL('../../docs-site/usage.md', import.meta.url)), 'utf8');
+    const usageCommands = new Set(
+      [...usage.matchAll(/^\| `snapback ([a-z][a-z-]*)` \|/gm)].map((m) => m[1]),
+    );
+    expect(usageCommands.size, 'commands parsed from docs-site/usage.md').toBeGreaterThanOrEqual(10);
+
+    const proseWords = new Set(['puts', 'v0.1', 'never', 'supports', 'needs']);
+    const captures = contentStrings(content).flatMap((s) =>
+      [...s.matchAll(/\bsnapback\s+([a-z][a-z0-9.-]*[a-z0-9])/g)].map((m) => m[1]),
+    );
+    const usageCaptures = captures.filter((c) => usageCommands.has(c));
+    expect(usageCaptures.length, `captures naming a usage command: ${JSON.stringify(captures)}`).toBeGreaterThanOrEqual(1);
+    for (const c of captures) {
+      expect(
+        usageCommands.has(c) || proseWords.has(c),
+        `capture ${JSON.stringify(c)} is neither a usage command nor an allowed prose word`,
+      ).toBe(true);
+    }
+
+    expect(usageCommands.has('setup'), 'usage table lists a setup command').toBe(false);
+    expect(usageCommands.has("telemetry"), 'usage table lists a telemetry command').toBe(false);
+  });
+
+  it('TestStatusCitesAcceptanceEvidence', () => {
+    const markup = renderToStaticMarkup(<Status />);
+    const text = renderedText(markup);
+
+    const anchors = tags(markup, 'a').filter((a) => (attr(a, 'href') ?? '').endsWith('/docs/reports/v0.1-acceptance.md'));
+    expect(anchors.length, 'anchors linking to the v0.1 acceptance report').toBe(1);
+    expect(attr(anchors[0], 'rel') ?? '', 'rel of the acceptance report link').toContain('noopener');
+
+    const href = attr(anchors[0], 'href') ?? '';
+    const repoPath = href.split('/blob/master/')[1];
+    expect(repoPath, 'repo-relative path parsed from the evidence href').toBeTruthy();
+    expect(
+      existsSync(fileURLToPath(new URL(`../../${repoPath}`, import.meta.url))),
+      `${repoPath} exists on disk`,
+    ).toBe(true);
+
+    expect(text).toContain('acceptance report');
+  });
+
+  it('TestStatusMatchesReadme', () => {
+    const readme = readFileSync(fileURLToPath(new URL('../../README.md', import.meta.url)), 'utf8');
+    const start = readme.indexOf('\n## Status\n');
+    const end = readme.indexOf('\n## ', start + 1);
+    const section = start < 0 ? '' : readme.slice(start, end < 0 ? undefined : end);
+
+    expect(section.length, 'README.md ## Status section is non-empty').toBeGreaterThan(0);
+    expect(section).toContain('v0.1');
+    expect(section).toContain('pre-release');
+
+    expect(content.hero.status).toContain('v0.1');
+    expect(content.hero.status).toContain('pre-release');
+    expect(content.hero.status).toMatch(/\blinux\b/i);
   });
 
   it('TestFooterLinks', () => {

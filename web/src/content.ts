@@ -33,41 +33,64 @@ export const header: HeaderContent = {
 };
 
 export const hero: HeroContent = {
-  pitch: 'snapback is building Time Machine-style restore for Restic backups, in every directory.',
+  pitch: 'snapback puts Time Machine-style restore inside the directories your Restic backups cover.',
   installCommand: 'curl -fsSL https://snapback.run/install.sh | sh',
-  status:
-    'Today snapback is the stage 0 skeleton, whose only command is snapback version, plus stage 1 compatibility evidence. The .snapshot view is not yet built.',
+  status: 'snapback v0.1 is early, pre-release software for Linux.',
 };
 
 export const howItWorks: HowItWorksContent = {
-  heading: 'How it will work',
-  label: 'Planned behaviour, not yet built.',
+  heading: 'How it works',
+  label:
+    'Each directory your backups cover gets one read-only .snapshot entry: a folder per Restic snapshot that contains it, plus a latest alias.',
   terminalLines: [
     'ls -a',
     '.  ..  .snapshot  report.docx',
     'ls .snapshot/',
-    '2026-09-20T09:00:00Z  2026-09-21T09:00:00Z  latest',
-    'cp .snapshot/2026-09-21T09:00:00Z/report.docx ./report.docx',
+    '2026-09-21_0300Z  2026-09-22_0300Z  latest',
+    'cp .snapshot/latest/report.docx .',
   ],
 };
 
-export type StageState = 'done' | 'in progress' | 'planned';
+export type ReleaseState = 'shipped' | 'planned';
 
-export interface Stage {
+export interface Release {
   name: string;
-  state: StageState;
+  state: ReleaseState;
+  scope: string;
 }
 
-export const stages: Stage[] = [
-  { name: 'Scaffolding', state: 'done' },
-  { name: 'Compatibility milestone', state: 'in progress' },
-  { name: 'Core vertical slice', state: 'planned' },
-  { name: 'Reliable background operation', state: 'planned' },
-  { name: 'Web UI and services', state: 'planned' },
-  { name: 'macOS proof', state: 'planned' },
-  { name: 'On-access mode', state: 'planned' },
-  { name: 'Release', state: 'planned' },
+export const releases: Release[] = [
+  {
+    name: 'v0.1, first public release candidate',
+    state: 'shipped',
+    scope:
+      'Linux: the .snapshot view with its latest alias, snapback snap, snapback seed and snapback link, the daemon, the local web UI, snapback doctor and the systemd user service. Acceptance items 1 to 17 passed on Linux.',
+  },
+  {
+    name: 'Follow-up, separately proven',
+    state: 'planned',
+    scope:
+      'macOS with macFUSE, launchd, the Finder companion and more package channels. Each ships only with its own acceptance evidence.',
+  },
+  {
+    name: 'Experimental until acceptance proof',
+    state: 'planned',
+    scope:
+      'On-access mode (Linux fanotify, macOS Endpoint Security), opt-in and labelled experimental until its acceptance test passes.',
+  },
 ];
+
+export interface EvidenceLink {
+  lead: string;
+  label: string;
+  href: string;
+}
+
+export const statusEvidence: EvidenceLink = {
+  lead: 'Item-by-item results are in',
+  label: 'the v0.1 acceptance report',
+  href: 'https://github.com/adeelahmad/snapback/blob/master/docs/reports/v0.1-acceptance.md',
+};
 
 export interface ListContent {
   heading: string;
@@ -75,12 +98,12 @@ export interface ListContent {
 }
 
 export const limits: ListContent = {
-  heading: 'What snapback does not do',
+  heading: "What it doesn't do",
   items: [
     'No backup scheduling. Run Restic on your own schedule.',
     'No retention policy. Pruning stays with Restic.',
     'No file-content cache.',
-    'snapback never writes to the Restic repository.',
+    'snapback snap is the one command that adds a snapshot to the repository, and only when you run it. snapback never deletes, prunes or rewrites repository data.',
     'No Windows support.',
     'No live overlay or union of snapshot and working files.',
     'snapback supports Restic today; other backends are not yet supported.',
@@ -91,8 +114,9 @@ export const limits: ListContent = {
 export const install: ListContent = {
   heading: 'Install',
   items: [
-    'Today this installs a binary whose only command is snapback version.',
-    'The script verifies the release checksums before it installs anything.',
+    'The script downloads the latest release for your operating system and architecture and verifies it against the signed checksums.txt before it installs anything.',
+    'snapback needs FUSE (fuse3 on Linux), the restic CLI and an existing Restic repository.',
+    'Run snapback doctor afterwards to check the prerequisites and your repository.',
   ],
 };
 

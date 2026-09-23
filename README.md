@@ -41,7 +41,7 @@ Backing up was never the problem; restoring is. Most tools make you leave the di
 curl -fsSL https://snapback.run/install.sh | sh
 ```
 
-The installer downloads the latest release (v1.4.0) for your operating system and architecture, verifies it against the signed `checksums.txt`, and installs the binary to `/usr/local/bin`, or to `~/.local/bin` when that directory is not writable or not on your `PATH`.
+The installer downloads the latest release for your operating system and architecture, verifies it against the signed `checksums.txt`, and installs the binary to `/usr/local/bin`, or to `~/.local/bin` when that directory is not writable or not on your `PATH`.
 
 Before running it you need FUSE (`fuse3` on Linux, [macFUSE](https://macfuse.github.io) on macOS), the `restic` CLI and an existing Restic repository; setup, the service and every command are in the [usage guide](docs-site/usage.md).
 
@@ -73,9 +73,9 @@ While the daemon runs, a new snapshot can take up to about a minute to appear un
 ## What it doesn't do
 
 - It will not schedule backups, prune or forget snapshots. Keep using Restic for that.
-- It will not write to your Restic repository or replace your backup tool.
+- It will not replace your backup tool. `snapback snap` is the one command that adds a snapshot to your Restic repository, and only when you run it; snapback never deletes, prunes or rewrites repository data.
 - It will not run on Windows. FUSE is a hard requirement.
-- It only reads Restic repositories.
+- It works only with Restic repositories today.
 
 ## Status
 
