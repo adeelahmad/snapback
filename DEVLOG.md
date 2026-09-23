@@ -187,6 +187,17 @@ test never asks for.
 test and the docs were corrected to match.
 **Lesson:** A design may only promise what the pinned arguments actually produce.
 
+### 2026-09-23 - MkdirAll raced a concurrent creator
+**What happened:** CI's stage-5 acceptance suite (TestAcc13RefreshDelayAndWarmNoBackend)
+failed with `create state dir: ... mkdir .../state: file exists`; the daemon exited.
+**Root cause:** `fsmode.MkdirAll` does Lstat-then-os.Mkdir per missing path component,
+which is not atomic; the daemon and web server can both try to create the same
+missing state dir at once, and the loser's os.Mkdir sees the winner's directory.
+**How we fixed it:** Treat an `os.Mkdir` error satisfying `errors.Is(err, fs.ErrExist)`
+as success and skip the chmod for that component, matching WriteFile's existing-file
+behavior.
+**Lesson:** Lstat-then-Mkdir is not atomic; treat EEXIST as success.
+
 ## Technical Debt & Future Ideas
 - `demo.gif` is not recorded or committed yet: the tape lives at the quick-start
   path and the docs workflow's demo job uploads an artifact, but

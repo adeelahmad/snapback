@@ -1,7 +1,9 @@
 package fsmode
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -10,7 +12,8 @@ import (
 //
 // Each directory it creates is chmod-ed after the fact, because the process
 // umask clears bits from the mode os.Mkdir is given. Directories that already
-// exist keep the mode they have.
+// exist, including one a concurrent creator won the race to make, keep the
+// mode they have.
 func MkdirAll(path string, m Modes) error {
 	var missing []string
 	for p := path; ; {
@@ -26,6 +29,9 @@ func MkdirAll(path string, m Modes) error {
 	}
 	for i := len(missing) - 1; i >= 0; i-- {
 		if err := os.Mkdir(missing[i], m.Dir); err != nil {
+			if errors.Is(err, fs.ErrExist) {
+				continue
+			}
 			return fmt.Errorf("create directory %s: %w", path, err)
 		}
 		if err := os.Chmod(missing[i], m.Dir); err != nil {
