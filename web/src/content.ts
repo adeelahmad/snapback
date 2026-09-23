@@ -186,14 +186,20 @@ export interface ListContent {
   items: string[];
 }
 
-export const limits: ListContent = {
-  heading: "What it doesn't do",
+export const resticKeeps: ListContent = {
+  heading: 'What Restic keeps doing',
   items: [
-    'No backup scheduling. Run Restic on your own schedule.',
-    'No retention policy. Pruning stays with Restic.',
-    'No file-content cache.',
-    'snapback snap is the one command that adds a snapshot to the repository, and only when you run it. snapback never deletes, prunes or rewrites repository data.',
-    'No Windows support.',
+    'Scheduling. Run restic backup from cron or a systemd timer, as you do now.',
+    'Retention and pruning. restic forget and restic prune stay with you; snapback never deletes, prunes or rewrites repository data.',
+    'One exception, on request: snapback snap asks Restic to take one snapshot of a directory now, and only when you run it.',
+  ],
+};
+
+export const limits: ListContent = {
+  heading: 'What snapback does not do',
+  items: [
+    'No Windows support. FUSE is a hard requirement.',
+    'No file-content cache. Files are read from the repository only when you open them.',
     'No live overlay or union of snapshot and working files.',
     'snapback supports Restic today; other backends are not yet supported.',
     'Borg, Kopia, ZFS and Btrfs snapshots are planned backends, not yet supported.',

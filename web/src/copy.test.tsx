@@ -191,6 +191,25 @@ describe('copy', () => {
     );
   });
 
+  it('TestLimitsNamesWhatResticKeeps', () => {
+    const markup = renderToStaticMarkup(<Limits />);
+    const text = renderedText(markup);
+
+    expect(text).toContain(content.resticKeeps.heading);
+    for (const item of content.resticKeeps.items) {
+      expect(text).toContain(item);
+    }
+    expect(text).toContain(content.limits.heading);
+    for (const item of content.limits.items) {
+      expect(text).toContain(item);
+    }
+
+    const listsDivs = tags(markup, 'div').filter((d) =>
+      (attr(d, 'class') ?? '').includes('limits__lists'),
+    );
+    expect(listsDivs.length, '<div className="limits__lists"> wraps the two blocks').toBe(1);
+  });
+
   it('TestNoSentenceMakesSnapbackTheBackupTool', () => {
     const text = renderedText(renderToStaticMarkup(<App />));
     expect(text, 'rendered <App/> text mentions snapback').toContain('snapback');
