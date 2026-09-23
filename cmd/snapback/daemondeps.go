@@ -25,6 +25,8 @@ import (
 	"github.com/adeelahmad/snapback/internal/readerpolicy"
 	"github.com/adeelahmad/snapback/internal/refresh"
 	"github.com/adeelahmad/snapback/internal/resolver"
+	"github.com/adeelahmad/snapback/internal/telemetry"
+	"github.com/adeelahmad/snapback/internal/version"
 )
 
 const (
@@ -48,6 +50,17 @@ type daemonWiring struct {
 	Gate    mount.Gate
 	Catalog func(mount.Catalog) mount.Catalog
 }
+
+// telemetryHistoryAdapter is the history view's production adapter: Mount is
+// timed and reported through the embedded mount.TelemetryAdapter, while
+// Publish is forwarded straight to the wrapped adapter, since only the first
+// mount is worth timing.
+type telemetryHistoryAdapter struct {
+	*mount.TelemetryAdapter
+	publish mount.Publisher
+}
+
+func (a telemetryHistoryAdapter) Publish(cat mount.Catalog) { a.publish.Publish(cat) }
 
 // daemonBuilder builds the production daemon.Deps from cfg, logging to log.
 func daemonBuilder(ctx context.Context, cfg *config.Config, ln net.Listener, log *slog.Logger) (daemon.Deps, error) {
@@ -101,11 +114,20 @@ func daemonBuilderWithLog(_ context.Context, cfg *config.Config, ln net.Listener
 	}, readerpolicy.ProcName, time.Now)
 	decider := readerpolicy.NewLogDecider(policy, readerpolicy.ProcName, log)
 	gate := policyGate{decider}
+	tc := telemetry.FromConfig(cfg, version.Version, cfg.StateDir)
+	fuseAdapter := gofuse.NewAdapter(noObserver{}, gofuse.WithGate(gate))
 	view := &historyView{
-		dir:     cfg.HistoryMount,
-		modes:   m,
-		log:     log,
-		adapter: gofuse.NewAdapter(noObserver{}, gofuse.WithGate(gate)),
+		dir:   cfg.HistoryMount,
+		modes: m,
+		log:   log,
+		adapter: telemetryHistoryAdapter{
+			TelemetryAdapter: &mount.TelemetryAdapter{
+				Adapter: fuseAdapter,
+				Client:  tc,
+				Version: version.Version,
+			},
+			publish: fuseAdapter,
+		},
 	}
 
 	ref := refresh.New(refresh.Config{
@@ -142,6 +164,8 @@ func daemonBuilderWithLog(_ context.Context, cfg *config.Config, ln net.Listener
 		Listener:  ln,
 		Throttle:  decider.Events,
 		Clock:     time.Now,
+		Telemetry: tc,
+		Version:   version.Version,
 	}, Listers: listers, Gate: gate, Catalog: view.wrapCatalog}, nil
 }
 

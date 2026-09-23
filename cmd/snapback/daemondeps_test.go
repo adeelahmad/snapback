@@ -117,6 +117,42 @@ func TestDaemonDepsComplete(t *testing.T) {
 	}
 }
 
+// TestDaemonDepsTelemetryWired pins the S6-09 wiring gap: with telemetry
+// enabled and an endpoint configured, the real daemonBuilder must hand back
+// a Deps.Telemetry that actually delivers events, not the disabled/no-op
+// client daemon.New substitutes when Deps.Telemetry is left nil.
+func TestDaemonDepsTelemetryWired(t *testing.T) {
+	tmp := shortTempDir(t)
+	bin := filepath.Join(tmp, "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatalf("os.MkdirAll(%s) = %v", bin, err)
+	}
+	restic := filepath.Join(bin, "restic")
+	if err := os.WriteFile(restic, []byte(fakeRestic), 0o755); err != nil {
+		t.Fatalf("os.WriteFile(%s) = %v", restic, err)
+	}
+	t.Setenv("PATH", bin)
+	cfg := daemonDepsConfig(t, tmp, restic)
+	cfg.Telemetry.Enabled = true
+	cfg.Telemetry.Endpoint = "http://collector.example:4318"
+	ln := listenUnix(t, tmp)
+
+	deps, err := daemonBuilder(t.Context(), cfg, ln, nil)
+	if err != nil {
+		t.Fatalf("daemonBuilder(ctx, cfg, ln) = %v, want nil error", err)
+	}
+
+	if deps.Telemetry == nil {
+		t.Fatalf("daemonBuilder(ctx, cfg, ln).Telemetry = nil, want a real client")
+	}
+	if !deps.Telemetry.Enabled() {
+		t.Errorf("daemonBuilder(ctx, cfg, ln).Telemetry.Enabled() = false, want true for an enabled, endpoint-configured cfg")
+	}
+	if deps.Version == "" {
+		t.Errorf("daemonBuilder(ctx, cfg, ln).Version = %q, want a non-empty release string", deps.Version)
+	}
+}
+
 func TestDaemonDepsNoRestic(t *testing.T) {
 	tmp := shortTempDir(t)
 	t.Setenv("PATH", "")

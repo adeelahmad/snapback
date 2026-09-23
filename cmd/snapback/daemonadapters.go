@@ -18,7 +18,6 @@ import (
 	"github.com/adeelahmad/snapback/internal/fsmode"
 	"github.com/adeelahmad/snapback/internal/links"
 	"github.com/adeelahmad/snapback/internal/mount"
-	"github.com/adeelahmad/snapback/internal/mount/gofuse"
 	"github.com/adeelahmad/snapback/internal/provider"
 	"github.com/adeelahmad/snapback/internal/provider/restic"
 	"github.com/adeelahmad/snapback/internal/readerpolicy"
@@ -31,10 +30,17 @@ const mountinfoPath = "/proc/self/mountinfo"
 // historyView mounts the history catalog at dir on its first Publish, so
 // building it mounts nothing.
 type historyView struct {
-	dir     string
-	modes   fsmode.Modes
-	log     *slog.Logger
-	adapter *gofuse.Adapter
+	dir   string
+	modes fsmode.Modes
+	log   *slog.Logger
+	// adapter mounts and publishes the catalog. It is mount.Adapter plus
+	// Publish, since a mounted view swaps catalogs through it too; the
+	// production wiring is a telemetryHistoryAdapter around the real
+	// *gofuse.Adapter, tests use *gofuse.Adapter directly.
+	adapter interface {
+		mount.Adapter
+		mount.Publisher
+	}
 
 	mu      sync.Mutex
 	mounted bool
