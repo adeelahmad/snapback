@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { hero } from './content';
 import { Header } from './sections/Header';
 import { Hero } from './sections/Hero';
 import { HowItWorks } from './sections/HowItWorks';
@@ -30,6 +31,14 @@ function renderedText(markup: string): string {
 
 function countOccurrences(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1;
+}
+
+// textWithSpaces replaces each tag with a space before decoding entities, so
+// text from adjacent elements never runs together across a tag boundary.
+function textWithSpaces(markup: string): string {
+  return decodeEntities(markup.replace(/<[^>]*>/g, ' '))
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function codeBlocks(markup: string): string[] {
@@ -62,6 +71,49 @@ describe('sections', () => {
     expect(got, `occurrences of the install command in hero text`).toBe(1);
     const inCode = codeBlocks(markup).filter((b) => b.includes(installCommand));
     expect(inCode.length, `install command inside <code> or <pre>`).toBe(1);
+  });
+
+  it('heroSplitsBackupAndRestore', () => {
+    const markup = renderToStaticMarkup(<Hero />);
+    const text = textWithSpaces(markup);
+    const sentences = text.split(/(?<=[.!?])\s+/);
+
+    expect(
+      sentences.some((s) => /\bbackup\b/i.test(s) && s.includes('Restic')),
+      `a sentence naming backup and Restic in ${JSON.stringify(sentences)}`,
+    ).toBe(true);
+    expect(
+      sentences.some(
+        (s) => s.includes('snapback') && /\brestore\b/i.test(s) && !/backup tool/i.test(s),
+      ),
+      `a sentence naming snapback and restore, not backup tool, in ${JSON.stringify(sentences)}`,
+    ).toBe(true);
+
+    const h1Match = markup.match(/<h1[^>]*>([\s\S]*?)<\/h1>/);
+    expect(h1Match, '<h1> present').toBeTruthy();
+    const h1Text = decodeEntities((h1Match as RegExpMatchArray)[1].replace(/<[^>]*>/g, ''));
+    expect(h1Text).toBe(hero.pitch);
+    expect(h1Text).toContain('snapback');
+    expect(h1Text).toContain('as easy as cp');
+  });
+
+  it('heroCallsSnapbackARestoreTool', () => {
+    const markup = renderToStaticMarkup(<Hero />);
+
+    const eyebrowMatch = markup.match(/<p class="hero__eyebrow">([\s\S]*?)<\/p>/);
+    expect(eyebrowMatch, '<p class="hero__eyebrow"> present').toBeTruthy();
+    const eyebrowText = decodeEntities(
+      (eyebrowMatch as RegExpMatchArray)[1].replace(/<[^>]*>/g, ''),
+    );
+    expect(eyebrowText).toBe('A restore tool, not another backup tool');
+
+    const eyebrowIndex = markup.indexOf('<p class="hero__eyebrow">');
+    const h1Index = markup.indexOf('<h1');
+    expect(h1Index, '<h1> present').toBeGreaterThan(-1);
+    expect(eyebrowIndex, 'hero__eyebrow before <h1>').toBeLessThan(h1Index);
+
+    const got = countOccurrences(renderedText(markup), installCommand);
+    expect(got, `occurrences of the install command in hero text`).toBe(1);
   });
 
   it('heroStatesTheShippedRelease', () => {

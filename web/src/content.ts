@@ -11,7 +11,9 @@ export interface HeaderContent {
 }
 
 export interface HeroContent {
+  eyebrow: string;
   pitch: string;
+  lede: string;
   installCommand: string;
   status: string;
 }
@@ -33,7 +35,10 @@ export const header: HeaderContent = {
 };
 
 export const hero: HeroContent = {
-  pitch: 'snapback puts Time Machine-style restore inside the directories your Restic backups cover.',
+  eyebrow: 'A restore tool, not another backup tool',
+  pitch: 'Backup is a solved problem. snapback makes restore as easy as cp.',
+  lede:
+    'Restic keeps doing the backup: on your schedule, deduplicated and encrypted, under your retention rules. snapback does the restore: a read-only .snapshot entry inside the directories your backups cover, so getting a file back is as easy as it was in 2008.',
   installCommand: 'curl -fsSL https://snapback.run/install.sh | sh',
   status: 'snapback v0.1 is early, pre-release software for Linux.',
 };
