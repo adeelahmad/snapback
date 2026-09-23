@@ -16,6 +16,7 @@ export interface HeroContent {
   lede: string;
   installCommand: string;
   status: string;
+  demo: TerminalPane[];
 }
 
 export interface Problem {
@@ -73,6 +74,23 @@ export const hero: HeroContent = {
     'Restic keeps doing the backup: on your schedule, deduplicated and encrypted, under your retention rules. snapback does the restore: a read-only .snapshot entry inside the directories your backups cover, so getting a file back is as easy as it was in 2008.',
   installCommand: 'curl -fsSL https://snapback.run/install.sh | sh',
   status: 'snapback v0.1 is early, pre-release software for Linux.',
+  demo: [
+    {
+      label: 'backup: restic, on your schedule',
+      lines: [
+        { kind: 'cmd', text: 'restic backup ~/Documents' },
+        { kind: 'out', text: 'snapshot 4f2a9c1e saved' },
+      ],
+    },
+    {
+      label: 'restore: snapback, when you need a file',
+      lines: [
+        { kind: 'cmd', text: 'ls .snapshot/' },
+        { kind: 'out', text: '2026-09-21_0300Z  2026-09-22_0300Z  latest' },
+        { kind: 'cmd', text: 'cp .snapshot/latest/report.docx .' },
+      ],
+    },
+  ],
 };
 
 export const twoProblems: TwoProblemsContent = {

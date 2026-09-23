@@ -163,6 +163,67 @@ describe('sections', () => {
     expect(text).not.toMatch(/stage 0|not yet|only command|is building/i);
   });
 
+  it('heroShowsBackupAndRestorePanes', () => {
+    const markup = renderToStaticMarkup(<Hero />);
+
+    expect(hero.demo.length, 'hero.demo pane count').toBe(2);
+
+    const [backupPane, restorePane] = hero.demo;
+    expect(backupPane.label).toMatch(/backup/i);
+    expect(backupPane.label).toMatch(/restic/i);
+    expect(
+      backupPane.lines.some((l) => l.text.startsWith('restic backup ')),
+      `a backup pane line starting "restic backup " in ${JSON.stringify(backupPane.lines)}`,
+    ).toBe(true);
+
+    expect(restorePane.label).toMatch(/restore/i);
+    expect(restorePane.label).toMatch(/snapback/i);
+    expect(
+      restorePane.lines.some((l) => l.text.startsWith('cp .snapshot/latest/')),
+      `a restore pane line starting "cp .snapshot/latest/" in ${JSON.stringify(restorePane.lines)}`,
+    ).toBe(true);
+
+    for (const pane of hero.demo) {
+      for (const line of pane.lines) {
+        if (/\d{4}-\d{2}-\d{2}/.test(line.text)) {
+          expect(
+            line.text,
+            `line with a date uses the shipped alias format: ${JSON.stringify(line.text)}`,
+          ).toMatch(/\b\d{4}-\d{2}-\d{2}_\d{4}Z\b/);
+        }
+      }
+    }
+
+    const textIndex = markup.indexOf('<div class="hero__text">');
+    const h1Index = markup.indexOf('<h1');
+    const demoIndex = markup.indexOf('<div class="hero__demo">');
+    expect(textIndex, 'hero__text present').toBeGreaterThan(-1);
+    expect(h1Index, '<h1> present').toBeGreaterThan(-1);
+    expect(demoIndex, 'hero__demo present').toBeGreaterThan(-1);
+    expect(h1Index, '<h1> inside hero__text').toBeGreaterThan(textIndex);
+    expect(demoIndex, 'hero__demo follows hero__text').toBeGreaterThan(h1Index);
+
+    const captions = [
+      ...markup.matchAll(/<figcaption class="terminal__label">([\s\S]*?)<\/figcaption>/g),
+    ];
+    expect(captions.length, 'hero demo figcaption count').toBe(2);
+
+    const got = countOccurrences(renderedText(markup), installCommand);
+    expect(got, `occurrences of the install command in hero text`).toBe(1);
+  });
+
+  it('stylesheetPutsHeroDemoBesideText', () => {
+    const css = readStylesheet();
+
+    expect(ruleBody(css, '.hero')).toContain('display: grid');
+
+    const wide = mediaBlock(css, '(min-width: 960px)');
+    expect(wide, '@media (min-width: 960px) block present').not.toBe('');
+    expect(ruleBody(wide, '.hero')).toContain('grid-template-columns');
+
+    expect(ruleBody(css, '.hero__lede')).toContain('max-width');
+  });
+
   it('howItWorksShowsSnapshotAndCp', () => {
     const markup = renderToStaticMarkup(<HowItWorks />);
     const text = renderedText(markup);

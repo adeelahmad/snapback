@@ -124,6 +124,8 @@ a:focus-visible {
 }
 
 .hero {
+  display: grid;
+  gap: var(--space-8);
   padding: var(--space-12) 0;
 }
 
@@ -132,9 +134,33 @@ a:focus-visible {
   max-width: 24ch;
 }
 
+.hero__eyebrow {
+  font-family: var(--font-mono);
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+}
+
+.hero__lede {
+  color: var(--ink-body);
+  font-size: 1.125rem;
+  max-width: 60ch;
+}
+
 .hero__status {
   margin-top: var(--space-6);
   color: var(--ink-muted);
+}
+
+.hero__demo {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 960px) {
+  .hero {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: center;
+  }
 }
 
 .how {
