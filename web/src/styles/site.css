@@ -8,17 +8,55 @@ body {
     radial-gradient(circle at 15% 10%, var(--glass-tint-green), transparent 40%),
     radial-gradient(circle at 85% 60%, var(--glass-tint-blue), transparent 45%);
   background-attachment: fixed;
+  line-height: 1.6;
 }
 
 main {
-  max-width: 960px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-4) var(--space-16);
+  padding: var(--space-4) var(--space-4) var(--space-16);
+}
+
+main > section {
+  padding-block: var(--space-12);
+}
+
+main > section + section {
+  border-top: 1px solid var(--line);
 }
 
 h1,
-h2 {
+h2,
+h3 {
   color: var(--ink);
+}
+
+h1 {
+  font-size: clamp(2rem, 1.2rem + 3.6vw, 3.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+h2 {
+  font-size: clamp(1.5rem, 1.2rem + 1.2vw, 1.875rem);
+  line-height: 1.25;
+  margin: 0 0 var(--space-4);
+}
+
+h3 {
+  font-size: 1.125rem;
+  margin: 0 0 var(--space-2);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+pre {
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 a {
@@ -28,6 +66,30 @@ a {
 a:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+@media (min-width: 768px) {
+  main {
+    padding-inline: var(--space-8);
+  }
+
+  main > section {
+    padding-block: var(--space-16);
+  }
+
+  .problems {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .limits__lists {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 360px) {
+  .site-header {
+    flex-wrap: wrap;
+  }
 }
 
 .site-header {
@@ -70,6 +132,8 @@ a:focus-visible {
 }
 
 .hero {
+  display: grid;
+  gap: var(--space-8);
   padding: var(--space-12) 0;
 }
 
@@ -78,9 +142,37 @@ a:focus-visible {
   max-width: 24ch;
 }
 
+.hero__eyebrow {
+  font-family: var(--font-mono);
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+}
+
+.hero__lede {
+  color: var(--ink-body);
+  font-size: 1.125rem;
+  max-width: 60ch;
+}
+
 .hero__status {
   margin-top: var(--space-6);
   color: var(--ink-muted);
+}
+
+.hero__demo {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 960px) {
+  .hero {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .compare {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .how {
@@ -89,6 +181,59 @@ a:focus-visible {
 
 .how__label {
   color: var(--ink-muted);
+}
+
+.problems {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.problem {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  background: var(--surface);
+}
+
+.problem--restore {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.problem__tag {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  background: var(--canvas-sunken);
+  color: var(--ink-muted);
+}
+
+.problem--restore .problem__tag {
+  color: var(--accent-text);
+}
+
+.compare {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.terminal {
+  margin: 0;
+}
+.hero__text,
+.hero__demo,
+.terminal {
+  min-width: 0;
+}
+
+.terminal__label {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--ink-muted);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line);
 }
 
 .terminal__cmd::before {
@@ -106,6 +251,11 @@ a:focus-visible {
   padding: var(--space-8) 0;
 }
 
+.limits__lists {
+  display: grid;
+  gap: var(--space-8);
+}
+
 .install p {
   margin: var(--space-4) 0 0;
 }
@@ -114,8 +264,49 @@ a:focus-visible {
   color: var(--ink-muted);
 }
 
+.ways {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+.way {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: var(--surface);
+}
+
+.releases {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.release {
+  border-left: 2px solid var(--line-strong);
+  padding-left: var(--space-4);
+}
+
+.release__name {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.release__state {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--ink-muted);
+}
+
 .site-footer {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-6);
   padding-top: var(--space-8);
   border-top: 1px solid var(--line);

@@ -66,6 +66,40 @@ function readStylesheet(): string {
   return existsSync(path) ? readFileSync(path, 'utf8') : '';
 }
 
+// mediaBlock returns the text of the first `@media <query> {…}` block,
+// matching braces by depth, or '' when there is none.
+function mediaBlock(css: string, query: string): string {
+  const marker = `@media ${query}`;
+  const markerStart = css.indexOf(marker);
+  if (markerStart === -1) return '';
+  const braceStart = css.indexOf('{', markerStart);
+  if (braceStart === -1) return '';
+
+  let depth = 1;
+  let i = braceStart + 1;
+  while (i < css.length && depth > 0) {
+    if (css[i] === '{') depth++;
+    else if (css[i] === '}') depth--;
+    i++;
+  }
+  if (depth !== 0) return '';
+  return css.slice(braceStart + 1, i - 1);
+}
+
+// ruleBody returns the concatenated declarations of every rule, including
+// rules inside media blocks, whose comma-separated selector list has an item
+// equal to `selector` after trimming.
+function ruleBody(css: string, selector: string): string {
+  let body = '';
+  for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selectors = m[1].split(',').map((s) => s.trim());
+    if (selectors.includes(selector)) {
+      body += m[2];
+    }
+  }
+  return body;
+}
+
 describe('sections', () => {
   it('heroShowsTheOneCommand', () => {
     const markup = renderToStaticMarkup(<Hero />);
@@ -127,6 +161,67 @@ describe('sections', () => {
     expect(text).toContain('Restic');
     expect(text).toMatch(/\blinux\b/i);
     expect(text).not.toMatch(/stage 0|not yet|only command|is building/i);
+  });
+
+  it('heroShowsBackupAndRestorePanes', () => {
+    const markup = renderToStaticMarkup(<Hero />);
+
+    expect(hero.demo.length, 'hero.demo pane count').toBe(2);
+
+    const [backupPane, restorePane] = hero.demo;
+    expect(backupPane.label).toMatch(/backup/i);
+    expect(backupPane.label).toMatch(/restic/i);
+    expect(
+      backupPane.lines.some((l) => l.text.startsWith('restic backup ')),
+      `a backup pane line starting "restic backup " in ${JSON.stringify(backupPane.lines)}`,
+    ).toBe(true);
+
+    expect(restorePane.label).toMatch(/restore/i);
+    expect(restorePane.label).toMatch(/snapback/i);
+    expect(
+      restorePane.lines.some((l) => l.text.startsWith('cp .snapshot/latest/')),
+      `a restore pane line starting "cp .snapshot/latest/" in ${JSON.stringify(restorePane.lines)}`,
+    ).toBe(true);
+
+    for (const pane of hero.demo) {
+      for (const line of pane.lines) {
+        if (/\d{4}-\d{2}-\d{2}/.test(line.text)) {
+          expect(
+            line.text,
+            `line with a date uses the shipped alias format: ${JSON.stringify(line.text)}`,
+          ).toMatch(/\b\d{4}-\d{2}-\d{2}_\d{4}Z\b/);
+        }
+      }
+    }
+
+    const textIndex = markup.indexOf('<div class="hero__text">');
+    const h1Index = markup.indexOf('<h1');
+    const demoIndex = markup.indexOf('<div class="hero__demo">');
+    expect(textIndex, 'hero__text present').toBeGreaterThan(-1);
+    expect(h1Index, '<h1> present').toBeGreaterThan(-1);
+    expect(demoIndex, 'hero__demo present').toBeGreaterThan(-1);
+    expect(h1Index, '<h1> inside hero__text').toBeGreaterThan(textIndex);
+    expect(demoIndex, 'hero__demo follows hero__text').toBeGreaterThan(h1Index);
+
+    const captions = [
+      ...markup.matchAll(/<figcaption class="terminal__label">([\s\S]*?)<\/figcaption>/g),
+    ];
+    expect(captions.length, 'hero demo figcaption count').toBe(2);
+
+    const got = countOccurrences(renderedText(markup), installCommand);
+    expect(got, `occurrences of the install command in hero text`).toBe(1);
+  });
+
+  it('stylesheetPutsHeroDemoBesideText', () => {
+    const css = readStylesheet();
+
+    expect(ruleBody(css, '.hero')).toContain('display: grid');
+
+    const wide = mediaBlock(css, '(min-width: 960px)');
+    expect(wide, '@media (min-width: 960px) block present').not.toBe('');
+    expect(ruleBody(wide, '.hero')).toContain('grid-template-columns');
+
+    expect(ruleBody(css, '.hero__lede')).toContain('max-width');
   });
 
   it('howItWorksShowsSnapshotAndCp', () => {
@@ -294,6 +389,66 @@ describe('sections', () => {
     }
   });
 
+  it('stylesheetDefinesResponsiveShell', () => {
+    const css = readStylesheet();
+    expect(css.length, 'web/src/styles/site.css is non-empty').toBeGreaterThan(0);
+
+    expect(ruleBody(css, 'main')).toContain('max-width: 1120px');
+
+    const desktop = mediaBlock(css, '(min-width: 768px)');
+    expect(desktop, '@media (min-width: 768px) block present').not.toBe('');
+    expect(ruleBody(desktop, 'main')).toContain('var(--space-8)');
+
+    expect(ruleBody(css, 'h1')).toContain('clamp(');
+    expect(ruleBody(css, 'h2')).toContain('clamp(');
+
+    expect(ruleBody(css, 'main > section + section')).toContain(
+      'border-top: 1px solid var(--line)',
+    );
+  });
+
+  it('stylesheetKeepsOverflowInsideCodeBlocks', () => {
+    const css = readStylesheet();
+    expect(css.length, 'web/src/styles/site.css is non-empty').toBeGreaterThan(0);
+
+    expect(ruleBody(css, 'pre')).toContain('overflow-x: auto');
+    expect(ruleBody(css, 'img')).toContain('max-width: 100%');
+
+    const overflowMasked = /overflow(-x)?:\s*(hidden|clip)/;
+    for (const selector of ['html', 'body', 'main']) {
+      expect(
+        ruleBody(css, selector),
+        `no ${selector} rule masks overflow`,
+      ).not.toMatch(overflowMasked);
+    }
+  });
+
+  it('stylesheetLaysProblemsSideBySide', () => {
+    const css = readStylesheet();
+
+    const desktop = mediaBlock(css, '(min-width: 768px)');
+    expect(desktop, '@media (min-width: 768px) block present').not.toBe('');
+    expect(ruleBody(desktop, '.problems')).toContain(
+      'grid-template-columns: repeat(2, minmax(0, 1fr))',
+    );
+
+    expect(ruleBody(css, '.problem--restore')).toContain('var(--accent-soft)');
+    expect(ruleBody(css, '.problem__tag')).toContain('var(--font-mono)');
+    expect(ruleBody(css, '.problem__tag')).toContain('var(--radius-sm)');
+  });
+
+  it('stylesheetLaysTerminalsSideBySide', () => {
+    const css = readStylesheet();
+
+    const wide = mediaBlock(css, '(min-width: 960px)');
+    expect(wide, '@media (min-width: 960px) block present').not.toBe('');
+    expect(ruleBody(wide, '.compare')).toContain('grid-template-columns');
+
+    expect(ruleBody(css, '.terminal__label')).toContain('var(--font-mono)');
+    expect(ruleBody(css, '.terminal__label')).toContain('var(--ink-muted)');
+    expect(ruleBody(css, '.terminal__out').length, '.terminal__out rule still exists').toBeGreaterThan(0);
+  });
+
   it('stylesheetUsesTokensOnly', () => {
     const css = readStylesheet();
 
@@ -310,5 +465,52 @@ describe('sections', () => {
 
     expect(css.length, 'web/src/styles/site.css is non-empty').toBeGreaterThan(0);
     expect(css).not.toMatch(/color:\s*var\(--(blue|blue-alt|yellow|yellow-text|red)\)/);
+  });
+
+  it('stylesheetGridsTheRestoreWays', () => {
+    const css = readStylesheet();
+
+    const ways = ruleBody(css, '.ways');
+    expect(ways).toContain('list-style: none');
+    expect(ways).toContain('display: grid');
+    expect(ways).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr))');
+
+    const way = ruleBody(css, '.way');
+    expect(way).toContain('border: 1px solid var(--line)');
+    expect(way).toContain('border-radius: var(--radius-md)');
+    expect(way).toContain('background: var(--surface)');
+  });
+
+  it('stylesheetSplitsLimitsListsAndStylesReleases', () => {
+    const css = readStylesheet();
+
+    expect(ruleBody(css, '.limits__lists')).toContain('display: grid');
+
+    const desktop = mediaBlock(css, '(min-width: 768px)');
+    expect(desktop, '@media (min-width: 768px) block present').not.toBe('');
+    expect(ruleBody(desktop, '.limits__lists')).toContain(
+      'grid-template-columns: repeat(2, minmax(0, 1fr))',
+    );
+
+    const releases = ruleBody(css, '.releases');
+    expect(releases).toContain('list-style: none');
+    expect(releases).toContain('display: grid');
+
+    expect(ruleBody(css, '.release')).toContain('border-left: 2px solid var(--line-strong)');
+    expect(ruleBody(css, '.release__name')).toContain('font-weight: 600');
+    expect(ruleBody(css, '.release__state')).toContain('var(--font-mono)');
+
+    expect(ruleBody(css, '.site-footer')).toContain('flex-wrap: wrap');
+  });
+
+  it('stylesheetLetsGridItemsShrinkBelowCodeLines', () => {
+    const css = readStylesheet();
+    expect(css.length, 'web/src/styles/site.css is non-empty').toBeGreaterThan(0);
+
+    expect(ruleBody(css, '.terminal')).toMatch(/min-width:\s*0\s*;/);
+    expect(ruleBody(css, '.hero__text')).toMatch(/min-width:\s*0\s*;/);
+    expect(ruleBody(css, '.hero__demo')).toMatch(/min-width:\s*0\s*;/);
+
+    expect(ruleBody(css, 'pre')).toContain('overflow-x: auto');
   });
 });
