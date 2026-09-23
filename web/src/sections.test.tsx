@@ -6,6 +6,7 @@ import { hero } from './content';
 import { Header } from './sections/Header';
 import { Hero } from './sections/Hero';
 import { HowItWorks } from './sections/HowItWorks';
+import { TwoProblems } from './sections/TwoProblems';
 
 const installCommand = 'curl -fsSL https://snapback.run/install.sh | sh';
 const repoURL = 'https://github.com/adeelahmad/snapback';
@@ -144,6 +145,42 @@ describe('sections', () => {
     expect(lines.some((l) => /T\d{2}:\d{2}:\d{2}Z/.test(l)), `no line uses the old timestamp format in ${JSON.stringify(lines)}`).toBe(false);
 
     expect(text).toContain('How it works');
+  });
+
+  it('twoProblemsNamesResticForBackupAndSnapbackForRestore', () => {
+    const markup = renderToStaticMarkup(<TwoProblems />);
+
+    expect(
+      markup.startsWith('<section id="two-problems"'),
+      'root section has id="two-problems"',
+    ).toBe(true);
+
+    const articles = tags(markup, 'article').map((a) => attr(a, 'class'));
+    expect(articles).toEqual(['problem problem--backup', 'problem problem--restore']);
+
+    const h3Texts = [...markup.matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>/g)].map((m) => rawText(m[1]));
+    expect(h3Texts).toEqual(['Backup', 'Restore']);
+
+    const tagTexts = [...markup.matchAll(/<span class="problem__tag">([\s\S]*?)<\/span>/g)].map(
+      (m) => rawText(m[1]),
+    );
+    expect(tagTexts).toEqual(['solved', 'an afterthought']);
+
+    const backupArticleMatch = markup.match(
+      /<article class="problem problem--backup">([\s\S]*?)<\/article>/,
+    );
+    expect(backupArticleMatch, 'backup article markup present').toBeTruthy();
+    const backupText = rawText((backupArticleMatch as RegExpMatchArray)[1]);
+    expect(backupText).toContain('Restic');
+    expect(backupText).toContain('retention');
+
+    const closingMatch = markup.match(/<p class="two-problems__closing">([\s\S]*?)<\/p>/);
+    expect(closingMatch, 'closing paragraph present').toBeTruthy();
+    expect(rawText((closingMatch as RegExpMatchArray)[1])).toContain(
+      'snapback is only the restore half',
+    );
+
+    expect(renderedText(markup)).not.toMatch(/\b(borg|kopia|duplicati|time machine)\b/i);
   });
 
   it('headerLinksDocsAndGitHub', () => {

@@ -18,6 +18,20 @@ export interface HeroContent {
   status: string;
 }
 
+export interface Problem {
+  name: string;
+  tag: string;
+  body: string;
+}
+
+export interface TwoProblemsContent {
+  heading: string;
+  intro: string;
+  backup: Problem;
+  restore: Problem;
+  closing: string;
+}
+
 export interface HowItWorksContent {
   heading: string;
   label: string;
@@ -41,6 +55,24 @@ export const hero: HeroContent = {
     'Restic keeps doing the backup: on your schedule, deduplicated and encrypted, under your retention rules. snapback does the restore: a read-only .snapshot entry inside the directories your backups cover, so getting a file back is as easy as it was in 2008.',
   installCommand: 'curl -fsSL https://snapback.run/install.sh | sh',
   status: 'snapback v0.1 is early, pre-release software for Linux.',
+};
+
+export const twoProblems: TwoProblemsContent = {
+  heading: 'Two problems, not one',
+  intro:
+    'Backup tools are built for the day you back up. Restore is for the day you need a file back.',
+  backup: {
+    name: 'Backup',
+    tag: 'solved',
+    body: 'Restic takes deduplicated, encrypted snapshots whenever your cron job or timer runs it, and forgets and prunes them by your retention rules. snapback does not compete with it.',
+  },
+  restore: {
+    name: 'Restore',
+    tag: 'an afterthought',
+    body: 'Every backup tool can restore. Few make it easy: open another program, find the snapshot and the path again, restore into a scratch directory, then move the file into place.',
+  },
+  closing:
+    'snapback is only the restore half. It reads the Restic repository you already have and puts earlier versions of a file next to the file, as ordinary read-only directories any program can read.',
 };
 
 export const howItWorks: HowItWorksContent = {
