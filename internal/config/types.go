@@ -23,10 +23,16 @@ type Config struct {
 	Files           Files        `yaml:"files,omitempty"`
 }
 
-// Telemetry records the answer to the setup opt-in question. It is off by
-// default; the exporter that would send the counters is a later sprint.
+// Telemetry records the answer to the setup opt-in question and the
+// collector endpoints it reports to. It is off by default.
 type Telemetry struct {
 	Enabled bool `yaml:"enabled"`
+	// TODO(S6-05/T1 GREEN): wrong yaml tag on purpose so the RED tests fail
+	// by assertion, not by a missing field. GREEN must change this tag to
+	// `yaml:"endpoint,omitempty"`.
+	Endpoint      string `yaml:"endpoint_url,omitempty"`
+	CrashReports  bool   `yaml:"crash_reports"`
+	CrashEndpoint string `yaml:"crash_endpoint,omitempty"`
 }
 
 // Repository is one Restic repository.
