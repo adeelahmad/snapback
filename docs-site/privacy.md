@@ -1,48 +1,55 @@
 # Privacy
 
-## What Snapback reports today: nothing
+## What Snapback ships and reports today
 
-Snapback ships no telemetry code. The CLI and the daemon make no network call
-other than to your Restic repository and to whatever storage backend that
-repository lives on. There is no usage reporting, no crash reporting, no
-phone-home check and no identifier on disk.
+- Snapback ships telemetry code: five events, a hand-rolled OTLP/HTTP JSON exporter, and crash reporting.
+- All of it is off by default in every build and on every platform; nothing is collected, queued or sent unless you turn it on.
+- `telemetry.enabled` (events) and `telemetry.crash_reports` (crash reports) are two separate, independent switches — turning one on never turns the other on.
+- Events are buffered in memory only; there is no on-disk queue, ever. If the collector cannot be reached, or is too slow, the event is dropped and counted, never retried and never written to disk.
+- A 128-bit `crypto/rand` install identifier is generated once telemetry is actually used — the first event delivered, not at startup — stored at `<state_dir>/telemetry/install_id` mode `0600`, and deleted by `snapback telemetry disable` (`ForgetInstallID`) so a future `enable` starts with a fresh identity.
+- Retention is whatever you configure on your own collector: Snapback and its maintainers never receive or retain anything, because the project runs no maintainer-run collector or endpoint.
 
-The rest of this page describes the contract that any future telemetry must
-meet. It is a promise about what the code will be allowed to do, not a
-description of something you can turn on now.
+The installer, package upgrades, `snapback setup`, the daemon's first run and
+the web UI will never turn telemetry on, never pre-tick a consent box and
+never ask a question whose default answer is "on". An upgrade keeps whatever
+you chose and does not ask again.
 
-## The opt-in contract for telemetry
+### The five events
 
-Telemetry is off by default in every build and on every platform. The
-installer, package upgrades, `snapback setup`, the daemon's first run and the
-web UI will never turn it on, never pre-tick a consent box and never ask a
-question whose default answer is "on". An upgrade will keep whatever you chose
-and will not ask again. While telemetry is off, snapback will make no telemetry
-network call and will keep no telemetry queue on disk.
+- `setup.completed`
+- `daemon.started`
+- `mount.ready`
+- `doctor.failed`
+- `error`
 
-### What telemetry may report
+This is the closed, exhaustive set. No other event name exists.
 
-This list is exhaustive. A field that is not named here will never leave your
-machine, and adding one needs a revision of the published addendum.
+### Event attributes
 
-1. Snapback version, build commit and release channel.
-2. Operating system name, OS major version and CPU architecture.
-3. Install method (`install.sh`, package manager name, container image, built
-   from source).
-4. Coarse event counters, each an integer count per reporting window:
-    - setup completed;
-    - first `.snapshot` entry listed;
-    - restores performed;
-    - `snap` runs;
-    - daemon starts.
-5. Error codes from `internal/errcode` — the stable numeric or symbolic code
-   only, never the message and never any value interpolated into it.
-6. Timing buckets: durations reported as coarse buckets (for example `<100ms`,
-   `<1s`, `<10s`, `>=10s`), never exact timings that could fingerprint a
-   repository.
-7. An installation identifier that is a locally generated random value, not
-   derived from any hostname, MAC address, username or repository, and deleted
-   when you turn telemetry off.
+Every event carries `version`, `os` and `arch`; some carry more.
+
+| Event | Attributes |
+|---|---|
+| `setup.completed` | `version`, `os`, `arch`, `outcome`, `duration` |
+| `daemon.started` | `version`, `os`, `arch` |
+| `mount.ready` | `version`, `os`, `arch`, `duration` |
+| `doctor.failed` | `version`, `os`, `arch`, `check` |
+| `error` | `version`, `os`, `arch`, `code` |
+
+No other attribute exists on any of them; adding one means changing the
+schema in `internal/telemetry` and this page together. See
+[Telemetry](telemetry.md) for the configuration keys and the endpoint rules.
+
+### Duration buckets
+
+Every duration an event reports is one of five coarse labels, never an exact
+number, so a timing cannot fingerprint a repository:
+
+- `<100ms`
+- `<1s`
+- `<10s`
+- `<60s`
+- `>=60s`
 
 ### What will never be reported
 
@@ -60,38 +67,39 @@ hashed or in the clear:
 A field that cannot be produced without one of the above will be dropped, not
 redacted.
 
-### Where it would go
+### Where it goes
 
-Telemetry will use OpenTelemetry over OTLP/HTTP to a collector **you**
-configure with `telemetry.endpoint`. There is no built-in endpoint and the
-project runs no default collector, so with telemetry on but no endpoint set,
-nothing will leave the machine. The endpoint must be HTTPS unless it resolves
-to a loopback address, and delivery will be asynchronous and bounded so it can
+Telemetry is a hand-rolled OTLP/HTTP JSON exporter — not the OpenTelemetry
+SDK — POSTed to a collector **you** configure with `telemetry.endpoint`.
+There is no built-in endpoint and the project runs no default collector, so
+with telemetry on but no endpoint set, nothing leaves the machine, and
+`enable` refuses to turn telemetry on until `telemetry.endpoint` is set. The
+endpoint must be HTTPS unless it resolves to a loopback address (`127.0.0.1`,
+`::1` or `localhost`), and delivery is asynchronous and bounded so it can
 never block or slow a command.
 
 ### Crash reports are a separate choice
 
 Crash reports are their own opt-in (`telemetry.crash_reports`). Turning
-telemetry on will not turn crash reports on. They will use the Sentry protocol
-so you can point them at a self-hosted GlitchTip or compatible endpoint; there
-is no built-in DSN. Crash reports obey the prohibition list in full: frames
-carry function and package names from snapback's own modules only, and paths,
-arguments, local variables and environment are stripped before a report is
-queued, not at the receiver.
+telemetry on does not turn crash reports on. They use the Sentry envelope
+protocol so you can point them at a self-hosted GlitchTip or compatible
+endpoint; there is no built-in DSN. Crash reports obey the prohibition list
+in full: frames carry function and package names from snapback's own modules
+only, and paths, arguments, local variables and environment are stripped
+before a report is sent, not at the receiver.
 
-### Seeing and deleting what was collected
+### Seeing and changing what is sent
 
-A `telemetry` subcommand is planned, with two verbs; neither is available
-today.
+`snapback telemetry` has four verbs:
 
-- The `status` verb will print exactly what is on, the configured endpoint, the
-  installation identifier and the full last payload as it was or would be
-  delivered, in the machine-readable JSON form used elsewhere in snapback.
-- The `off` verb will stop all reporting immediately, delete the local queue
-  and the installation identifier, and keep the setting off across upgrades.
+- `status` prints whether telemetry and crash reports are on, the configured endpoints and the install identifier.
+- `show` prints the exact bytes that would be POSTed for a sample of all five events — whether telemetry is on or off — and sends nothing.
+- `enable` turns telemetry on, refusing when no `telemetry.endpoint` is configured.
+- `disable` turns telemetry off and deletes the install identifier.
 
-Nothing will ever be uploaded retroactively: whatever was not reported while
-telemetry was on is gone.
+Nothing is ever uploaded retroactively: whatever was not sent while telemetry
+was on is gone. See [Telemetry](telemetry.md) and [the CLI
+reference](cli.md) for the full detail on each verb.
 
 ## Sharing diagnostics without telemetry
 
