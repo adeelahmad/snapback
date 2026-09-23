@@ -82,6 +82,7 @@ snapback telemetry enable
 
 `snapback telemetry show` always prints the exact payload Snapback would send,
 whether or not telemetry is on, so you can see what your collector will
-receive before you turn anything on. See [Privacy](privacy.md) for the closed
-list of events and attributes, and [CLI reference](cli.md) for the full
-`telemetry` command surface.
+receive before you turn anything on. See [Telemetry](telemetry.md) for the
+config keys, event names and duration buckets, [Privacy](privacy.md) for the
+closed list of events and attributes, and [CLI reference](cli.md) for the
+full `telemetry` command surface.
