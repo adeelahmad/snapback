@@ -1,6 +1,7 @@
 # Snapback — Specification Addendum B: opt-in telemetry and diagnostics
 
-**Status:** approved design, not yet planned into sprints.
+**Status:** approved design, not yet planned into sprints. Section 2's field list is
+superseded — see the note at the top of that section.
 **Applies to:** `SPEC.md` Revision 2 and `SPEC-ADDENDUM-A.md` (Rev 2.1). This addendum adds sections; it rewrites none.
 **Date:** 23 September 2026.
 
@@ -21,6 +22,14 @@ snapback reports. A telemetry failure MUST never fail a snapback command.
    telemetry queue on disk.
 
 ## 2. Exhaustive field list (what MAY be sent)
+
+**Superseded (Ruling S6-R3, 2026-09-23):** sprint 6 planning refined this section's
+speculative field list into a closed set of five named events with fixed attributes —
+`setup.completed`, `daemon.started`, `mount.ready`, `doctor.failed`, `error` — and
+dropped the open-ended counters below for restores, `snap` runs and the first
+`.snapshot` entry listed, none of which were implemented. `internal/telemetry/event.go`
+and `docs/agents/sprint6-telemetry/plan.md` are the authoritative source for what
+actually ships; the list below is kept for history only.
 
 When telemetry is on, only the following MAY leave the machine. This list is exhaustive: a
 field not named here MUST NOT be sent, and adding one requires a revision of this addendum.
