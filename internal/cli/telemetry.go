@@ -30,6 +30,7 @@ func TelemetryCommand(d Deps) Command {
 		Summary: "report on, enable or disable telemetry",
 		Run: func(ctx context.Context, env Env, args []string) int {
 			fs := NewFlagSet(env, telemetryUsage)
+			jsonOut := fs.Bool("json", false, "write a JSON envelope")
 			verb, rest := "", args
 			if len(args) != 0 && !strings.HasPrefix(args[0], "-") {
 				verb, rest = args[0], args[1:]
@@ -46,7 +47,9 @@ func TelemetryCommand(d Deps) Command {
 				return 2
 			}
 			switch verb {
-			case "status", "show", "enable", "disable":
+			case "status":
+				return runTelemetryStatus(ctx, env, d, *jsonOut)
+			case "show", "enable", "disable":
 				return WriteError(env, "telemetry", false, errors.New("not implemented"))
 			}
 			return 2
