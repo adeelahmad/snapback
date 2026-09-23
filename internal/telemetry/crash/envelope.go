@@ -1,6 +1,14 @@
 package crash
 
-import "time"
+import (
+	"bytes"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"reflect"
+	"time"
+)
 
 // PanicEvent is everything Envelope needs to build one crash report. The
 // recovered panic value is carried as-is, but Envelope encodes only its
@@ -32,19 +40,47 @@ type PanicEvent struct {
 //
 // The event body carries platform "go", release "snapback@<Version>", level
 // "fatal", ev.Frames, and ev.Panic's type name only — never its message.
-//
-// SUB-AGENT-TODO(S6-08/T2 GREEN): implement the encoding above. This shim
-// returns nil so callers compile and every test fails by assertion.
 func Envelope(ev PanicEvent) []byte {
-	return nil
+	body := eventBody(ev)
+
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, `{"event_id":%s,"sent_at":%s}`+"\n", jsonString(ev.EventID), jsonString(ev.SentAt.UTC().Format(time.RFC3339Nano)))
+	fmt.Fprintf(&buf, `{"type":"event","length":%d}`+"\n", len(body))
+	buf.Write(body)
+	buf.WriteByte('\n')
+	return buf.Bytes()
+}
+
+// eventBody builds the event body JSON: platform, release, level and the
+// panic's reflect type name and frames. It never encodes ev.Panic's message
+// or anything it wraps.
+func eventBody(ev PanicEvent) []byte {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, `{"platform":"go","release":%s,"level":"fatal","exception":{"values":[{"type":%s,"stacktrace":{"frames":[`,
+		jsonString("snapback@"+ev.Version), jsonString(reflect.TypeOf(ev.Panic).String()))
+	for i, frame := range ev.Frames {
+		if i > 0 {
+			buf.WriteByte(',')
+		}
+		fmt.Fprintf(&buf, `{"module":%s,"function":%s}`, jsonString(frame.Module), jsonString(frame.Function))
+	}
+	buf.WriteString(`]}}]}}`)
+	return buf.Bytes()
+}
+
+// jsonString returns s encoded as a JSON string literal, quotes included.
+func jsonString(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
 }
 
 // NewEventID returns a fresh 32 lowercase hex character identifier for one
 // crash report envelope, drawn from crypto/rand (the same shape as
 // telemetry.InstallID's identifiers).
-//
-// SUB-AGENT-TODO(S6-08/T2 GREEN): implement the generation above. This shim
-// returns a zero value so callers compile and every test fails by assertion.
 func NewEventID() (string, error) {
-	return "", nil
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("crash: generate event id: %w", err)
+	}
+	return hex.EncodeToString(b[:]), nil
 }
