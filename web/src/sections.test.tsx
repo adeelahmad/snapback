@@ -423,6 +423,32 @@ describe('sections', () => {
     }
   });
 
+  it('stylesheetLaysProblemsSideBySide', () => {
+    const css = readStylesheet();
+
+    const desktop = mediaBlock(css, '(min-width: 768px)');
+    expect(desktop, '@media (min-width: 768px) block present').not.toBe('');
+    expect(ruleBody(desktop, '.problems')).toContain(
+      'grid-template-columns: repeat(2, minmax(0, 1fr))',
+    );
+
+    expect(ruleBody(css, '.problem--restore')).toContain('var(--accent-soft)');
+    expect(ruleBody(css, '.problem__tag')).toContain('var(--font-mono)');
+    expect(ruleBody(css, '.problem__tag')).toContain('var(--radius-sm)');
+  });
+
+  it('stylesheetLaysTerminalsSideBySide', () => {
+    const css = readStylesheet();
+
+    const wide = mediaBlock(css, '(min-width: 960px)');
+    expect(wide, '@media (min-width: 960px) block present').not.toBe('');
+    expect(ruleBody(wide, '.compare')).toContain('grid-template-columns');
+
+    expect(ruleBody(css, '.terminal__label')).toContain('var(--font-mono)');
+    expect(ruleBody(css, '.terminal__label')).toContain('var(--ink-muted)');
+    expect(ruleBody(css, '.terminal__out').length, '.terminal__out rule still exists').toBeGreaterThan(0);
+  });
+
   it('stylesheetUsesTokensOnly', () => {
     const css = readStylesheet();
 

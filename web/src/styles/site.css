@@ -76,6 +76,10 @@ a:focus-visible {
   main > section {
     padding-block: var(--space-16);
   }
+
+  .problems {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 360px) {
@@ -161,6 +165,10 @@ a:focus-visible {
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
     align-items: center;
   }
+
+  .compare {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .how {
@@ -169,6 +177,54 @@ a:focus-visible {
 
 .how__label {
   color: var(--ink-muted);
+}
+
+.problems {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.problem {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  background: var(--surface);
+}
+
+.problem--restore {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.problem__tag {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  background: var(--canvas-sunken);
+  color: var(--ink-muted);
+}
+
+.problem--restore .problem__tag {
+  color: var(--accent-text);
+}
+
+.compare {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.terminal {
+  margin: 0;
+}
+
+.terminal__label {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--ink-muted);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line);
 }
 
 .terminal__cmd::before {
