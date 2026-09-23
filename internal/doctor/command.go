@@ -8,19 +8,23 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"time"
 
 	"github.com/adeelahmad/snapback/internal/cli"
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/discovery/seed"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/service"
+	"github.com/adeelahmad/snapback/internal/telemetry"
+	"github.com/adeelahmad/snapback/internal/version"
 )
 
 // commandDeps is the seam the doctor command runs on.
 type commandDeps struct {
-	probes Probes
-	load   func(path string) (*config.Config, error)
-	goos   string
+	probes    Probes
+	load      func(path string) (*config.Config, error)
+	goos      string
+	telemetry func(cfg *config.Config) *telemetry.Client
 }
 
 // Command returns the doctor command.
@@ -31,8 +35,19 @@ func Command() cli.Command {
 			cfg, _, err := config.Load(path)
 			return cfg, err
 		},
-		goos: runtime.GOOS,
+		goos:      runtime.GOOS,
+		telemetry: telemetryFromConfig,
 	})
+}
+
+// telemetryFromConfig builds the doctor command's telemetry client for cfg,
+// through the same FromConfig wiring every other telemetry call site uses. A
+// nil cfg (the configuration failed to load) yields the no-op client.
+func telemetryFromConfig(cfg *config.Config) *telemetry.Client {
+	if cfg == nil {
+		return telemetry.New(telemetry.Options{})
+	}
+	return telemetry.FromConfig(cfg, version.Version, cfg.StateDir)
 }
 
 // realProbes wires the doctor's probes to the running system.
@@ -102,7 +117,14 @@ func command(deps commandDeps) cli.Command {
 			}
 
 			if *bundle {
+				// The bundle export path never touches telemetry: it must
+				// make zero network calls regardless of the telemetry
+				// config (D8).
 				return writeBundleFor(env, checks, cfg, fs.Arg(0))
+			}
+
+			if deps.telemetry != nil {
+				emitDoctorFailed(ctx, deps.telemetry(cfg), checks)
 			}
 
 			if *jsonOut {
@@ -116,6 +138,26 @@ func command(deps commandDeps) cli.Command {
 			}
 			return exitCode(checks)
 		},
+	}
+}
+
+// emitDoctorFailed reports every failing check in checks as a telemetry
+// doctor.failed event. Each event carries only the check's name and the
+// identity attrs [telemetry.DoctorFailed] fixes -- never the check's detail,
+// fix or error text. A check outside telemetry's closed check list (such as
+// mount_test or a per-repository check) is silently skipped, since
+// DoctorFailed rejects any name it does not recognize.
+func emitDoctorFailed(ctx context.Context, tc *telemetry.Client, checks []Check) {
+	now := time.Now()
+	for _, c := range checks {
+		if c.Status != statusFail {
+			continue
+		}
+		ev, err := telemetry.DoctorFailed(version.Version, c.Name, now)
+		if err != nil {
+			continue
+		}
+		tc.Emit(ctx, ev)
 	}
 }
 
