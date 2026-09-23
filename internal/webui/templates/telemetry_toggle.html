@@ -1,0 +1,9 @@
+{{define "telemetry-toggle" -}}
+<div class="field field--toggle">
+<input type="hidden" name="telemetry.enabled" value="false">
+<label class="field__label" for="f-telemetry.enabled">Telemetry</label>
+<input class="field__control field__switch" type="checkbox" id="f-telemetry.enabled" name="telemetry.enabled" value="true"{{if .Enabled}} checked{{end}} aria-describedby="f-telemetry.enabled-help">
+<span class="field__switch-track" aria-hidden="true"></span>
+<p class="field__help" id="f-telemetry.enabled-help">{{.Consent}} <a href="/privacy">Privacy</a></p>
+</div>
+{{- end}}
