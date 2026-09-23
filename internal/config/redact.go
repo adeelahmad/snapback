@@ -5,7 +5,8 @@ import (
 	"slices"
 )
 
-// Redact returns a deep copy of c with environment values masked.
+// Redact returns a deep copy of c with environment values and telemetry
+// collector endpoints masked.
 func Redact(c *Config) *Config {
 	if c == nil {
 		return nil
@@ -20,6 +21,12 @@ func Redact(c *Config) *Config {
 			env[k] = "***"
 		}
 		r.Repositories[i].Environment = env
+	}
+	if r.Telemetry.Endpoint != "" {
+		r.Telemetry.Endpoint = "***"
+	}
+	if r.Telemetry.CrashEndpoint != "" {
+		r.Telemetry.CrashEndpoint = "***"
 	}
 	r.Roots = slices.Clone(c.Roots)
 	for i := range r.Roots {

@@ -80,6 +80,30 @@ func TestRedactForBundleMasksConfigSecrets(t *testing.T) {
 	}
 }
 
+func TestRedactForBundleMasksTelemetryEndpoints(t *testing.T) {
+	cfg := redactFixtureConfig()
+	cfg.Telemetry.Enabled = true
+	cfg.Telemetry.Endpoint = "http://127.0.0.1:61559"
+	cfg.Telemetry.CrashReports = true
+	cfg.Telemetry.CrashEndpoint = "http://127.0.0.1:61560"
+
+	configYAML, _, _, err := redactForBundle(cfg, nil, nil)
+	if err != nil {
+		t.Fatalf("redactForBundle(cfg, nil, nil) returned error %v, want nil", err)
+	}
+	for _, endpoint := range []string{cfg.Telemetry.Endpoint, cfg.Telemetry.CrashEndpoint} {
+		if strings.Contains(string(configYAML), endpoint) {
+			t.Errorf("redactForBundle configYAML = %q, want no %q", configYAML, endpoint)
+		}
+	}
+	if !strings.Contains(string(configYAML), "***") {
+		t.Errorf("redactForBundle configYAML = %q, want the masked marker %q", configYAML, "***")
+	}
+	if !strings.Contains(string(configYAML), "endpoint") || !strings.Contains(string(configYAML), "crash_endpoint") {
+		t.Errorf("redactForBundle configYAML = %q, want the telemetry keys kept", configYAML)
+	}
+}
+
 func TestRedactForBundleMasksPasswordValuePatterns(t *testing.T) {
 	doctorJSON := []byte(`{"RESTIC_PASSWORD":"other-secret","password":"another-secret"}`)
 

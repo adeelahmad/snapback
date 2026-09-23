@@ -87,6 +87,50 @@ func TestRedactDoesNotMutateInput(t *testing.T) {
 	}
 }
 
+func TestRedactMasksTelemetryEndpoints(t *testing.T) {
+	c := parsedExampleWithEnv(t)
+	c.Telemetry.Enabled = true
+	c.Telemetry.Endpoint = "http://127.0.0.1:61559"
+	c.Telemetry.CrashReports = true
+	c.Telemetry.CrashEndpoint = "http://127.0.0.1:61560"
+
+	r := Redact(c)
+	if r.Telemetry.Endpoint != "***" {
+		t.Errorf("Redact(c).Telemetry.Endpoint = %q, want %q", r.Telemetry.Endpoint, "***")
+	}
+	if r.Telemetry.CrashEndpoint != "***" {
+		t.Errorf("Redact(c).Telemetry.CrashEndpoint = %q, want %q", r.Telemetry.CrashEndpoint, "***")
+	}
+	if !r.Telemetry.Enabled || !r.Telemetry.CrashReports {
+		t.Errorf("Redact(c).Telemetry = %+v, want enabled and crash_reports kept", r.Telemetry)
+	}
+
+	b, err := Marshal(r)
+	if err != nil {
+		t.Fatalf("Marshal(Redact(c)) = %v, want nil error", err)
+	}
+	for _, endpoint := range []string{c.Telemetry.Endpoint, c.Telemetry.CrashEndpoint} {
+		if bytes.Contains(b, []byte(endpoint)) {
+			t.Errorf("Marshal(Redact(c)) = %q, want no %q", b, endpoint)
+		}
+	}
+	if !bytes.Contains(b, []byte("endpoint")) || !bytes.Contains(b, []byte("crash_endpoint")) {
+		t.Errorf("Marshal(Redact(c)) = %q, want the telemetry keys kept", b)
+	}
+}
+
+func TestRedactLeavesEmptyTelemetryEndpointsEmpty(t *testing.T) {
+	c := parsedExampleWithEnv(t)
+
+	r := Redact(c)
+	if r.Telemetry.Endpoint != "" {
+		t.Errorf("Redact(c).Telemetry.Endpoint = %q, want empty", r.Telemetry.Endpoint)
+	}
+	if r.Telemetry.CrashEndpoint != "" {
+		t.Errorf("Redact(c).Telemetry.CrashEndpoint = %q, want empty", r.Telemetry.CrashEndpoint)
+	}
+}
+
 func TestRedactNil(t *testing.T) {
 	if got := Redact(nil); got != nil {
 		t.Errorf("Redact(nil) = %+v, want nil", got)
