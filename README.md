@@ -27,6 +27,8 @@ $ cp .snapshot/latest/report.docx .
 
 That is the whole restore: no app to open, no browser tab, no restore wizard. Your backups, shown as ordinary read-only directories, right where the files live.
 
+<img src="docs-site/img/quickstart-restore.gif" alt="Terminal recording of the restore: ls shows report.docx, rm report.docx deletes it, ls -a shows the .snapshot entry with report.docx gone, ls .snapshot/ lists two dated snapshot aliases plus by-date, info.json, latest and snapshots, cp .snapshot/latest/report.docx . restores the file, and cat report.docx prints the recovered content -- recorded against the real snapback v0.1 binary, a disposable Restic repository and a real FUSE mount." width="700">
+
 ## Why
 
 Backing up was never the problem; restoring is. Backup tools are built for the day you back up. Restore is for the day you need a file back, and most tools treat it as an afterthought.
