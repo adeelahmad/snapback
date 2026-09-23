@@ -129,6 +129,17 @@ export const howItWorks: HowItWorksContent = {
   ],
 };
 
+export const waysToRestore: ListContent = {
+  heading: 'Ways to get a file back',
+  items: [
+    'Any program: cp, diff, an editor or a file manager reads .snapshot like any other directory.',
+    "snapback open shows a directory's history in your file manager.",
+    'snapback web serves a local web UI whose History view can restore a copy next to the original.',
+    "snapback doctor checks the prerequisites and your repository's health.",
+    'snapback install service runs the daemon as a systemd user service on Linux.',
+  ],
+};
+
 export type ReleaseState = 'shipped' | 'planned';
 
 export interface Release {

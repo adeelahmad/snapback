@@ -7,6 +7,7 @@ import { Limits } from './sections/Limits';
 import { RestoreCompare } from './sections/RestoreCompare';
 import { Status } from './sections/Status';
 import { TwoProblems } from './sections/TwoProblems';
+import { WaysToRestore } from './sections/WaysToRestore';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
       <TwoProblems />
       <RestoreCompare />
       <HowItWorks />
+      <WaysToRestore />
       <Limits />
       <Install />
       <Status />

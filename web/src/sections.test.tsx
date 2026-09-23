@@ -2,12 +2,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { hero, restoreCompare } from './content';
+import { hero, restoreCompare, waysToRestore } from './content';
 import { Header } from './sections/Header';
 import { Hero } from './sections/Hero';
 import { HowItWorks } from './sections/HowItWorks';
 import { RestoreCompare } from './sections/RestoreCompare';
 import { TwoProblems } from './sections/TwoProblems';
+import { WaysToRestore } from './sections/WaysToRestore';
 
 const installCommand = 'curl -fsSL https://snapback.run/install.sh | sh';
 const repoURL = 'https://github.com/adeelahmad/snapback';
@@ -217,6 +218,45 @@ describe('sections', () => {
 
     expect(lines.some((l) => l.length > 0), 'rendered terminal lines present').toBe(true);
     expect(restoreCompare.intro).toContain('one cp');
+  });
+
+  it('waysToRestoreAreTheShippedSurfaces', () => {
+    const markup = renderToStaticMarkup(<WaysToRestore />);
+
+    expect(
+      markup.startsWith('<section id="ways-to-restore"'),
+      'root section has id="ways-to-restore"',
+    ).toBe(true);
+
+    const items = [...markup.matchAll(/<li class="way">([\s\S]*?)<\/li>/g)].map((m) =>
+      rawText(m[1]),
+    );
+    expect(items.length, 'number of ways rendered').toBe(5);
+    expect(items).toEqual(waysToRestore.items);
+
+    const keys = ['cp', 'snapback open', 'snapback web', 'snapback doctor', 'snapback install service'];
+    keys.forEach((key, i) => {
+      expect(items[i], `item ${i} contains ${JSON.stringify(key)}`).toContain(key);
+    });
+
+    for (const item of waysToRestore.items) {
+      expect(item, `item matches a banned surface: ${JSON.stringify(item)}`).not.toMatch(
+        /\b(finder|macos|launchd|homebrew|apt|on-access|telemetry|setup)\b/i,
+      );
+    }
+  });
+
+  it('waysToRestoreWebUIMatchesTheHistoryPage', () => {
+    const history = readFileSync(
+      fileURLToPath(new URL('../../internal/webui/templates/history.html', import.meta.url)),
+      'utf8',
+    );
+    expect(history).toContain('Restore copy next to original');
+
+    const webItem = waysToRestore.items.find((item) => item.includes('snapback web'));
+    expect(webItem, 'a waysToRestore item naming snapback web').toBeTruthy();
+    expect(webItem).toContain('History');
+    expect(webItem).toContain('next to the original');
   });
 
   it('headerLinksDocsAndGitHub', () => {

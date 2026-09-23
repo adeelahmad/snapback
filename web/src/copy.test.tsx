@@ -113,6 +113,7 @@ describe('copy', () => {
       'two-problems',
       'restore-compare',
       'how-it-works',
+      'ways-to-restore',
       'limits',
       'install',
       'status',
