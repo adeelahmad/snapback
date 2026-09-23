@@ -259,6 +259,9 @@ Args:
 
 - `DIR` is where `--bundle` writes the archive; it defaults to the current directory.
 
+`doctor --bundle` is unaffected by telemetry settings: it always writes the bundle,
+whether telemetry is enabled or disabled.
+
 Example:
 
 ```
@@ -368,6 +371,33 @@ Example:
 ```
 eval "$(snapback shell-hook zsh)"
 ```
+
+## snapback telemetry
+
+Report on, enable or disable telemetry.
+
+```
+snapback telemetry <status|show|enable|disable> [flags]
+```
+
+Args:
+
+- `status` — report whether telemetry is enabled
+- `show` — print the telemetry settings
+- `enable` — turn telemetry on
+- `disable` — turn telemetry off
+
+Example:
+
+```
+snapback telemetry status
+```
+
+See https://snapback.run/privacy for what telemetry collects and why.
+
+| Flag | Description |
+|---|---|
+| `--json` | write a JSON envelope |
 
 ## snapback notify
 
