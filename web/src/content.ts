@@ -51,22 +51,33 @@ export const howItWorks: HowItWorksContent = {
   ],
 };
 
-export type StageState = 'done' | 'in progress' | 'planned';
+export type ReleaseState = 'shipped' | 'planned';
 
-export interface Stage {
+export interface Release {
   name: string;
-  state: StageState;
+  state: ReleaseState;
+  scope: string;
 }
 
-export const stages: Stage[] = [
-  { name: 'Scaffolding', state: 'done' },
-  { name: 'Compatibility milestone', state: 'in progress' },
-  { name: 'Core vertical slice', state: 'planned' },
-  { name: 'Reliable background operation', state: 'planned' },
-  { name: 'Web UI and services', state: 'planned' },
-  { name: 'macOS proof', state: 'planned' },
-  { name: 'On-access mode', state: 'planned' },
-  { name: 'Release', state: 'planned' },
+export const releases: Release[] = [
+  {
+    name: 'v0.1, first public release candidate',
+    state: 'shipped',
+    scope:
+      'Linux: the .snapshot view with its latest alias, snapback snap, snapback seed and snapback link, the daemon, the local web UI, snapback doctor and the systemd user service. Acceptance items 1 to 17 passed on Linux.',
+  },
+  {
+    name: 'Follow-up, separately proven',
+    state: 'planned',
+    scope:
+      'macOS with macFUSE, launchd, the Finder companion and more package channels. Each ships only with its own acceptance evidence.',
+  },
+  {
+    name: 'Experimental until acceptance proof',
+    state: 'planned',
+    scope:
+      'On-access mode (Linux fanotify, macOS Endpoint Security), opt-in and labelled experimental until its acceptance test passes.',
+  },
 ];
 
 export interface ListContent {
