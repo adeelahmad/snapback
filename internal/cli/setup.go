@@ -153,6 +153,7 @@ func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) (code int) {
 		code = setupUndetected(env, res, cfgErr)
 		return
 	}
+	preserveTelemetryEndpoint(cfg, path)
 	save := !o.dryRun
 	if !o.dryRun && !o.force {
 		rep, rerr := setup.Existing(path, cfg)
@@ -230,6 +231,19 @@ func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) (code int) {
 	}
 	code = 0
 	return
+}
+
+// preserveTelemetryEndpoint carries telemetry.endpoint from an existing
+// configuration at path into cfg. setup does not manage that field itself —
+// it is set by `snapback telemetry enable` or by hand — so rebuilding the
+// configuration from scratch must not silently drop it. A missing or
+// unreadable existing configuration leaves cfg untouched.
+func preserveTelemetryEndpoint(cfg *config.Config, path string) {
+	have, _, err := config.Load(path)
+	if err != nil {
+		return
+	}
+	cfg.Telemetry.Endpoint = have.Telemetry.Endpoint
 }
 
 // setupNow reports the current time through d.Now when a test injected one,

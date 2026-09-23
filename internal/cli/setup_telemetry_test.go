@@ -3,10 +3,13 @@ package cli
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -163,6 +166,67 @@ func TestEmitSetupOutcomeBucketsTheErrorCodeNotTheMessage(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// TestSetupPreservesExistingTelemetryEndpointForRealClient reproduces the gap
+// S6-11/T1 found empirically: with a telemetry.endpoint already configured,
+// re-running `snapback setup` used to rebuild the configuration from
+// scratch via setup.ToConfig, silently dropping that endpoint so the real
+// setupTelemetryClient (telemetry.FromConfig) could never send anything.
+// This test does not fake the telemetry client -- it proves a real
+// setup.completed event reaches a real HTTP collector.
+func TestSetupPreservesExistingTelemetryEndpointForRealClient(t *testing.T) {
+	f := newSetupFixture(t)
+
+	// First run writes a valid configuration for this fixture's detected
+	// repository and roots, with telemetry left at its untouched default.
+	if got := f.dispatch(t, "--no-prompt"); got != 0 {
+		t.Fatalf("setup --no-prompt = %d, want 0 (stderr %q)", got, f.err.String())
+	}
+
+	var requests int32
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		atomic.AddInt32(&requests, 1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(collector.Close)
+
+	// Simulate an install that already has a telemetry endpoint configured
+	// (e.g. via `snapback telemetry enable` against a hand-set endpoint, or a
+	// config baseline laid down before setup ever ran) but has not yet opted
+	// in.
+	cfg, rev, err := config.Load(f.env.ConfigPath)
+	if err != nil {
+		t.Fatalf("config.Load(%q) = %v, want nil", f.env.ConfigPath, err)
+	}
+	cfg.Telemetry.Endpoint = collector.URL
+	if _, err := config.Save(f.env.ConfigPath, cfg, rev); err != nil {
+		t.Fatalf("config.Save(%q) = %v, want nil", f.env.ConfigPath, err)
+	}
+
+	// Re-run setup interactively, answering "y" to the opt-in question. This
+	// is the ordinary way an operator ends up with both an endpoint and
+	// opted-in telemetry: the endpoint predates the opt-in.
+	stdin, interactive := setupStdin, setupInteractive
+	t.Cleanup(func() { setupStdin, setupInteractive = stdin, interactive })
+	setupStdin = strings.NewReader("y\n")
+	setupInteractive = func() bool { return true }
+
+	if got := f.dispatch(t); got != 0 {
+		t.Fatalf("setup = %d, want 0 (stderr %q)", got, f.err.String())
+	}
+
+	if got := atomic.LoadInt32(&requests); got < 1 {
+		t.Fatalf("collector requests = %d, want at least 1 (setup.completed never reached the real client)", got)
+	}
+
+	saved, _, err := config.Load(f.env.ConfigPath)
+	if err != nil {
+		t.Fatalf("config.Load(%q) = %v, want nil", f.env.ConfigPath, err)
+	}
+	if saved.Telemetry.Endpoint != collector.URL {
+		t.Errorf("saved telemetry.endpoint = %q, want %q", saved.Telemetry.Endpoint, collector.URL)
 	}
 }
 
