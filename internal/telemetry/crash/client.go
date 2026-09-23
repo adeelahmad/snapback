@@ -1,9 +1,17 @@
 package crash
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"net/http"
+	"net/url"
+	"time"
 )
+
+// reportTimeout bounds every Report call, regardless of opts.HTTPClient's
+// own timeout (D7).
+const reportTimeout = 5 * time.Second
 
 // Options configures Report's destination, identity and HTTP transport.
 type Options struct {
@@ -39,5 +47,40 @@ type Options struct {
 // an error and lets the caller (S6-08/T4's recover hook) decide what
 // happens to the panic already in flight.
 func Report(ctx context.Context, opts Options, envelope []byte) error {
-	panic("SUB-AGENT-TODO: when opts.CrashReports and opts.Endpoint are set, parse opts.Endpoint's userinfo as the Sentry key, POST envelope to the userinfo-stripped URL with an X-Sentry-Auth header, bound the call at a 5s timeout, never retry a 4xx, and never panic on a network failure; otherwise return nil without sending anything")
+	if !opts.CrashReports || opts.Endpoint == "" {
+		return nil
+	}
+
+	endpoint, err := url.Parse(opts.Endpoint)
+	if err != nil {
+		return fmt.Errorf("crash: parse endpoint: %w", err)
+	}
+	key := endpoint.User.Username()
+	endpoint.User = nil
+
+	ctx, cancel := context.WithTimeout(ctx, reportTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), bytes.NewReader(envelope))
+	if err != nil {
+		return fmt.Errorf("crash: build request: %w", err)
+	}
+	req.Header.Set("X-Sentry-Auth", fmt.Sprintf(
+		"Sentry sentry_version=7, sentry_client=snapback/%s, sentry_key=%s", opts.Version, key))
+
+	client := opts.HTTPClient
+	if client == nil {
+		client = &http.Client{Timeout: reportTimeout}
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("crash: send report: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		return fmt.Errorf("crash: report rejected: status %d", resp.StatusCode)
+	}
+	return nil
 }
