@@ -66,6 +66,40 @@ function readStylesheet(): string {
   return existsSync(path) ? readFileSync(path, 'utf8') : '';
 }
 
+// mediaBlock returns the text of the first `@media <query> {…}` block,
+// matching braces by depth, or '' when there is none.
+function mediaBlock(css: string, query: string): string {
+  const marker = `@media ${query}`;
+  const markerStart = css.indexOf(marker);
+  if (markerStart === -1) return '';
+  const braceStart = css.indexOf('{', markerStart);
+  if (braceStart === -1) return '';
+
+  let depth = 1;
+  let i = braceStart + 1;
+  while (i < css.length && depth > 0) {
+    if (css[i] === '{') depth++;
+    else if (css[i] === '}') depth--;
+    i++;
+  }
+  if (depth !== 0) return '';
+  return css.slice(braceStart + 1, i - 1);
+}
+
+// ruleBody returns the concatenated declarations of every rule, including
+// rules inside media blocks, whose comma-separated selector list has an item
+// equal to `selector` after trimming.
+function ruleBody(css: string, selector: string): string {
+  let body = '';
+  for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selectors = m[1].split(',').map((s) => s.trim());
+    if (selectors.includes(selector)) {
+      body += m[2];
+    }
+  }
+  return body;
+}
+
 describe('sections', () => {
   it('heroShowsTheOneCommand', () => {
     const markup = renderToStaticMarkup(<Hero />);
@@ -291,6 +325,40 @@ describe('sections', () => {
     expect(lockups.length, 'img with src /brand/lockup-horizontal.svg').toBeGreaterThan(0);
     for (const img of lockups) {
       expect(attr(img, 'alt')).toBe('snapback');
+    }
+  });
+
+  it('stylesheetDefinesResponsiveShell', () => {
+    const css = readStylesheet();
+    expect(css.length, 'web/src/styles/site.css is non-empty').toBeGreaterThan(0);
+
+    expect(ruleBody(css, 'main')).toContain('max-width: 1120px');
+
+    const desktop = mediaBlock(css, '(min-width: 768px)');
+    expect(desktop, '@media (min-width: 768px) block present').not.toBe('');
+    expect(ruleBody(desktop, 'main')).toContain('var(--space-8)');
+
+    expect(ruleBody(css, 'h1')).toContain('clamp(');
+    expect(ruleBody(css, 'h2')).toContain('clamp(');
+
+    expect(ruleBody(css, 'main > section + section')).toContain(
+      'border-top: 1px solid var(--line)',
+    );
+  });
+
+  it('stylesheetKeepsOverflowInsideCodeBlocks', () => {
+    const css = readStylesheet();
+    expect(css.length, 'web/src/styles/site.css is non-empty').toBeGreaterThan(0);
+
+    expect(ruleBody(css, 'pre')).toContain('overflow-x: auto');
+    expect(ruleBody(css, 'img')).toContain('max-width: 100%');
+
+    const overflowMasked = /overflow(-x)?:\s*(hidden|clip)/;
+    for (const selector of ['html', 'body', 'main']) {
+      expect(
+        ruleBody(css, selector),
+        `no ${selector} rule masks overflow`,
+      ).not.toMatch(overflowMasked);
     }
   });
 

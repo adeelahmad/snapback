@@ -8,17 +8,55 @@ body {
     radial-gradient(circle at 15% 10%, var(--glass-tint-green), transparent 40%),
     radial-gradient(circle at 85% 60%, var(--glass-tint-blue), transparent 45%);
   background-attachment: fixed;
+  line-height: 1.6;
 }
 
 main {
-  max-width: 960px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-4) var(--space-16);
+  padding: var(--space-4) var(--space-4) var(--space-16);
+}
+
+main > section {
+  padding-block: var(--space-12);
+}
+
+main > section + section {
+  border-top: 1px solid var(--line);
 }
 
 h1,
-h2 {
+h2,
+h3 {
   color: var(--ink);
+}
+
+h1 {
+  font-size: clamp(2rem, 1.2rem + 3.6vw, 3.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+h2 {
+  font-size: clamp(1.5rem, 1.2rem + 1.2vw, 1.875rem);
+  line-height: 1.25;
+  margin: 0 0 var(--space-4);
+}
+
+h3 {
+  font-size: 1.125rem;
+  margin: 0 0 var(--space-2);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+pre {
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 a {
@@ -28,6 +66,22 @@ a {
 a:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+@media (min-width: 768px) {
+  main {
+    padding-inline: var(--space-8);
+  }
+
+  main > section {
+    padding-block: var(--space-16);
+  }
+}
+
+@media (max-width: 360px) {
+  .site-header {
+    flex-wrap: wrap;
+  }
 }
 
 .site-header {
