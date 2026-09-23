@@ -8,9 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/adeelahmad/snapback/internal/config"
+	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/setup"
+	"github.com/adeelahmad/snapback/internal/telemetry"
+	"github.com/adeelahmad/snapback/internal/version"
 )
 
 // setupFix is the corrective action shown when detection found too little to
@@ -90,11 +94,27 @@ func parseSetup(env Env, args []string) (setupOpts, bool, error) {
 }
 
 // runSetup detects the machine, turns the result into a configuration and
-// writes it to the resolved configuration path.
-func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) int {
+// writes it to the resolved configuration path. Once a configuration exists,
+// the run's outcome — ok or failed, gated by whether the operator accepted
+// the telemetry opt-in prompt — is reported once, from a single deferred
+// emit covering every exit past that point.
+func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) (code int) {
+	start := setupNow(d)
+	var cfg *config.Config
+	var runErr error
+	defer func() {
+		if cfg == nil {
+			return
+		}
+		client := setupTelemetryClient(cfg, version.Version, setupStateDir(env.Getenv))
+		emitSetupOutcome(ctx, client, version.Version, start, setupNow(d), runErr)
+	}()
+
 	path, err := setupConfigPath(env)
 	if err != nil {
-		return WriteError(env, "setup", false, err)
+		runErr = err
+		code = WriteError(env, "setup", false, err)
+		return
 	}
 	stateDir := setupStateDir(env.Getenv)
 
@@ -108,7 +128,9 @@ func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) int {
 		TempDir:  os.TempDir(),
 	})
 	if err != nil {
-		return WriteError(env, "setup", false, err)
+		runErr = err
+		code = WriteError(env, "setup", false, err)
+		return
 	}
 	if o.repo != "" {
 		res.RepoURI = o.repo
@@ -119,12 +141,17 @@ func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) int {
 
 	res, advice, err := setup.Plan(ctx, d.Run, res)
 	if err != nil {
-		return WriteError(env, "setup", false, err)
+		runErr = err
+		code = WriteError(env, "setup", false, err)
+		return
 	}
 
-	cfg, err := setup.ToConfig(res, setup.Options{StateDir: stateDir})
-	if err != nil {
-		return setupUndetected(env, res, err)
+	var cfgErr error
+	cfg, cfgErr = setup.ToConfig(res, setup.Options{StateDir: stateDir})
+	if cfgErr != nil {
+		runErr = cfgErr
+		code = setupUndetected(env, res, cfgErr)
+		return
 	}
 	save := !o.dryRun
 	if !o.dryRun && !o.force {
@@ -133,9 +160,12 @@ func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) int {
 		case rep.Same:
 			save = false
 		case rep.Exists || rerr != nil:
-			return WriteError(env, "setup", false, &UsageError{
+			uerr := &UsageError{
 				Msg: "a configuration already exists at " + path + "; pass --force to overwrite it",
-			})
+			}
+			runErr = uerr
+			code = WriteError(env, "setup", false, uerr)
+			return
 		}
 		for _, line := range rep.Lines {
 			_, _ = fmt.Fprintln(env.Stdout, line)
@@ -169,14 +199,20 @@ func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) int {
 	if o.dryRun {
 		b, err := config.Marshal(cfg)
 		if err != nil {
-			return WriteError(env, "setup", false, err)
+			runErr = err
+			code = WriteError(env, "setup", false, err)
+			return
 		}
 		if _, err := env.Stdout.Write(b); err != nil {
-			return 1
+			runErr = err
+			code = 1
+			return
 		}
 	} else if save {
 		if err := setup.Save(cfg, path); err != nil {
-			return WriteError(env, "setup", false, err)
+			runErr = err
+			code = WriteError(env, "setup", false, err)
+			return
 		}
 	}
 
@@ -188,9 +224,50 @@ func runSetup(ctx context.Context, d Deps, env Env, o setupOpts) int {
 	}
 	next := setup.NextAfterSetup(setupGOOS(d), installed, setupDaemonRunning(d, cfg.StateDir), linked, advice)
 	if err := WriteNext(env.Stdout, next); err != nil {
-		return 1
+		runErr = err
+		code = 1
+		return
 	}
-	return 0
+	code = 0
+	return
+}
+
+// setupNow reports the current time through d.Now when a test injected one,
+// falling back to the real clock otherwise.
+func setupNow(d Deps) time.Time {
+	if d.Now != nil {
+		return d.Now()
+	}
+	return time.Now()
+}
+
+// setupTelemetryClient builds the client that records a finished setup run's
+// telemetry; tests replace it with one that swaps in a fake exporter while
+// still honoring cfg.Telemetry.Enabled as the opt-in gate.
+var setupTelemetryClient = telemetry.FromConfig
+
+// emitSetupOutcome reports one finished setup run: exactly one
+// setup.completed event carrying the outcome and a duration bucket, plus a
+// paired error event carrying the failure's machine-readable code — never its
+// message — when one is available. A disabled or nil-exporter client already
+// discards every Emit call, so a declined opt-in or a pre-consent failure
+// naturally records nothing.
+func emitSetupOutcome(ctx context.Context, client *telemetry.Client, ver string, start, now time.Time, runErr error) {
+	outcome := "ok"
+	if runErr != nil {
+		outcome = "failed"
+	}
+	if ev, err := telemetry.SetupCompleted(ver, outcome, now.Sub(start), now); err == nil {
+		client.Emit(ctx, ev)
+	}
+	if runErr == nil {
+		return
+	}
+	if code := errcode.Of(runErr); code != "" {
+		if ev, err := telemetry.ErrorEvent(ver, code, now); err == nil {
+			client.Emit(ctx, ev)
+		}
+	}
 }
 
 // linkSetupRoots links every root through the daemon-first link seam and
