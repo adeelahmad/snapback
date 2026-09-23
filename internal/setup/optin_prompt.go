@@ -17,6 +17,7 @@ func AskOptIn(in io.Reader, out io.Writer, interactive bool) (enabled bool, aske
 	if !interactive {
 		return false, false
 	}
+	_, _ = io.WriteString(out, ConsentText())
 	_, _ = io.WriteString(out, OptInQuestion)
 	line, _ := bufio.NewReader(in).ReadString('\n')
 	switch strings.ToLower(strings.TrimSpace(line)) {

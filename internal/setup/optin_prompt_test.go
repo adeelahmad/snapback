@@ -37,9 +37,9 @@ func TestAskOptIn(t *testing.T) {
 				t.Errorf("AskOptIn(%q, %t) printed the question %d times, want %d",
 					tt.in, tt.interactive, got, want)
 			}
-			if tt.wantAsked && out.String() != OptInQuestion {
+			if tt.wantAsked && out.String() != ConsentText()+OptInQuestion {
 				t.Errorf("AskOptIn(%q, %t) wrote %q, want exactly %q",
-					tt.in, tt.interactive, out.String(), OptInQuestion)
+					tt.in, tt.interactive, out.String(), ConsentText()+OptInQuestion)
 			}
 		})
 	}
