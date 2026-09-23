@@ -161,8 +161,14 @@ describe('copy', () => {
     expect(text).toMatch(/schedul/i);
     expect(text).toMatch(/retention/i);
     expect(text).toContain('Windows');
-    expect(text, '"never writes" near "Restic repository"').toMatch(
-      /never writes[^.]{0,60}Restic repository/i,
+    expect(text, '"snapback snap" is the only command that adds a snapshot').toMatch(
+      /snapback snap[^.]{0,80}only when you run it/i,
+    );
+    expect(text, 'never deletes or prunes repository data').toMatch(
+      /never (deletes|prunes)[^.]{0,40}repository/i,
+    );
+    expect(text, 'no "never writes" or "only reads" claim').not.toMatch(
+      /never writes|only reads/i,
     );
   });
 
@@ -170,8 +176,13 @@ describe('copy', () => {
     const text = renderedText(renderToStaticMarkup(<Install />));
 
     expect(countOccurrences(text, installCommand), 'occurrences of the install command').toBe(1);
-    expect(text).toContain('snapback version');
+    expect(text).toContain('fuse3');
+    expect(text).toContain('restic CLI');
+    expect(text).toContain('Restic repository');
+    expect(text).toContain('snapback doctor');
     expect(text).toMatch(/checksum/i);
+    expect(text).not.toContain('snapback version');
+    expect(text).not.toContain('only command');
   });
 
   it('TestFooterLinks', () => {

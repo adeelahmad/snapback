@@ -80,7 +80,7 @@ export const limits: ListContent = {
     'No backup scheduling. Run Restic on your own schedule.',
     'No retention policy. Pruning stays with Restic.',
     'No file-content cache.',
-    'snapback never writes to the Restic repository.',
+    'snapback snap is the one command that adds a snapshot to the repository, and only when you run it. snapback never deletes, prunes or rewrites repository data.',
     'No Windows support.',
     'No live overlay or union of snapshot and working files.',
     'snapback supports Restic today; other backends are not yet supported.',
@@ -91,8 +91,9 @@ export const limits: ListContent = {
 export const install: ListContent = {
   heading: 'Install',
   items: [
-    'Today this installs a binary whose only command is snapback version.',
-    'The script verifies the release checksums before it installs anything.',
+    'The script downloads the latest release for your operating system and architecture and verifies it against the signed checksums.txt before it installs anything.',
+    'snapback needs FUSE (fuse3 on Linux), the restic CLI and an existing Restic repository.',
+    'Run snapback doctor afterwards to check the prerequisites and your repository.',
   ],
 };
 
