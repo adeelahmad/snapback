@@ -1,13 +1,13 @@
 package main
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
-	"time"
 
 	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/daemon"
@@ -151,6 +151,21 @@ func (applyStateCatalog) ReadDir(uint64) ([]string, bool) { return nil, false }
 func (applyStateCatalog) Readlink(uint64) (string, bool)  { return "", false }
 func (applyStateCatalog) ReadFile(uint64) ([]byte, bool)  { return nil, false }
 
+// applyStateFailingAdapter always fails Mount without touching the kernel.
+// A real gofuse/FUSE mount that actually succeeds would make the OS resolve
+// os.Lstat(cfg.HistoryMount) through the mounted filesystem's own root
+// instead of the plain directory fsmode.MkdirAll created, on any runner
+// whose FUSE happens to accept an unprivileged mount of an empty catalog.
+// This test is only about the directory fsmode created, so it swaps in a
+// deterministic failure instead of depending on the real adapter.
+type applyStateFailingAdapter struct{}
+
+func (applyStateFailingAdapter) Mount(string, mount.Catalog) error {
+	return errors.New("applyStateFailingAdapter: mount refused")
+}
+func (applyStateFailingAdapter) Unmount() error        { return nil }
+func (applyStateFailingAdapter) Publish(mount.Catalog) {}
+
 func TestApplyStateConfiguredDirModeReachesTheStateDir(t *testing.T) {
 	applyStateSkipIfRoot(t)
 	applyStateSetUmask(t, applyStateUmask)
@@ -174,29 +189,15 @@ func TestApplyStateConfiguredDirModeReachesTheHistoryAndAdapterDirs(t *testing.T
 	}
 	t.Cleanup(func() { _ = view.Unmount(t.Context()) })
 
-	// Publish creates the adapter directory and then mounts it. The mount is
-	// allowed to fail here; only the directory it created is under test.
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		view.Publish(applyStateCatalog{})
-	}()
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		if _, err := os.Lstat(cfg.HistoryMount); err == nil {
-			break
-		}
-		select {
-		case <-done:
-			if _, err := os.Lstat(cfg.HistoryMount); err != nil {
-				t.Fatalf("Publish did not create %s: %v", cfg.HistoryMount, err)
-			}
-		default:
-		}
-		if !time.Now().Before(deadline) {
-			t.Fatalf("Publish did not create %s within 5s", cfg.HistoryMount)
-		}
-		time.Sleep(10 * time.Millisecond)
+	// Publish creates the adapter directory and then mounts it. The real
+	// adapter is swapped for one whose Mount always fails, so this test
+	// only exercises the directory fsmode.MkdirAll created, never a real
+	// FUSE mount (see applyStateFailingAdapter).
+	view.adapter = applyStateFailingAdapter{}
+	view.Publish(applyStateCatalog{})
+
+	if _, err := os.Lstat(cfg.HistoryMount); err != nil {
+		t.Fatalf("Publish did not create %s: %v", cfg.HistoryMount, err)
 	}
 
 	applyStateWantPerm(t, "history mount parent", filepath.Dir(cfg.HistoryMount), applyStateDirMode)
