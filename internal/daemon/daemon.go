@@ -26,6 +26,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/recovery"
 	"github.com/adeelahmad/snapback/internal/refresh"
 	"github.com/adeelahmad/snapback/internal/status"
+	"github.com/adeelahmad/snapback/internal/telemetry"
 )
 
 // RefreshResult stands in for the refresh result type until S3-10 T2b swaps
@@ -108,6 +109,11 @@ type Deps struct {
 	// the state dir. Run then uses that lock instead of taking its own and
 	// calls Unlock once on return.
 	Unlock func()
+	// Telemetry receives the daemon's lifecycle events. New substitutes a
+	// disabled client when it is nil, so Run never has to check for nil.
+	Telemetry *telemetry.Client
+	// Version is the release string carried on telemetry events.
+	Version string
 }
 
 // defaultShutdownTimeout bounds shutdown when Deps leaves it unset.
@@ -162,6 +168,9 @@ func New(cfg *config.Config, deps Deps) *Daemon {
 	}
 	if deps.Log == nil {
 		deps.Log = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+	if deps.Telemetry == nil {
+		deps.Telemetry = telemetry.New(telemetry.Options{})
 	}
 	ops, stopOps := context.WithCancel(context.Background())
 	return &Daemon{cfg: cfg, deps: deps, phase: "starting", dedups: newDedupSet(), ops: ops, stopOps: stopOps}
@@ -276,8 +285,21 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.phase = "ready"
 	d.mu.Unlock()
 
+	d.emitStarted(ctx)
+
 	d.refreshEvery(ctx, d.cfg.Catalog.RefreshInterval)
 	return d.shutdown(context.WithoutCancel(ctx), l)
+}
+
+// emitStarted records one daemon.started telemetry event for this start of
+// Run. It is a no-op when telemetry is disabled or the event cannot be
+// built.
+func (d *Daemon) emitStarted(ctx context.Context) {
+	ev, err := telemetry.DaemonStarted(d.deps.Version, d.deps.Clock())
+	if err != nil {
+		return
+	}
+	d.deps.Telemetry.Emit(ctx, ev)
 }
 
 // refreshEvery runs a refresh.Loop every interval until ctx is done, so a
