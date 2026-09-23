@@ -49,7 +49,9 @@ func TelemetryCommand(d Deps) Command {
 			switch verb {
 			case "status":
 				return runTelemetryStatus(ctx, env, d, *jsonOut)
-			case "show", "enable", "disable":
+			case "show":
+				return runTelemetryShow(ctx, env, d, *jsonOut)
+			case "enable", "disable":
 				return WriteError(env, "telemetry", false, errors.New("not implemented"))
 			}
 			return 2
