@@ -15,6 +15,11 @@ export function HowItWorks() {
           ))}
         </pre>
       </div>
+      {howItWorks.details.map((detail) => (
+        <p key={detail} className="how__detail">
+          {detail}
+        </p>
+      ))}
     </section>
   );
 }

@@ -110,7 +110,10 @@ describe('copy', () => {
     const got = tags(markup, 'section').map((s) => attr(s, 'id') ?? '');
     expect(got, '<section id> values in <App/>').toEqual([
       'hero',
+      'two-problems',
+      'restore-compare',
       'how-it-works',
+      'ways-to-restore',
       'limits',
       'install',
       'status',
@@ -188,6 +191,50 @@ describe('copy', () => {
     );
   });
 
+  it('TestLimitsNamesWhatResticKeeps', () => {
+    const markup = renderToStaticMarkup(<Limits />);
+    const text = renderedText(markup);
+
+    expect(text).toContain(content.resticKeeps.heading);
+    for (const item of content.resticKeeps.items) {
+      expect(text).toContain(item);
+    }
+    expect(text).toContain(content.limits.heading);
+    for (const item of content.limits.items) {
+      expect(text).toContain(item);
+    }
+
+    const listsDivs = tags(markup, 'div').filter((d) =>
+      (attr(d, 'class') ?? '').includes('limits__lists'),
+    );
+    expect(listsDivs.length, '<div className="limits__lists"> wraps the two blocks').toBe(1);
+  });
+
+  it('TestNoSentenceMakesSnapbackTheBackupTool', () => {
+    const text = renderedText(renderToStaticMarkup(<App />));
+    expect(text, 'rendered <App/> text mentions snapback').toContain('snapback');
+
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    for (const s of sentences) {
+      expect(
+        s,
+        `sentence makes snapback the backup tool: ${JSON.stringify(s)}`,
+      ).not.toMatch(/\bsnapback (schedules|prunes|backs up|replaces|is a backup tool)\b/i);
+
+      if (s.includes('snapback') && /backup tool/i.test(s)) {
+        expect(
+          s,
+          `sentence names snapback and "backup tool" without "not": ${JSON.stringify(s)}`,
+        ).toMatch(/\bnot\b/i);
+      }
+
+      expect(
+        s,
+        `sentence claims snapback replaces Restic: ${JSON.stringify(s)}`,
+      ).not.toMatch(/\b(replaces|replacement for) restic\b/i);
+    }
+  });
+
   it('TestInstallSection', () => {
     const text = renderedText(renderToStaticMarkup(<Install />));
 
@@ -208,7 +255,10 @@ describe('copy', () => {
     );
     expect(usageCommands.size, 'commands parsed from docs-site/usage.md').toBeGreaterThanOrEqual(10);
 
-    const proseWords = new Set(['puts', 'v0.1', 'never', 'supports', 'needs']);
+    const proseWords = new Set(['puts', 'v0.1', 'never', 'supports', 'needs', 'makes', 'does', 'is', 'it']);
+    expect(proseWords).toEqual(
+      new Set(['puts', 'v0.1', 'never', 'supports', 'needs', 'makes', 'does', 'is', 'it']),
+    );
     const captures = contentStrings(content).flatMap((s) =>
       [...s.matchAll(/\bsnapback\s+([a-z][a-z0-9.-]*[a-z0-9])/g)].map((m) => m[1]),
     );

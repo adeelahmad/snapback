@@ -12,9 +12,9 @@
 
 # snapback
 
-**Restoring a file should be as easy as it was in 2008.**
+**Backup is a solved problem. Restore isn't.**
 
-snapback is a restore tool for your backups. It supports Restic today; other backends are on the [roadmap](#roadmap).
+snapback is a restore tool for your backups. It supports Restic today; other backends are on the [roadmap](#roadmap). Restic keeps doing the backup, on your schedule and under your retention rules. snapback does the restore, because restoring a file should be as easy as it was in 2008.
 
 snapback puts a read-only `.snapshot` entry inside your directories, backed by the Restic snapshots you already have. The v0.1 acceptance run on Linux (CI, fuse3) exercised this restore, with macOS (macFUSE) as supplementary evidence; the results are in [docs/reports/v0.1-acceptance.md](docs/reports/v0.1-acceptance.md):
 
@@ -29,7 +29,14 @@ That is the whole restore: no app to open, no browser tab, no restore wizard. Yo
 
 ## Why
 
-Backing up was never the problem; restoring is. Most tools make you leave the directory you are working in, open something else, find the file again and download it somewhere. Older setups solved this with a `.snapshot` directory next to the data. snapback brings that back for the Restic backups you already have.
+Backing up was never the problem; restoring is. Backup tools are built for the day you back up. Restore is for the day you need a file back, and most tools treat it as an afterthought.
+
+| | Backup | Restore |
+| --- | --- | --- |
+| **Today** | Solved. Restic takes deduplicated, encrypted snapshots whenever your cron job or timer runs it, and forgets and prunes them by your retention rules. | An afterthought. Leave the directory you are working in, find the snapshot and the path again, restore into a scratch directory, then move the file into place. |
+| **snapback** | Stays out of it. Keep running Restic as you do now; `snapback snap` asks it for one extra snapshot, and only when you run it. | The whole job. Earlier versions of a file sit next to the file, as ordinary read-only directories any program can read. |
+
+Older setups solved this with a `.snapshot` directory next to the data. snapback brings that back for the Restic backups you already have.
 
 - **Next to the data.** A `.snapshot` entry sits inside the directories your backups cover, not in a separate mount you have to go looking for.
 - **Any program.** `cp`, `diff`, an editor, a file manager, a file dialog: if it can read a directory, it can restore.
