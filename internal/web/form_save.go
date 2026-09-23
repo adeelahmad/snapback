@@ -89,13 +89,16 @@ func applyFilters(cfg *config.Config, filters []string) error {
 
 // configFormValues drops the form keys that are not configuration keys, so
 // Decode does not report the CSRF token, the revision or a typed password as
-// unknown fields.
+// unknown fields. It also drops every telemetry key besides
+// telemetry.enabled: the Config page never exposes those fields, so a
+// crafted or stale form must not be able to set them.
 func configFormValues(v url.Values) url.Values {
 	out := make(url.Values, len(v))
 	for name, vals := range v {
 		switch {
 		case name == csrfField, name == "revision":
 		case strings.HasSuffix(name, ".password"), strings.HasSuffix(name, ".password_mode"):
+		case strings.HasPrefix(name, "telemetry.") && name != "telemetry.enabled":
 		default:
 			out[name] = vals
 		}
@@ -204,7 +207,13 @@ func (s *Server) renderConfigForm(w http.ResponseWriter, r *http.Request, cfg *c
 // under the revision the form carried and validated by config.Save. It
 // redirects on success and re-renders the submitted values on any failure.
 func (s *Server) handleConfigSave(w http.ResponseWriter, r *http.Request) {
-	cfg, decoded := Decode(configFormValues(r.PostForm))
+	values := configFormValues(r.PostForm)
+	cfg, decoded := Decode(values)
+	if _, ok := values["telemetry.enabled"]; !ok {
+		if stored, _, err := s.opts.Backend.Config(); err == nil && stored != nil {
+			cfg.Telemetry.Enabled = stored.Telemetry.Enabled
+		}
+	}
 	byPath := make(map[string]string, len(decoded))
 	for _, f := range decoded {
 		if _, seen := byPath[f.Path]; !seen {
