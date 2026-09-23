@@ -80,13 +80,25 @@ export const releases: Release[] = [
   },
 ];
 
+export interface EvidenceLink {
+  lead: string;
+  label: string;
+  href: string;
+}
+
+export const statusEvidence: EvidenceLink = {
+  lead: 'Item-by-item results are in',
+  label: 'the v0.1 acceptance report',
+  href: 'https://github.com/adeelahmad/snapback/blob/master/docs/reports/v0.1-acceptance.md',
+};
+
 export interface ListContent {
   heading: string;
   items: string[];
 }
 
 export const limits: ListContent = {
-  heading: 'What snapback does not do',
+  heading: "What it doesn't do",
   items: [
     'No backup scheduling. Run Restic on your own schedule.',
     'No retention policy. Pruning stays with Restic.',

@@ -1,4 +1,4 @@
-import { releases, statusHeading } from '../content';
+import { releases, statusEvidence, statusHeading } from '../content';
 
 export function Status() {
   return (
@@ -13,6 +13,13 @@ export function Status() {
           </li>
         ))}
       </ul>
+      <p className="status__evidence">
+        {statusEvidence.lead}{' '}
+        <a href={statusEvidence.href} rel="noopener noreferrer">
+          {statusEvidence.label}
+        </a>
+        .
+      </p>
     </section>
   );
 }
