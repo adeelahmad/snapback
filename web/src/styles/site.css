@@ -221,6 +221,11 @@ a:focus-visible {
 .terminal {
   margin: 0;
 }
+.hero__text,
+.hero__demo,
+.terminal {
+  min-width: 0;
+}
 
 .terminal__label {
   font-family: var(--font-mono);

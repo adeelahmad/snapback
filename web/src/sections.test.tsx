@@ -502,4 +502,15 @@ describe('sections', () => {
 
     expect(ruleBody(css, '.site-footer')).toContain('flex-wrap: wrap');
   });
+
+  it('stylesheetLetsGridItemsShrinkBelowCodeLines', () => {
+    const css = readStylesheet();
+    expect(css.length, 'web/src/styles/site.css is non-empty').toBeGreaterThan(0);
+
+    expect(ruleBody(css, '.terminal')).toMatch(/min-width:\s*0\s*;/);
+    expect(ruleBody(css, '.hero__text')).toMatch(/min-width:\s*0\s*;/);
+    expect(ruleBody(css, '.hero__demo')).toMatch(/min-width:\s*0\s*;/);
+
+    expect(ruleBody(css, 'pre')).toContain('overflow-x: auto');
+  });
 });
