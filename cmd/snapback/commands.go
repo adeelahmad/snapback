@@ -31,6 +31,7 @@ func coreCommands(deps cli.Deps) []cli.Command {
 		cli.SeedCommand(deps),
 		cli.SetupCommand(deps),
 		cli.SnapCommand(deps),
+		cli.TelemetryCommand(deps),
 	}
 }
 

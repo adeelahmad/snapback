@@ -24,7 +24,8 @@ import (
 
 var allNames = []string{
 	"config", "doctor", "install", "link", "links", "notify", "open", "refresh",
-	"run", "seed", "service", "setup", "shell-hook", "snap", "status", "version", "web",
+	"run", "seed", "service", "setup", "shell-hook", "snap", "status", "telemetry",
+	"version", "web",
 }
 
 const wireID1 = provider.SnapshotID("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")

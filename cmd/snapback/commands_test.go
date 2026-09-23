@@ -13,7 +13,7 @@ import (
 	"github.com/adeelahmad/snapback/internal/version"
 )
 
-var coreNames = []string{"config", "link", "links", "open", "seed", "setup", "snap", "version"}
+var coreNames = []string{"config", "link", "links", "open", "seed", "setup", "snap", "telemetry", "version"}
 
 func TestCoreCommandNames(t *testing.T) {
 	cmds := coreCommands(cli.Deps{})
