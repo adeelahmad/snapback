@@ -3,6 +3,7 @@ package telemetry
 import (
 	"bytes"
 	"regexp"
+	"strings"
 )
 
 // Finding is one hit of a prohibited-value rule in a scanned payload.
@@ -47,16 +48,43 @@ var prohibitedRules = []prohibitedRule{
 	{"home_prefix", regexp.MustCompile(`~/[\w./-]*`)},
 }
 
-// snapbackModulePath matches Snapback's own module path prefix, per ruling
-// S6-R1: identical on every install, never a hostname or filesystem path
-// belonging to a user, so it is exempt from every rule below.
-var snapbackModulePath = regexp.MustCompile(`github\.com/adeelahmad/snapback/[\w./-]*`)
+// snapbackModulePath matches Snapback's own module path, per ruling S6-R1:
+// identical on every install, never a hostname or filesystem path belonging
+// to a user, so it is exempt from every rule below. The \b after "snapback"
+// admits both the bare module path (the OTLP scope name in
+// internal/telemetry/otlp/encode.go) and any deeper package path, while
+// still refusing to match a different, merely similarly-prefixed path such
+// as "github.com/adeelahmad/snapbackup/...".
+var snapbackModulePath = regexp.MustCompile(`github\.com/adeelahmad/snapback\b(?:/[\w./-]*)?`)
+
+// eventNamePattern matches the closed, exhaustive set of telemetry event
+// names in eventNames (event.go). Four of the five are dotted lowercase
+// words (e.g. "setup.completed") that are shaped exactly like hostnamePattern
+// expects a hostname to look, but they are schema names Snapback itself
+// chose, never a leaked hostname, so they are exempt from every rule below.
+var eventNamePattern = regexp.MustCompile(eventNameAlternation())
+
+// eventNameAlternation builds the regexp alternation source for
+// eventNamePattern from the closed event-name list, so the exemption can
+// never drift from the schema it exists to describe.
+func eventNameAlternation() string {
+	parts := make([]string, len(eventNames))
+	for i, name := range eventNames {
+		parts[i] = regexp.QuoteMeta(name)
+	}
+	return `\b(?:` + strings.Join(parts, "|") + `)\b`
+}
+
+// blank replaces m with spaces of the same length, so masking a match never
+// shifts the byte offsets later rules see.
+func blank(m []byte) []byte {
+	return bytes.Repeat([]byte{' '}, len(m))
+}
 
 // ScanProhibited reports every prohibited value in b, one Finding per hit.
 func ScanProhibited(b []byte) []Finding {
-	masked := snapbackModulePath.ReplaceAllFunc(b, func(m []byte) []byte {
-		return bytes.Repeat([]byte{' '}, len(m))
-	})
+	masked := snapbackModulePath.ReplaceAllFunc(b, blank)
+	masked = eventNamePattern.ReplaceAllFunc(masked, blank)
 	var findings []Finding
 	for _, rule := range prohibitedRules {
 		for _, m := range rule.re.FindAll(masked, -1) {
