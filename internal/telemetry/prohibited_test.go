@@ -60,6 +60,7 @@ func TestScanProhibitedFindsHostileValues(t *testing.T) {
 		{"mdns hostname", "nas.local", "hostname"},
 		{"lan hostname", "backup.lan", "hostname"},
 		{"fqdn hostname", "backup.example.com", "hostname"},
+		{"lookalike module path", "github.com/other/repo", "hostname"},
 		{
 			"snapshot id",
 			"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -116,6 +117,17 @@ func TestScanProhibitedNamesOnlyKnownRules(t *testing.T) {
 		if f.Match == "" {
 			t.Errorf("ScanProhibited finding %+v has an empty Match, want the matched text", f)
 		}
+	}
+}
+
+// TestScanProhibitedExemptsSnapbackModulePath pins ruling S6-R1: Snapback's
+// own module path is not a hostname, filesystem path or URI belonging to a
+// user, so a crash frame naming it must yield zero findings.
+func TestScanProhibitedExemptsSnapbackModulePath(t *testing.T) {
+	const payload = `{"module":"github.com/adeelahmad/snapback/internal/mount",` +
+		`"function":"(*Catalog).Refresh"}`
+	if got := ScanProhibited([]byte(payload)); len(got) != 0 {
+		t.Fatalf("ScanProhibited(%q) = %+v, want no findings", payload, got)
 	}
 }
 

@@ -1,6 +1,9 @@
 package telemetry
 
-import "regexp"
+import (
+	"bytes"
+	"regexp"
+)
 
 // Finding is one hit of a prohibited-value rule in a scanned payload.
 type Finding struct {
@@ -34,11 +37,19 @@ var prohibitedRules = []prohibitedRule{
 	{"home_prefix", regexp.MustCompile(`~/[\w./-]*`)},
 }
 
+// snapbackModulePath matches Snapback's own module path prefix, per ruling
+// S6-R1: identical on every install, never a hostname or filesystem path
+// belonging to a user, so it is exempt from every rule below.
+var snapbackModulePath = regexp.MustCompile(`github\.com/adeelahmad/snapback/[\w./-]*`)
+
 // ScanProhibited reports every prohibited value in b, one Finding per hit.
 func ScanProhibited(b []byte) []Finding {
+	masked := snapbackModulePath.ReplaceAllFunc(b, func(m []byte) []byte {
+		return bytes.Repeat([]byte{' '}, len(m))
+	})
 	var findings []Finding
 	for _, rule := range prohibitedRules {
-		for _, m := range rule.re.FindAll(b, -1) {
+		for _, m := range rule.re.FindAll(masked, -1) {
 			findings = append(findings, Finding{Rule: rule.name, Match: string(m)})
 		}
 	}
