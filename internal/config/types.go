@@ -26,11 +26,8 @@ type Config struct {
 // Telemetry records the answer to the setup opt-in question and the
 // collector endpoints it reports to. It is off by default.
 type Telemetry struct {
-	Enabled bool `yaml:"enabled"`
-	// TODO(S6-05/T1 GREEN): wrong yaml tag on purpose so the RED tests fail
-	// by assertion, not by a missing field. GREEN must change this tag to
-	// `yaml:"endpoint,omitempty"`.
-	Endpoint      string `yaml:"endpoint_url,omitempty"`
+	Enabled       bool   `yaml:"enabled"`
+	Endpoint      string `yaml:"endpoint,omitempty"`
 	CrashReports  bool   `yaml:"crash_reports"`
 	CrashEndpoint string `yaml:"crash_endpoint,omitempty"`
 }
