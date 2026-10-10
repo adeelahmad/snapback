@@ -4,8 +4,12 @@ import (
 	"errors"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
+	"go.yaml.in/yaml/v3"
+
+	"github.com/adeelahmad/snapback/internal/config"
 	"github.com/adeelahmad/snapback/internal/errcode"
 	"github.com/adeelahmad/snapback/internal/resolver"
 )
@@ -85,6 +89,61 @@ func TestPlaceRefusesOutsideRoots(t *testing.T) {
 	}
 	if got := errcode.Of(err); got != errcode.InvalidConfig {
 		t.Errorf("errcode.Of(place(%q)) = %q, want %q", dir, got, errcode.InvalidConfig)
+	}
+}
+
+// yamlRootSnippet extracts and dedents the roots[] snippet from an
+// outside-roots error message, after the marker that introduces it.
+func yamlRootSnippet(t *testing.T, msg string) string {
+	t.Helper()
+	const marker = "add this under roots in your config:\n"
+	i := strings.Index(msg, marker)
+	if i < 0 {
+		t.Fatalf("error = %q, want a %q section", msg, marker)
+	}
+	var out strings.Builder
+	for _, line := range strings.Split(msg[i+len(marker):], "\n") {
+		out.WriteString(strings.TrimPrefix(line, "  "))
+		out.WriteByte('\n')
+	}
+	return out.String()
+}
+
+func TestPlaceOutsideRootsErrorIncludesYAMLSnippet(t *testing.T) {
+	pol, _, _ := newPlaceFixture(t)
+
+	tests := []struct {
+		name string
+		dir  string
+	}{
+		{name: "plain path", dir: filepath.Join(t.TempDir(), "my-photos")},
+		{name: "path with spaces and symbols", dir: filepath.Join(t.TempDir(), "My Photos! (2024)")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := place(pol, tt.dir)
+			if !errors.Is(err, ErrOutsideRoots) {
+				t.Fatalf("place(%q) error = %v, want ErrOutsideRoots", tt.dir, err)
+			}
+
+			snippet := yamlRootSnippet(t, err.Error())
+			var roots []config.Root
+			if uerr := yaml.Unmarshal([]byte(snippet), &roots); uerr != nil {
+				t.Fatalf("yaml.Unmarshal(%q) error = %v, want valid YAML", snippet, uerr)
+			}
+			if len(roots) != 1 {
+				t.Fatalf("len(roots) = %d, want 1", len(roots))
+			}
+			if roots[0].LocalPath != tt.dir {
+				t.Errorf("roots[0].LocalPath = %q, want %q", roots[0].LocalPath, tt.dir)
+			}
+			if roots[0].ID == "" {
+				t.Errorf("roots[0].ID = %q, want non-empty", roots[0].ID)
+			}
+			if roots[0].RepositoryID == "" {
+				t.Errorf("roots[0].RepositoryID = %q, want a non-empty placeholder", roots[0].RepositoryID)
+			}
+		})
 	}
 }
 

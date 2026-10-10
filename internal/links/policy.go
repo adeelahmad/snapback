@@ -38,7 +38,7 @@ func place(pol Policy, dir string) (placement, error) {
 	}
 	m, err := resolver.SelectRoot(pol.Roots, clean)
 	if errors.Is(err, resolver.ErrOutsideRoots) {
-		return placement{}, errcode.New(errcode.InvalidConfig, "links.place", fmt.Errorf("%q: %w", dir, ErrOutsideRoots))
+		return placement{}, errcode.New(errcode.InvalidConfig, "links.place", outsideRootsError(dir))
 	}
 	if err != nil {
 		return placement{}, errcode.New(errcode.InvalidConfig, "links.place", err)
@@ -51,6 +51,39 @@ func place(pol Policy, dir string) (placement, error) {
 		target: filepath.Join(pol.HistoryMount, "roots", m.RootID, "dirs", key),
 		link:   filepath.Join(clean, pol.LinkName),
 	}, nil
+}
+
+// outsideRootsError reports dir as outside every configured root, with a
+// copy-pasteable roots[] entry the user can add to their config. Policy
+// carries only each root's ID and local path (no repository info), so the
+// repository_id is left as a placeholder for the user to fill in.
+func outsideRootsError(dir string) error {
+	return fmt.Errorf(
+		"%q: %w; add this under roots in your config:\n"+
+			"  - id: %s\n"+
+			"    local_path: %s\n"+
+			"    repository_id: <id-of-one-of-your-configured-repositories>",
+		dir, ErrOutsideRoots, suggestRootID(dir), dir)
+}
+
+// suggestRootID returns a config-friendly root id derived from dir's base
+// name, for the copy-pasteable snippet in outsideRootsError.
+func suggestRootID(dir string) string {
+	base := strings.ToLower(filepath.Base(filepath.Clean(dir)))
+	var b strings.Builder
+	for _, r := range base {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-', r == '_':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('-')
+		}
+	}
+	id := strings.Trim(b.String(), "-")
+	if id == "" {
+		return "my-root"
+	}
+	return id
 }
 
 // excluded reports whether dir is at or under the history mount or an
