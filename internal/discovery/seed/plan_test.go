@@ -45,22 +45,32 @@ func TestPlanPathDepthLimited(t *testing.T) {
 	}
 }
 
-func TestPlanPathDepthZeroIsSeedOnly(t *testing.T) {
+func TestPlanPathDepthZeroIsUnlimited(t *testing.T) {
 	r := t.TempDir()
-	mk(t, r, "p/q")
-	want := []string{filepath.Join(r, "p")}
+	mk(t, r, "p/q/r/s/t")
+	want := []string{
+		filepath.Join(r, "p"),
+		filepath.Join(r, "p", "q"),
+		filepath.Join(r, "p", "q", "r"),
+		filepath.Join(r, "p", "q", "r", "s"),
+		filepath.Join(r, "p", "q", "r", "s", "t"),
+	}
 
-	for _, seed := range []string{"p", filepath.Join(r, "p")} {
+	for _, seed := range []string{"p", filepath.Join(r, "p"), "."} {
 		got, err := PlanPath(r, seed, 0, nil)
 		if err != nil {
 			t.Errorf("PlanPath(%q, %q, 0, nil) error = %v, want nil", r, seed, err)
 			continue
 		}
-		if !slices.Equal(got.Dirs, want) {
-			t.Errorf("PlanPath(%q, %q, 0, nil).Dirs = %q, want %q", r, seed, got.Dirs, want)
+		gotWant := want
+		if seed == "." {
+			gotWant = append([]string{r}, want...)
 		}
-		if got.Count != 1 {
-			t.Errorf("PlanPath(%q, %q, 0, nil).Count = %d, want 1", r, seed, got.Count)
+		if !slices.Equal(got.Dirs, gotWant) {
+			t.Errorf("PlanPath(%q, %q, 0, nil).Dirs = %q, want %q", r, seed, got.Dirs, gotWant)
+		}
+		if got.Count != len(gotWant) {
+			t.Errorf("PlanPath(%q, %q, 0, nil).Count = %d, want %d", r, seed, got.Count, len(gotWant))
 		}
 	}
 }

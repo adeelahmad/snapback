@@ -99,6 +99,15 @@ func fuseFix() string {
 }
 
 func checkFuseDevice(p Probes) Check {
+	return checkFuseDeviceGOOS(p, runtime.GOOS)
+}
+
+// checkFuseDeviceGOOS takes goos as a parameter so both platform branches are
+// unit-testable regardless of the OS running the test.
+func checkFuseDeviceGOOS(p Probes, goos string) Check {
+	if goos == "darwin" {
+		return checkMacfuseDevice(p)
+	}
 	info, err := p.Stat("/dev/fuse")
 	if err != nil || info.Mode()&fs.ModeDevice == 0 {
 		return Check{Name: "fuse_device", Status: statusFail, Code: errcode.PrereqMissing,
@@ -107,13 +116,54 @@ func checkFuseDevice(p Probes) Check {
 	return Check{Name: "fuse_device", Status: statusOK, Detail: "/dev/fuse present"}
 }
 
+// macfuseDeviceScanLimit bounds the /dev/macfuseN scan; macFUSE numbers its
+// device nodes sequentially from 0 and a real install has far fewer than this.
+const macfuseDeviceScanLimit = 32
+
+// checkMacfuseDevice looks for at least one /dev/macfuseN device node, the
+// macFUSE equivalent of Linux's single /dev/fuse.
+func checkMacfuseDevice(p Probes) Check {
+	for i := 0; i < macfuseDeviceScanLimit; i++ {
+		path := fmt.Sprintf("/dev/macfuse%d", i)
+		info, err := p.Stat(path)
+		if err == nil && info.Mode()&fs.ModeDevice != 0 {
+			return Check{Name: "fuse_device", Status: statusOK, Detail: path + " present"}
+		}
+	}
+	return Check{Name: "fuse_device", Status: statusFail, Code: errcode.PrereqMissing,
+		Detail: "no /dev/macfuseN device is available", Fix: fuseFix()}
+}
+
 func checkFusermount(p Probes) Check {
+	return checkFusermountGOOS(p, runtime.GOOS)
+}
+
+// checkFusermountGOOS takes goos as a parameter so both platform branches are
+// unit-testable regardless of the OS running the test.
+func checkFusermountGOOS(p Probes, goos string) Check {
+	if goos == "darwin" {
+		return checkMacfuseMountHelper(p)
+	}
 	path, err := p.LookPath("fusermount3")
 	if err != nil {
 		return Check{Name: "fusermount3", Status: statusFail, Code: errcode.PrereqMissing,
 			Detail: "fusermount3 not found", Fix: fuseFix()}
 	}
 	return Check{Name: "fusermount3", Status: statusOK, Detail: path}
+}
+
+// checkMacfuseMountHelper reports the macOS equivalent of fusermount3. There
+// is no separate mount-helper binary on macOS: internal/mount/gofuse mounts
+// directly through the macFUSE kernel extension, so the only honest signal is
+// the same device-node presence checkMacfuseDevice already verifies.
+func checkMacfuseMountHelper(p Probes) Check {
+	dev := checkMacfuseDevice(p)
+	if dev.Status != statusOK {
+		return Check{Name: "fusermount3", Status: statusFail, Code: errcode.PrereqMissing,
+			Detail: "no /dev/macfuseN device is available; macOS has no fusermount3 binary", Fix: fuseFix()}
+	}
+	return Check{Name: "fusermount3", Status: statusOK,
+		Detail: "not applicable on macOS; macFUSE mounts directly (" + dev.Detail + ")"}
 }
 
 func checkPasswordFiles(cfg *config.Config, p Probes) Check {

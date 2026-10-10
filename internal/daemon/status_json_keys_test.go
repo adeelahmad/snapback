@@ -18,6 +18,7 @@ import (
 // "snapback status --json": the envelope's data object uses snake_case keys
 // only, so consumers can rely on them.
 func TestStatusCommandJSONSnakeCaseKeys(t *testing.T) {
+	cfgPath, _ := writeValidConfig(t)
 	xdg := filepath.Dir(sockPath(t))
 	sock := ipc.SocketPath(func(string) string { return xdg }, "")
 	want := status.Snapshot{
@@ -52,7 +53,7 @@ func TestStatusCommandJSONSnakeCaseKeys(t *testing.T) {
 		}, ipc.ServeOptions{UID: uint32(os.Getuid())})
 	}()
 
-	env, stdout, stderr := cmdEnv(xdg, "")
+	env, stdout, stderr := cmdEnv(xdg, cfgPath)
 	code := runWithin(t, 2*time.Second, func() int { return StatusCommand().Run(ctx, env, []string{"--json"}) })
 	if code != 0 {
 		t.Fatalf("StatusCommand().Run(--json) = %d, want 0 (stderr %q)", code, stderr.String())

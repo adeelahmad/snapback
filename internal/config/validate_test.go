@@ -86,7 +86,7 @@ func TestValidateFieldErrors(t *testing.T) {
 		}, "roots[0].snapshots.source_paths_exact[0]"},
 		{"seed path absolute", func(c *Config) { c.Roots[0].SeedPaths[0].Path = "/abs" }, "roots[0].seed_paths[0].path"},
 		{"seed path parent", func(c *Config) { c.Roots[0].SeedPaths[0].Path = "../up" }, "roots[0].seed_paths[0].path"},
-		{"seed max_depth zero", func(c *Config) { c.Roots[0].SeedPaths[0].MaxDepth = 0 }, "roots[0].seed_paths[0].max_depth"},
+		{"seed max_depth negative", func(c *Config) { c.Roots[0].SeedPaths[0].MaxDepth = -1 }, "roots[0].seed_paths[0].max_depth"},
 		{"exclude parent", func(c *Config) {
 			c.Roots[0].ExcludeRelativePaths = []string{"../x"}
 		}, "roots[0].exclude_relative_paths[0]"},
@@ -100,6 +100,24 @@ func TestValidateFieldErrors(t *testing.T) {
 				t.Errorf("Validate(%s) fields = %+v, want one at %s", tt.name, got, tt.path)
 			}
 		})
+	}
+}
+
+func TestValidateAcceptsSeedPathDotAndUnlimitedDepth(t *testing.T) {
+	c := validConfig(t)
+	c.Roots[0].SeedPaths[0].Path = "."
+	c.Roots[0].SeedPaths[0].MaxDepth = 0
+	if err := Validate(c); err != nil {
+		t.Errorf("Validate(seed_paths[0].path=%q, max_depth=0) = %v, want nil", ".", err)
+	}
+}
+
+func TestValidateExcludeRelativePathsStillRejectsDot(t *testing.T) {
+	c := validConfig(t)
+	c.Roots[0].ExcludeRelativePaths = []string{"."}
+	got := validationFields(t, Validate(c))
+	if findField(got, "roots[0].exclude_relative_paths[0]") == nil {
+		t.Errorf("Validate(exclude_relative_paths[0]=%q) fields = %+v, want one at roots[0].exclude_relative_paths[0]", ".", got)
 	}
 }
 

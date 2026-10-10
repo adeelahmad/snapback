@@ -241,14 +241,14 @@ Durations use Go syntax: `20ms`, `60s`, `5m`, `1h`.
 | `id` | identifier | none (required) | Unique ID matching `^[a-z][a-z0-9_-]{0,31}$`. |
 | `local_path` | absolute path | none (required) | The local directory tree. |
 | `repository_id` | string | none (required) | The `id` of a repository in this file. |
-| `prefix_map[].hostname` | string | empty | The host whose snapshots this mapping applies to. |
+| `prefix_map[].hostname` | string | empty | The host whose snapshots this mapping applies to. Empty means all hosts; a specific-hostname entry takes precedence over a matching empty-hostname entry for the same `source_path`. |
 | `prefix_map[].source_path` | absolute path | none | The path that was backed up on that host. |
 | `prefix_map[].tree_prefix` | absolute path | none | Where that path sits inside the snapshot tree. |
 | `snapshots.hostname` | string | empty | Show only this host's snapshots. Empty means all hosts. |
 | `snapshots.tags_all` | list of strings | empty | Show only snapshots that carry all of these tags. |
 | `snapshots.source_paths_exact` | list of absolute paths | empty | Show only snapshots with exactly these source paths. |
-| `seed_paths[].path` | relative path | none | Directory under `local_path` to seed `.snapshot` entries in. |
-| `seed_paths[].max_depth` | integer | none | How many levels deep to seed. At least 1. |
+| `seed_paths[].path` | relative path | none | Directory under `local_path` to seed `.snapshot` entries in. `.` means `local_path` itself. |
+| `seed_paths[].max_depth` | integer | none | How many levels deep to seed. At least 0; `0` means no limit. |
 | `exclude_relative_paths` | list of relative paths | empty | Directories under `local_path` to skip. |
 
 On Linux, the daemon also watches each `seed_paths` entry with inotify and links directories

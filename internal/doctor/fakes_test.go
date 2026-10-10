@@ -147,6 +147,12 @@ func healthyProbes(t *testing.T) *fixture {
 			if path == "/dev/fuse" {
 				return fakeInfo{name: "fuse", mode: fs.ModeDevice | fs.ModeCharDevice | 0o666}, nil
 			}
+			if path == "/dev/macfuse0" {
+				return fakeInfo{name: "macfuse0", mode: fs.ModeDevice | fs.ModeCharDevice | 0o666}, nil
+			}
+			if strings.HasPrefix(path, "/dev/macfuse") {
+				return nil, fs.ErrNotExist
+			}
 			return os.Stat(path)
 		},
 		Mountinfo: func() (io.Reader, error) { return strings.NewReader(""), nil },

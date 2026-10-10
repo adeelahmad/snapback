@@ -210,6 +210,69 @@ func TestEligibleForOrderingAndTiebreak(t *testing.T) {
 	}
 }
 
+// TestEligibleForWildcardHostname proves an empty PrefixRule.Hostname
+// matches a snapshot from any host for the rule's source_path, consistent
+// with roots[].snapshots.hostname's existing "empty means all hosts".
+func TestEligibleForWildcardHostname(t *testing.T) {
+	rules := []PrefixRule{{Hostname: "", SourcePath: "/r", TreePrefix: "/r"}}
+	for _, host := range []string{"laptop-2019", "laptop-2023", "anything"} {
+		got, excl := EligibleFor(rules, singleSnap(id1, host, "/r/docs"), "docs")
+		if len(excl) != 0 {
+			t.Errorf("EligibleFor(wildcard rule, host %q) exclusions = %+v, want none", host, excl)
+		}
+		want := []pair{{id1, "r/docs"}}
+		if !slices.Equal(pairs(got), want) {
+			t.Errorf("EligibleFor(wildcard rule, host %q) = %+v, want %+v", host, pairs(got), want)
+		}
+	}
+}
+
+// TestEligibleForWildcardPrecedence documents the chosen ambiguity
+// resolution: a specific-hostname rule takes precedence over a wildcard
+// rule that would otherwise also match the same path, so adding a wildcard
+// entry alongside per-host entries for the same source_path does not turn
+// previously unambiguous snapshots into ambiguous_prefix_mapping
+// exclusions. Multiple matches within the same tier (two specific rules,
+// or two wildcard rules) remain ambiguous.
+func TestEligibleForWildcardPrecedence(t *testing.T) {
+	specific := PrefixRule{Hostname: "h", SourcePath: "/r", TreePrefix: "/tree"}
+	wildcard := PrefixRule{Hostname: "", SourcePath: "/r", TreePrefix: "/other"}
+
+	// Specific + wildcard both covering the same host/path: specific wins,
+	// no ambiguity.
+	rules := []PrefixRule{specific, wildcard}
+	got, excl := EligibleFor(rules, singleSnap(id1, "h", "/r/docs"), "docs")
+	if len(excl) != 0 {
+		t.Errorf("EligibleFor(specific+wildcard, host h) exclusions = %+v, want none", excl)
+	}
+	if want := []pair{{id1, "tree/docs"}}; !slices.Equal(pairs(got), want) {
+		t.Errorf("EligibleFor(specific+wildcard, host h) = %+v, want %+v (specific rule should win)", pairs(got), want)
+	}
+
+	// A host with no specific rule still falls through to the wildcard.
+	got, excl = EligibleFor(rules, singleSnap(id1, "other", "/r/docs"), "docs")
+	if len(excl) != 0 {
+		t.Errorf("EligibleFor(specific+wildcard, host other) exclusions = %+v, want none", excl)
+	}
+	if want := []pair{{id1, "other/docs"}}; !slices.Equal(pairs(got), want) {
+		t.Errorf("EligibleFor(specific+wildcard, host other) = %+v, want %+v (wildcard rule should apply)", pairs(got), want)
+	}
+
+	// Two specific rules for the same host/path: still ambiguous.
+	specific2 := PrefixRule{Hostname: "h", SourcePath: "/r", TreePrefix: "/tree2"}
+	_, excl = EligibleFor([]PrefixRule{specific, specific2}, singleSnap(id1, "h", "/r/docs"), "docs")
+	if want := []Exclusion{{id1, "ambiguous_prefix_mapping"}}; !slices.Equal(excl, want) {
+		t.Errorf("EligibleFor(two specific rules) exclusions = %+v, want %+v", excl, want)
+	}
+
+	// Two wildcard rules for the same path: still ambiguous.
+	wildcard2 := PrefixRule{Hostname: "", SourcePath: "/r", TreePrefix: "/other2"}
+	_, excl = EligibleFor([]PrefixRule{wildcard, wildcard2}, singleSnap(id1, "h", "/r/docs"), "docs")
+	if want := []Exclusion{{id1, "ambiguous_prefix_mapping"}}; !slices.Equal(excl, want) {
+		t.Errorf("EligibleFor(two wildcard rules) exclusions = %+v, want %+v", excl, want)
+	}
+}
+
 func TestEligibleForUnicodeAndRelativeBytes(t *testing.T) {
 	rules := []PrefixRule{{Hostname: "h", SourcePath: "/r", TreePrefix: "/r"}}
 	snaps := singleSnap(id1, "h", "/r/é")
