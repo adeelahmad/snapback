@@ -87,6 +87,43 @@ func TestRunConfigValidateInvalidFile(t *testing.T) {
 	}
 }
 
+func TestRunConfigValidateInvalidFileConfigAfterSubcommand(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(f, []byte("version: 1\nbogus_field: true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+
+	code := run([]string{"config", "validate", "--config", f, "--json"}, &stdout, &stderr)
+
+	if code != 1 {
+		t.Errorf("run(config validate --config f --json) = %d, want 1 (stderr %q)", code, stderr.String())
+	}
+	var env struct {
+		OK   bool   `json:"ok"`
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &env); err != nil {
+		t.Fatalf("run(config validate --config f --json) stdout = %q, not JSON: %v", stdout.String(), err)
+	}
+	if got, want := env.Code, "invalid_configuration"; got != want {
+		t.Errorf("run(config validate --config f --json) code = %q, want %q", got, want)
+	}
+	if env.OK {
+		t.Errorf("run(config validate --config f --json) ok = true, want false")
+	}
+}
+
+func TestRunConfigPathSubstringIsNotAFalseMatch(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+
+	code := run([]string{"--configfile", "/tmp/x.yaml", "config", "path"}, &stdout, &stderr)
+
+	if code != 2 {
+		t.Errorf("run(--configfile /tmp/x.yaml config path) = %d, want 2 (stdout %q, stderr %q)", code, stdout.String(), stderr.String())
+	}
+}
+
 func TestRunUnknownFlagIsUsage(t *testing.T) {
 	tests := [][]string{
 		{"snap", "--bogus"},
