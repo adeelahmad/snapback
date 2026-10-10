@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -42,26 +43,88 @@ func (s *Server) baseConfig() (*config.Config, config.Revision, error) {
 	return &out, rev, nil
 }
 
-// applyRoots replaces cfg's roots with one per local path, reusing the root
-// already at that position so its ID and repository survive an edit.
-func applyRoots(cfg *config.Config, paths []string) {
+// rootRepoIDPattern matches a syntactically valid repository id, mirroring
+// config.idPattern, so a local path that merely contains "=" is not mistaken
+// for a "path=<repository id>" line.
+var rootRepoIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
+
+// splitRootLine splits one "Roots" line into its local path and the
+// repository id named after a trailing "=", if any. A trailing segment that
+// is not itself a valid repository id is treated as part of the path.
+func splitRootLine(line string) (path, repositoryID string) {
+	if i := strings.LastIndex(line, "="); i >= 0 {
+		if id := line[i+1:]; rootRepoIDPattern.MatchString(id) {
+			return line[:i], id
+		}
+	}
+	return line, ""
+}
+
+// hasRepository reports whether id names one of repos.
+func hasRepository(repos []config.Repository, id string) bool {
+	for _, r := range repos {
+		if r.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// repositoryIDs returns the id of every repository in repos, for naming the
+// choices in a validation error.
+func repositoryIDs(repos []config.Repository) []string {
+	out := make([]string, 0, len(repos))
+	for _, r := range repos {
+		out = append(out, r.ID)
+	}
+	return out
+}
+
+// applyRoots replaces cfg's roots with one per "Roots" line, reusing the
+// root already at that position so its ID and repository survive an edit.
+// An existing root's line is always its literal local path, same as before
+// the "=<repository id>" syntax below existed, so a path that happens to
+// contain "=" is never misread for one of its own edits. A new root's line
+// is a local path, optionally followed by "=<repository id>" to choose the
+// repository it belongs to; with exactly one configured repository the
+// suffix may be omitted and defaults to it. It reports one error per line
+// whose repository cannot be resolved.
+func applyRoots(cfg *config.Config, rootLines []string) []string {
+	var errs []string
 	old := cfg.Roots
-	roots := make([]config.Root, 0, len(paths))
-	for i, p := range paths {
+	roots := make([]config.Root, 0, len(rootLines))
+	for i, line := range rootLines {
+		if i < len(old) {
+			root := old[i]
+			root.LocalPath = line
+			roots = append(roots, root)
+			continue
+		}
+		p, repositoryID := splitRootLine(line)
+		if strings.TrimSpace(p) == "" {
+			errs = append(errs, fmt.Sprintf("root %q: missing local path", line))
+			continue
+		}
 		var root config.Root
 		switch {
-		case i < len(old):
-			root = old[i]
-		default:
-			root.ID = filepath.Base(p)
-			if len(cfg.Repositories) > 0 {
-				root.RepositoryID = cfg.Repositories[0].ID
+		case repositoryID != "":
+			if !hasRepository(cfg.Repositories, repositoryID) {
+				errs = append(errs, fmt.Sprintf("root %q: repository %q is not configured (have: %s)", p, repositoryID, strings.Join(repositoryIDs(cfg.Repositories), ", ")))
+				continue
 			}
+			root.RepositoryID = repositoryID
+		case len(cfg.Repositories) == 1:
+			root.RepositoryID = cfg.Repositories[0].ID
+		default:
+			errs = append(errs, fmt.Sprintf("root %q: name a repository as %q (have: %s)", p, p+"=<repository id>", strings.Join(repositoryIDs(cfg.Repositories), ", ")))
+			continue
 		}
+		root.ID = filepath.Base(p)
 		root.LocalPath = p
 		roots = append(roots, root)
 	}
 	cfg.Roots = roots
+	return errs
 }
 
 // applyFilters sets the snapshot filter of every root from the Config form's
@@ -89,8 +152,7 @@ func applyFilters(cfg *config.Config, filters []string) error {
 // applyConfigForm copies the Config form fields of r onto cfg, reporting the
 // fields the user has to correct.
 func applyConfigForm(cfg *config.Config, r *http.Request) []string {
-	var errs []string
-	applyRoots(cfg, lines(r.PostFormValue("roots")))
+	errs := applyRoots(cfg, lines(r.PostFormValue("roots")))
 	if err := applyFilters(cfg, lines(r.PostFormValue("filters"))); err != nil {
 		errs = append(errs, err.Error())
 	}
@@ -195,7 +257,10 @@ func (s *Server) handleSetupSave(w http.ResponseWriter, r *http.Request) {
 	repo.ResticBinary = strings.TrimSpace(r.PostFormValue("restic_path"))
 	repo.RcloneBinary = strings.TrimSpace(r.PostFormValue("rclone_path"))
 	repo.PasswordFile = strings.TrimSpace(r.PostFormValue("credential_file"))
-	applyRoots(cfg, lines(r.PostFormValue("roots")))
+	if errs := applyRoots(cfg, lines(r.PostFormValue("roots"))); len(errs) > 0 {
+		s.render(w, "setup", s.setupFormView(r, errs))
+		return
+	}
 	config.ApplyDefaults(cfg)
 
 	if s.opts.Validator != nil {
