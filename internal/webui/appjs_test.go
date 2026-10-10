@@ -146,3 +146,22 @@ func TestAppJSHooksMatchTemplates(t *testing.T) {
 		}
 	}
 }
+
+// TestAppJSLoadsVersionsAndRestores wants a click on a file row to fetch
+// /api/versions and each listed version to offer /api/download and
+// /api/restore, with the restored path from the response shown to the user.
+func TestAppJSLoadsVersionsAndRestores(t *testing.T) {
+	js := appJS(t)
+	for _, want := range []string{
+		`[data-js="versions-open"]`,
+		"csrfFetch(`/api/versions?",
+		"/api/download?",
+		"csrfFetch('/api/restore'",
+		"hiddenInput('root'",
+		"result.path",
+	} {
+		if !strings.Contains(js, want) {
+			t.Errorf("assets/app.js does not contain %q, want the click-to-restore flow wired", want)
+		}
+	}
+}

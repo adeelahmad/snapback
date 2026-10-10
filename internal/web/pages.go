@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"os/exec"
+	"path"
 	"slices"
 	"strconv"
 	"time"
@@ -291,11 +292,16 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 			if e.Absent {
 				state = "absent"
 			}
+			file := ""
+			if !e.Dir {
+				file = path.Join(dir, e.Name)
+			}
 			v.Entries = append(v.Entries, webui.Entry{
 				Name:     e.Name,
 				Size:     strconv.FormatInt(e.Size, 10),
 				Modified: e.ModTime.Format(time.RFC3339),
 				State:    state,
+				File:     file,
 			})
 		}
 	}
