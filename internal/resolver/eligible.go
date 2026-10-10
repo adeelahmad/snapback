@@ -69,14 +69,33 @@ func mapSnapshot(rules []PrefixRule, s provider.Snapshot) ([]coverage, string) {
 	}
 	var cov []coverage
 	for _, p := range s.Paths {
-		var matched []coverage
+		var specific, wildcard []coverage
 		for _, r := range rules {
-			if c, ok := matchRule(r, s.Hostname, p); ok {
-				matched = append(matched, coverage{rule: r, rel: c})
+			c, ok := matchRule(r, s.Hostname, p)
+			if !ok {
+				continue
+			}
+			if r.Hostname == "" {
+				wildcard = append(wildcard, coverage{rule: r, rel: c})
+			} else {
+				specific = append(specific, coverage{rule: r, rel: c})
 			}
 		}
-		if len(matched) > 1 {
+		// A specific-hostname match takes precedence over a wildcard
+		// match for the same path: a wildcard rule exists to cover hosts
+		// that have no dedicated entry, not to make an otherwise
+		// unambiguous specific match report ambiguous_prefix_mapping.
+		// Multiple matches within the same tier are still ambiguous.
+		matched := specific
+		switch {
+		case len(specific) > 1:
 			return nil, "ambiguous_prefix_mapping"
+		case len(specific) == 1:
+			// specific wins; wildcard matches for this path are ignored.
+		case len(wildcard) > 1:
+			return nil, "ambiguous_prefix_mapping"
+		default:
+			matched = wildcard
 		}
 		cov = append(cov, matched...)
 	}
@@ -92,10 +111,11 @@ func mapSnapshot(rules []PrefixRule, s provider.Snapshot) ([]coverage, string) {
 }
 
 // matchRule reports whether recorded path p on host matches r, and the
-// subtree of the root it covers.
+// subtree of the root it covers. An empty r.Hostname matches any host,
+// mirroring the "empty means all hosts" convention of roots[].snapshots.hostname.
 func matchRule(r PrefixRule, host, p string) (string, bool) {
 	switch {
-	case r.Hostname != host:
+	case r.Hostname != "" && r.Hostname != host:
 		return "", false
 	case p == r.SourcePath:
 		return "", true

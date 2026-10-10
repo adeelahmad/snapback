@@ -241,7 +241,7 @@ Durations use Go syntax: `20ms`, `60s`, `5m`, `1h`.
 | `id` | identifier | none (required) | Unique ID matching `^[a-z][a-z0-9_-]{0,31}$`. |
 | `local_path` | absolute path | none (required) | The local directory tree. |
 | `repository_id` | string | none (required) | The `id` of a repository in this file. |
-| `prefix_map[].hostname` | string | empty | The host whose snapshots this mapping applies to. |
+| `prefix_map[].hostname` | string | empty | The host whose snapshots this mapping applies to. Empty means all hosts; a specific-hostname entry takes precedence over a matching empty-hostname entry for the same `source_path`. |
 | `prefix_map[].source_path` | absolute path | none | The path that was backed up on that host. |
 | `prefix_map[].tree_prefix` | absolute path | none | Where that path sits inside the snapshot tree. |
 | `snapshots.hostname` | string | empty | Show only this host's snapshots. Empty means all hosts. |
