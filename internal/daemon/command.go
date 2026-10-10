@@ -108,13 +108,18 @@ func RefreshCommand() cli.Command {
 func callDaemon(ctx context.Context, env cli.Env, name, op string, args []string) int {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
+	cfgPath := fs.String("config", env.ConfigPath, "configuration file")
 	jsonOut, _, err := cli.ParseFlags(fs, args)
 	if err != nil {
 		return cli.WriteError(env, name, jsonOut, err)
 	}
+	cfg, _, err := config.Load(*cfgPath)
+	if err != nil {
+		return cli.WriteError(env, name, jsonOut, errcode.New(errcode.InvalidConfig, name, err))
+	}
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
-	c, err := ipc.Dial(ctx, ipc.SocketPath(env.Getenv, ""))
+	c, err := ipc.Dial(ctx, ipc.SocketPath(env.Getenv, cfg.StateDir))
 	if err != nil {
 		_, _ = fmt.Fprintf(env.Stderr, "snapback %s: daemon not running; start it with 'snapback run'\n", name)
 		return cli.WriteError(env, name, jsonOut, err)
