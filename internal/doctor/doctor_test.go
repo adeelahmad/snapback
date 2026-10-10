@@ -54,7 +54,7 @@ func TestFuseMissingExplainsNeverInstalls(t *testing.T) {
 	f := healthyProbes(t)
 	stat, look := f.probes.Stat, f.probes.LookPath
 	f.probes.Stat = func(path string) (fs.FileInfo, error) {
-		if path == "/dev/fuse" {
+		if path == "/dev/fuse" || strings.HasPrefix(path, "/dev/macfuse") {
 			return nil, fmt.Errorf("stat %s: %w", path, fs.ErrNotExist)
 		}
 		return stat(path)
@@ -87,6 +87,89 @@ func TestFuseMissingExplainsNeverInstalls(t *testing.T) {
 			t.Errorf("Run() invoked package manager %v, want no installer call", argv)
 		}
 	}
+}
+
+// TestCheckFuseDeviceGOOS exercises both platform branches of
+// checkFuseDeviceGOOS directly, so the darwin behavior is verified on any CI
+// runner regardless of its actual GOOS.
+func TestCheckFuseDeviceGOOS(t *testing.T) {
+	present := func(path string) (fs.FileInfo, error) {
+		switch path {
+		case "/dev/fuse", "/dev/macfuse0":
+			return fakeInfo{name: filepath.Base(path), mode: fs.ModeDevice | fs.ModeCharDevice | 0o666}, nil
+		}
+		return nil, fs.ErrNotExist
+	}
+	absent := func(string) (fs.FileInfo, error) { return nil, fs.ErrNotExist }
+
+	tests := []struct {
+		name string
+		goos string
+		stat func(string) (fs.FileInfo, error)
+		want string
+	}{
+		{"linux present", "linux", present, statusOK},
+		{"linux absent", "linux", absent, statusFail},
+		{"darwin present", "darwin", present, statusOK},
+		{"darwin absent", "darwin", absent, statusFail},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := checkFuseDeviceGOOS(Probes{Stat: tt.stat}, tt.goos)
+			if got.Name != "fuse_device" {
+				t.Errorf("checkFuseDeviceGOOS(%s) name = %q, want fuse_device", tt.goos, got.Name)
+			}
+			if got.Status != tt.want {
+				t.Errorf("checkFuseDeviceGOOS(%s) = %s, want %s", tt.goos, got.Status, tt.want)
+			}
+		})
+	}
+}
+
+// TestCheckFusermountGOOS proves the darwin branch no longer looks for the
+// Linux-only fusermount3 binary, and that Linux behavior is untouched.
+func TestCheckFusermountGOOS(t *testing.T) {
+	noFusermount3 := func(string) (string, error) {
+		return "", errors.New("executable file not found in $PATH")
+	}
+	macfusePresent := func(path string) (fs.FileInfo, error) {
+		if path == "/dev/macfuse0" {
+			return fakeInfo{name: "macfuse0", mode: fs.ModeDevice | fs.ModeCharDevice | 0o666}, nil
+		}
+		return nil, fs.ErrNotExist
+	}
+	macfuseAbsent := func(string) (fs.FileInfo, error) { return nil, fs.ErrNotExist }
+
+	t.Run("darwin ok from macfuse device, not fusermount3", func(t *testing.T) {
+		got := checkFusermountGOOS(Probes{Stat: macfusePresent, LookPath: noFusermount3}, "darwin")
+		if got.Status != statusOK {
+			t.Errorf("checkFusermountGOOS(darwin) = %s, want %s", got.Status, statusOK)
+		}
+	})
+	t.Run("darwin fails without any macfuse device", func(t *testing.T) {
+		got := checkFusermountGOOS(Probes{Stat: macfuseAbsent}, "darwin")
+		if got.Status != statusFail || got.Code != errcode.PrereqMissing {
+			t.Errorf("checkFusermountGOOS(darwin) = %s/%s, want fail/%s", got.Status, got.Code, errcode.PrereqMissing)
+		}
+	})
+	t.Run("linux still checks fusermount3 on PATH", func(t *testing.T) {
+		look := func(name string) (string, error) {
+			if name == "fusermount3" {
+				return "/usr/bin/fusermount3", nil
+			}
+			return "", errors.New("executable file not found in $PATH")
+		}
+		got := checkFusermountGOOS(Probes{LookPath: look}, "linux")
+		if got.Status != statusOK {
+			t.Errorf("checkFusermountGOOS(linux) = %s, want %s", got.Status, statusOK)
+		}
+	})
+	t.Run("linux fails without fusermount3 on PATH", func(t *testing.T) {
+		got := checkFusermountGOOS(Probes{LookPath: noFusermount3}, "linux")
+		if got.Status != statusFail || got.Code != errcode.PrereqMissing {
+			t.Errorf("checkFusermountGOOS(linux) = %s/%s, want fail/%s", got.Status, got.Code, errcode.PrereqMissing)
+		}
+	})
 }
 
 func TestResticMissingAndVersion(t *testing.T) {
