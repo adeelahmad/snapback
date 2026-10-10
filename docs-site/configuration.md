@@ -247,8 +247,8 @@ Durations use Go syntax: `20ms`, `60s`, `5m`, `1h`.
 | `snapshots.hostname` | string | empty | Show only this host's snapshots. Empty means all hosts. |
 | `snapshots.tags_all` | list of strings | empty | Show only snapshots that carry all of these tags. |
 | `snapshots.source_paths_exact` | list of absolute paths | empty | Show only snapshots with exactly these source paths. |
-| `seed_paths[].path` | relative path | none | Directory under `local_path` to seed `.snapshot` entries in. |
-| `seed_paths[].max_depth` | integer | none | How many levels deep to seed. At least 1. |
+| `seed_paths[].path` | relative path | none | Directory under `local_path` to seed `.snapshot` entries in. `.` means `local_path` itself. |
+| `seed_paths[].max_depth` | integer | none | How many levels deep to seed. At least 0; `0` means no limit. |
 | `exclude_relative_paths` | list of relative paths | empty | Directories under `local_path` to skip. |
 
 On Linux, the daemon also watches each `seed_paths` entry with inotify and links directories

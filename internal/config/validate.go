@@ -67,6 +67,16 @@ func (v *validator) relPath(path, p string) {
 	}
 }
 
+// relPathOrDot is relPath but also accepts "." to mean the root itself. It
+// exists for seed_paths[].path only; other callers keep rejecting "." via
+// relPath.
+func (v *validator) relPathOrDot(path, p string) {
+	if p == "." {
+		return
+	}
+	v.relPath(path, p)
+}
+
 func (v *validator) id(path, id string) {
 	if !idPattern.MatchString(id) {
 		v.add(path, "must match ^[a-z][a-z0-9_-]{0,31}$")
@@ -246,8 +256,8 @@ func (v *validator) roots(c *Config) {
 		}
 		for j, s := range r.SeedPaths {
 			sp := fmt.Sprintf("%s.seed_paths[%d]", p, j)
-			v.relPath(sp+".path", s.Path)
-			v.atLeast(sp+".max_depth", s.MaxDepth, 1)
+			v.relPathOrDot(sp+".path", s.Path)
+			v.atLeast(sp+".max_depth", s.MaxDepth, 0)
 		}
 		for j, e := range r.ExcludeRelativePaths {
 			v.relPath(fmt.Sprintf("%s.exclude_relative_paths[%d]", p, j), e)

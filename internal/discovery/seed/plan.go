@@ -26,7 +26,8 @@ var DefaultExcludes = []string{
 }
 
 // PlanPath walks root (or the seedPath subtree of it) down to maxDepth and
-// returns the directories that are not excluded.
+// returns the directories that are not excluded. maxDepth <= 0 means no
+// limit, matching WatchRoot.MaxDepth in watcher.go.
 func PlanPath(root, seedPath string, maxDepth int, excludes []string) (Plan, error) {
 	root = filepath.Clean(root)
 	start := root
@@ -48,7 +49,7 @@ func PlanPath(root, seedPath string, maxDepth int, excludes []string) (Plan, err
 			return nil
 		}
 		dirs = append(dirs, dir)
-		if depth >= maxDepth {
+		if maxDepth > 0 && depth >= maxDepth {
 			return nil
 		}
 		entries, err := os.ReadDir(dir)
