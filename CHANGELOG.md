@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.1](https://github.com/adeelahmad/snapback/compare/v1.6.0...v1.6.1) (2026-10-10)
+
+### Bug Fixes
+
+* real-mount reliability (daemon socket, doctor macfuse, seed, prefix wildcard) ([#20](https://github.com/adeelahmad/snapback/issues/20)) ([5cbcf3c](https://github.com/adeelahmad/snapback/commit/5cbcf3c003a427069b700da7a207d863cf968212))
+
 ## [1.6.0](https://github.com/adeelahmad/snapback/compare/v1.5.0...v1.6.0) (2026-09-23)
 
 ### Features
