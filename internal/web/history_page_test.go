@@ -64,3 +64,34 @@ func TestHistoryPageRejectsTraversal(t *testing.T) {
 		t.Errorf("History.List dirs for GET %s = %q, want [%q]", target, got, want)
 	}
 }
+
+// TestHistoryPageFileRowsOpenVersions wants every file row to carry a click
+// target naming its root and root-relative path, the parameters /api/versions
+// reads, and directory rows to carry none.
+func TestHistoryPageFileRowsOpenVersions(t *testing.T) {
+	h := pageHistory{dir: t.TempDir(), entries: []Entry{
+		{Name: "notes.txt", Size: 4},
+		{Name: "gone.txt", Absent: true},
+		{Name: "photos", Dir: true},
+	}}
+	srv, cookie, _ := newTestServer(t, Options{Backend: pageBackend{}, History: h})
+	q := url.Values{"root": {"home"}, "path": {"docs/./sub/"}, "snapshot": {string(pageIDA)}}
+	target := "/history?" + q.Encode()
+	w := do(t, srv, http.MethodGet, target, nil, http.Header{"Cookie": {cookie.String()}})
+	if got, want := w.Code, http.StatusOK; got != want {
+		t.Fatalf("GET %s: status = %d, want %d", target, got, want)
+	}
+	body := w.Body.String()
+	for _, file := range []string{"docs/sub/notes.txt", "docs/sub/gone.txt"} {
+		want := `data-js="versions-open" data-root="home" data-file="` + file + `"`
+		if !strings.Contains(body, want) {
+			t.Errorf("GET %s: body does not contain %q", target, want)
+		}
+	}
+	if got := strings.Count(body, `data-js="versions-open"`); got != 2 {
+		t.Errorf("GET %s: versions-open targets = %d, want 2 (files only, not the directory)", target, got)
+	}
+	if strings.Contains(body, `data-file="docs/sub/photos"`) {
+		t.Errorf("GET %s: directory photos has a versions-open target, want none", target)
+	}
+}

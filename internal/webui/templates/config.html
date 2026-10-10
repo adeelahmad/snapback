@@ -13,7 +13,7 @@
 <form method="post" action="/config">
 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <input type="hidden" name="revision" value="{{.Revision}}">
-<label for="roots">Roots, one per line</label>
+<label for="roots">Roots, one per line (add a new root as path=repository id when more than one repository is configured)</label>
 <textarea id="roots" name="roots" rows="4">{{range .Roots}}{{.}}
 {{end}}</textarea>
 <label for="filters">Filters, one per line</label>

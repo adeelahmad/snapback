@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"runtime"
 
 	"github.com/adeelahmad/snapback/internal/errcode"
 )
@@ -15,6 +16,9 @@ import (
 // openRepoFix replaces the generic repository_unavailable fix: for open the
 // usual cause is a daemon that is down or has no history yet.
 const openRepoFix = "run 'snapback status' to check the daemon and repository, then retry"
+
+// goos is runtime.GOOS behind a seam so tests can force each platform branch.
+var goos = runtime.GOOS
 
 // OpenCommand returns the open command.
 func OpenCommand(d Deps) Command {
@@ -64,7 +68,11 @@ func runOpen(ctx context.Context, d Deps, dir string) error {
 	if !ok {
 		return errcode.New(errcode.RepoUnavailable, "open", errors.New("history is not available"))
 	}
-	opener, err := d.LookPath("xdg-open")
+	name, err := openerCommand(goos)
+	if err != nil {
+		return errcode.New(errcode.PrereqMissing, "open", fmt.Errorf("%w; open %s manually", err, res.Path))
+	}
+	opener, err := d.LookPath(name)
 	if err != nil {
 		return errcode.New(errcode.PrereqMissing, "open", err)
 	}
@@ -72,6 +80,19 @@ func runOpen(ctx context.Context, d Deps, dir string) error {
 		return errcode.New(errcode.PrereqMissing, "open", err)
 	}
 	return nil
+}
+
+// openerCommand returns the executable that opens a directory in the file
+// manager on platform goos, or an error when no opener is known for it.
+func openerCommand(goos string) (string, error) {
+	switch goos {
+	case "darwin":
+		return "open", nil
+	case "linux":
+		return "xdg-open", nil
+	default:
+		return "", fmt.Errorf("no known file manager opener for GOOS %q", goos)
+	}
 }
 
 // writeOpenError is WriteError with the open-specific repository_unavailable fix.

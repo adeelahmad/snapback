@@ -18,7 +18,7 @@
 <table>
 <thead><tr><th>Name</th><th>Size</th><th>Modified</th><th>State</th></tr></thead>
 <tbody>
-{{range .Entries}}<tr class="state-{{.State}}"><td>{{.Name}}</td><td>{{.Size}}</td><td>{{.Modified}}</td><td>{{if eq .State "absent"}}<span class="badge-muted">absent</span>{{else if eq .State "failed"}}<span class="badge-warn">read failed</span>{{else}}<span class="badge-ok">{{.State}}</span>{{end}}</td></tr>
+{{range .Entries}}<tr class="state-{{.State}}"><td>{{if .File}}<button type="button" class="button" data-js="versions-open" data-root="{{$.Root}}" data-file="{{.File}}">{{.Name}}</button>{{else}}{{.Name}}{{end}}</td><td>{{.Size}}</td><td>{{.Modified}}</td><td>{{if eq .State "absent"}}<span class="badge-muted">absent</span>{{else if eq .State "failed"}}<span class="badge-warn">read failed</span>{{else}}<span class="badge-ok">{{.State}}</span>{{end}}</td></tr>
 {{end}}</tbody>
 </table>
 {{if .FileManagerPath}}<form method="post" action="/api/open">
@@ -38,6 +38,7 @@
 <a class="button has-icon icon-download" href="{{.DownloadURL}}">Download</a>
 <form method="post" action="/api/restore" data-js="restore">
 <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+<input type="hidden" name="root" value="{{$.Root}}">
 <input type="hidden" name="snapshot" value="{{.SnapshotID}}">
 <input type="hidden" name="file" value="{{$.Versions.File}}">
 <button type="submit" class="button has-icon icon-undo-2">Restore copy next to original</button>
@@ -46,6 +47,10 @@
 </li>
 {{end}}</ol>
 </section>
-{{end}}</section>{{end}}
+{{end}}</section>{{else}}<section class="panel versions" data-js="versions" hidden>
+<h2>Versions</h2>
+<p class="field" data-js="versions-file"></p>
+<div data-js="versions-list"></div>
+</section>{{end}}
 </div>
 {{end}}

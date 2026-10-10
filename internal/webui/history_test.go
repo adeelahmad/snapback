@@ -380,3 +380,74 @@ func TestHistoryOpenInFileManager(t *testing.T) {
 		t.Errorf("render(history) with empty FileManagerPath contains %q, want no button", label)
 	}
 }
+
+// TestHistoryFileRowsCarryVersionsTarget wants a file row to hold a button
+// naming its root and file, the parameters /api/versions reads, and a
+// directory row (File empty) to hold none.
+func TestHistoryFileRowsCarryVersionsTarget(t *testing.T) {
+	v := historyView()
+	v.Root = "home"
+	v.Entries[0].File = "docs/notes.txt"
+	out := render(t, mustLoad(t, ""), "history", v)
+
+	row, ok := smallestElement(out, []string{"tr"}, ">notes.txt<")
+	if !ok {
+		t.Fatalf("render(history) has no <tr> for entry %q", "notes.txt")
+	}
+	button := regexp.MustCompile(`<button type="button"[^>]*data-js="versions-open" data-root="home" data-file="docs/notes.txt"[^>]*>notes.txt</button>`)
+	if !button.MatchString(row.html) {
+		t.Errorf("row %q = %q, want a versions-open button carrying root and file", "notes.txt", row.html)
+	}
+	dir, ok := smallestElement(out, []string{"tr"}, ">photos<")
+	if !ok {
+		t.Fatalf("render(history) has no <tr> for entry %q", "photos")
+	}
+	if strings.Contains(dir.html, "versions-open") {
+		t.Errorf("row %q = %q, want no versions-open target on a directory", "photos", dir.html)
+	}
+}
+
+// TestHistoryEmptyVersionsPanelForScript wants, when no Versions are
+// prefetched, a hidden Versions panel app.js fills from /api/versions, with
+// the CSRF token and root its restore forms need.
+func TestHistoryEmptyVersionsPanelForScript(t *testing.T) {
+	v := historyView()
+	v.Root, v.Versions = "home", nil
+	out := render(t, mustLoad(t, ""), "history", v)
+
+	panel, ok := smallestElement(out, []string{"section"}, `data-js="versions"`)
+	if !ok {
+		t.Fatalf("render(history) has no section with data-js=\"versions\":\n%s", out)
+	}
+	for _, want := range []string{
+		`<section class="panel versions" data-js="versions" hidden>`,
+		`<h2>Versions</h2>`,
+		`data-js="versions-file"`,
+		`data-js="versions-list"`,
+	} {
+		if !strings.Contains(panel.html, want) {
+			t.Errorf("empty Versions panel = %q, want it to contain %q", panel.html, want)
+		}
+	}
+}
+
+// TestHistoryRestoreFormCarriesRoot wants every prefetched restore form to
+// send root, which /api/restore needs to resolve the file.
+func TestHistoryRestoreFormCarriesRoot(t *testing.T) {
+	v := historyView()
+	v.Root = "home"
+	out := render(t, mustLoad(t, ""), "history", v)
+
+	for _, g := range v.Versions.Groups {
+		for _, o := range g.Occurrences {
+			form, ok := smallestElement(out, []string{"form"}, `name="snapshot" value="`+o.SnapshotID+`"`, "/api/restore")
+			if !ok {
+				t.Errorf("render(history) has no restore <form> for snapshot %q", o.SnapshotID)
+				continue
+			}
+			if want := `<input type="hidden" name="root" value="home">`; !strings.Contains(form.html, want) {
+				t.Errorf("restore form %q = %q, want it to contain %q", o.SnapshotID, form.html, want)
+			}
+		}
+	}
+}

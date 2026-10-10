@@ -34,10 +34,13 @@ type SnapshotTick struct {
 	Selected    bool
 }
 
-// Entry is one row of the file list; State is ok, absent or failed.
+// Entry is one row of the file list; State is ok, absent or failed. File is
+// the root-relative path of a file, empty for a directory; it names the file
+// to /api/versions.
 type Entry struct {
 	Name, Size, Modified string
 	State                string
+	File                 string
 }
 
 // VersionsPanel lists every occurrence of one file across snapshots.

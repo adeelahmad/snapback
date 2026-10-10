@@ -90,6 +90,215 @@ func TestConfigFormSavesAndRedirects(t *testing.T) {
 	}
 }
 
+// multiRepoConfig is a config with two repositories and one existing root
+// assigned to the first, used to test that new roots are never silently
+// assigned to repositories[0].
+func multiRepoConfig() *config.Config {
+	return &config.Config{
+		Version: 1,
+		Repositories: []config.Repository{
+			{ID: "main", Repository: "/srv/main-repo"},
+			{ID: "backup", Repository: "/srv/backup-repo"},
+		},
+		Roots: []config.Root{{
+			ID:           "home",
+			LocalPath:    "/home/demo",
+			RepositoryID: "main",
+		}},
+	}
+}
+
+func TestConfigFormNewRootWithSingleRepositoryDefaultsToIt(t *testing.T) {
+	b := &fakeBackend{cfg: formConfig("/opt/restic/bin/restic"), rev: "r1", newRev: "r2"}
+	srv, cookie, csrf := newTestServer(t, Options{Backend: b})
+
+	form := configForm(csrf)
+	form.Set("roots", "/home/edited\n/srv/new-root\n")
+	w := do(t, srv, http.MethodPost, "/config", strings.NewReader(form.Encode()), formHeader(cookie))
+
+	if got, want := w.Code, http.StatusSeeOther; got != want {
+		t.Fatalf("POST /config: status = %d, want %d (body %q)", got, want, w.Body.String())
+	}
+	if got, want := len(b.saved), 1; got != want {
+		t.Fatalf("POST /config: saved configs = %d, want %d", got, want)
+	}
+	roots := b.saved[0].Roots
+	if got, want := len(roots), 2; got != want {
+		t.Fatalf("POST /config: saved roots = %d, want %d", got, want)
+	}
+	newRoot := roots[1]
+	if got, want := newRoot.LocalPath, "/srv/new-root"; got != want {
+		t.Errorf("POST /config: new root local path = %q, want %q", got, want)
+	}
+	if got, want := newRoot.RepositoryID, "main"; got != want {
+		t.Errorf("POST /config: new root repository id = %q, want %q", got, want)
+	}
+}
+
+func TestConfigFormNewRootCanChooseNonFirstRepository(t *testing.T) {
+	b := &fakeBackend{cfg: multiRepoConfig(), rev: "r1", newRev: "r2"}
+	srv, cookie, csrf := newTestServer(t, Options{Backend: b})
+
+	form := configForm(csrf)
+	form.Set("roots", "/home/demo\n/srv/new-root=backup\n")
+	w := do(t, srv, http.MethodPost, "/config", strings.NewReader(form.Encode()), formHeader(cookie))
+
+	if got, want := w.Code, http.StatusSeeOther; got != want {
+		t.Fatalf("POST /config: status = %d, want %d (body %q)", got, want, w.Body.String())
+	}
+	if got, want := len(b.saved), 1; got != want {
+		t.Fatalf("POST /config: saved configs = %d, want %d", got, want)
+	}
+	roots := b.saved[0].Roots
+	if got, want := len(roots), 2; got != want {
+		t.Fatalf("POST /config: saved roots = %d, want %d", got, want)
+	}
+	newRoot := roots[1]
+	if got, want := newRoot.LocalPath, "/srv/new-root"; got != want {
+		t.Errorf("POST /config: new root local path = %q, want %q", got, want)
+	}
+	if got, want := newRoot.RepositoryID, "backup"; got != want {
+		t.Errorf("POST /config: new root repository id = %q, want %q (must not default to repositories[0])", got, want)
+	}
+}
+
+func TestConfigFormNewRootWithUnknownRepositoryIsRejected(t *testing.T) {
+	b := &fakeBackend{cfg: multiRepoConfig(), rev: "r1", newRev: "r2"}
+	srv, cookie, csrf := newTestServer(t, Options{Backend: b})
+
+	form := configForm(csrf)
+	form.Set("roots", "/home/demo\n/srv/new-root=nosuchrepo\n")
+	w := do(t, srv, http.MethodPost, "/config", strings.NewReader(form.Encode()), formHeader(cookie))
+
+	if got, want := w.Code, http.StatusOK; got != want {
+		t.Fatalf("POST /config with unknown repository: status = %d, want %d", got, want)
+	}
+	if !strings.Contains(w.Body.String(), "nosuchrepo") {
+		t.Errorf("POST /config with unknown repository: body does not name the bad repository: %q", w.Body.String())
+	}
+	if got, want := len(b.saved), 0; got != want {
+		t.Errorf("POST /config with unknown repository: saved configs = %d, want %d", got, want)
+	}
+}
+
+func TestConfigFormNewRootWithoutRepositoryIsAmbiguousWhenMultipleConfigured(t *testing.T) {
+	b := &fakeBackend{cfg: multiRepoConfig(), rev: "r1", newRev: "r2"}
+	srv, cookie, csrf := newTestServer(t, Options{Backend: b})
+
+	form := configForm(csrf)
+	form.Set("roots", "/home/demo\n/srv/new-root\n")
+	w := do(t, srv, http.MethodPost, "/config", strings.NewReader(form.Encode()), formHeader(cookie))
+
+	if got, want := w.Code, http.StatusOK; got != want {
+		t.Fatalf("POST /config without repository: status = %d, want %d", got, want)
+	}
+	if !strings.Contains(w.Body.String(), "/srv/new-root") {
+		t.Errorf("POST /config without repository: body does not name the ambiguous root: %q", w.Body.String())
+	}
+	if got, want := len(b.saved), 0; got != want {
+		t.Errorf("POST /config without repository: saved configs = %d, want %d", got, want)
+	}
+}
+
+func TestConfigFormNewRootPathContainingEqualsIsNotMisreadAsRepository(t *testing.T) {
+	b := &fakeBackend{cfg: formConfig("/opt/restic/bin/restic"), rev: "r1", newRev: "r2"}
+	srv, cookie, csrf := newTestServer(t, Options{Backend: b})
+
+	form := configForm(csrf)
+	form.Set("roots", "/home/edited\n/mnt/weird=path/data\n")
+	w := do(t, srv, http.MethodPost, "/config", strings.NewReader(form.Encode()), formHeader(cookie))
+
+	if got, want := w.Code, http.StatusSeeOther; got != want {
+		t.Fatalf("POST /config: status = %d, want %d (body %q)", got, want, w.Body.String())
+	}
+	if got, want := len(b.saved), 1; got != want {
+		t.Fatalf("POST /config: saved configs = %d, want %d", got, want)
+	}
+	roots := b.saved[0].Roots
+	if got, want := len(roots), 2; got != want {
+		t.Fatalf("POST /config: saved roots = %d, want %d", got, want)
+	}
+	if got, want := roots[1].LocalPath, "/mnt/weird=path/data"; got != want {
+		t.Errorf("POST /config: new root local path = %q, want %q", got, want)
+	}
+	if got, want := roots[1].RepositoryID, "main"; got != want {
+		t.Errorf("POST /config: new root repository id = %q, want %q", got, want)
+	}
+}
+
+func TestConfigFormNewRootWithEmptyPathIsRejected(t *testing.T) {
+	b := &fakeBackend{cfg: multiRepoConfig(), rev: "r1", newRev: "r2"}
+	srv, cookie, csrf := newTestServer(t, Options{Backend: b})
+
+	form := configForm(csrf)
+	form.Set("roots", "/home/demo\n=backup\n")
+	w := do(t, srv, http.MethodPost, "/config", strings.NewReader(form.Encode()), formHeader(cookie))
+
+	if got, want := w.Code, http.StatusOK; got != want {
+		t.Fatalf("POST /config with empty path: status = %d, want %d", got, want)
+	}
+	if !strings.Contains(w.Body.String(), "missing local path") {
+		t.Errorf("POST /config with empty path: body does not explain the error: %q", w.Body.String())
+	}
+	if got, want := len(b.saved), 0; got != want {
+		t.Errorf("POST /config with empty path: saved configs = %d, want %d", got, want)
+	}
+}
+
+func TestSplitRootLine(t *testing.T) {
+	tests := []struct {
+		name       string
+		line       string
+		wantPath   string
+		wantRepoID string
+	}{
+		{"bare path", "/home/demo", "/home/demo", ""},
+		{"path with repository id", "/home/demo=main", "/home/demo", "main"},
+		{"trailing segment not a valid id is part of the path", "/mnt/weird=path/data", "/mnt/weird=path/data", ""},
+		{"empty path before the id", "=main", "", "main"},
+		{"multiple equals, only the last is a candidate id", "/mnt/a=b=main", "/mnt/a=b", "main"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotPath, gotRepoID := splitRootLine(tt.line)
+			if gotPath != tt.wantPath || gotRepoID != tt.wantRepoID {
+				t.Errorf("splitRootLine(%q) = (%q, %q), want (%q, %q)", tt.line, gotPath, gotRepoID, tt.wantPath, tt.wantRepoID)
+			}
+		})
+	}
+}
+
+// TestConfigFormExistingRootLineIgnoresRepositorySuffix pins that an
+// existing root's line is always its literal local path: the
+// "=<repository id>" syntax only applies to brand-new root lines, so typing
+// it onto an existing root's line neither reassigns the repository nor
+// corrupts the path.
+func TestConfigFormExistingRootLineIgnoresRepositorySuffix(t *testing.T) {
+	b := &fakeBackend{cfg: multiRepoConfig(), rev: "r1", newRev: "r2"}
+	srv, cookie, csrf := newTestServer(t, Options{Backend: b})
+
+	form := configForm(csrf)
+	form.Set("roots", "/home/demo=backup\n")
+	w := do(t, srv, http.MethodPost, "/config", strings.NewReader(form.Encode()), formHeader(cookie))
+
+	if got, want := w.Code, http.StatusSeeOther; got != want {
+		t.Fatalf("POST /config: status = %d, want %d (body %q)", got, want, w.Body.String())
+	}
+	if got, want := len(b.saved), 1; got != want {
+		t.Fatalf("POST /config: saved configs = %d, want %d", got, want)
+	}
+	roots := b.saved[0].Roots
+	if got, want := len(roots), 1; got != want {
+		t.Fatalf("POST /config: saved roots = %d, want %d", got, want)
+	}
+	if got, want := roots[0].LocalPath, "/home/demo=backup"; got != want {
+		t.Errorf("POST /config: existing root local path = %q, want %q (literal, not split)", got, want)
+	}
+	if got, want := roots[0].RepositoryID, "main"; got != want {
+		t.Errorf("POST /config: existing root repository id = %q, want %q (must not reassign)", got, want)
+	}
+}
+
 func TestConfigFormInvalidFieldRerenders(t *testing.T) {
 	b := &fakeBackend{cfg: formConfig("/opt/restic/bin/restic"), rev: "r1", newRev: "r2"}
 	srv, cookie, csrf := newTestServer(t, Options{Backend: b})

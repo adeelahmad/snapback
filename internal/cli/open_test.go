@@ -94,6 +94,7 @@ func openDeps(r *openRecorder) Deps {
 }
 
 func TestOpenEnsuresThenRunsXdgOpen(t *testing.T) {
+	withGOOS(t, "linux")
 	r := &openRecorder{available: true}
 	env, _, _ := newEnv(nil)
 
@@ -160,6 +161,7 @@ func TestOpenDaemonUnreachable(t *testing.T) {
 }
 
 func TestOpenXdgOpenMissing(t *testing.T) {
+	withGOOS(t, "linux")
 	r := &openRecorder{available: true}
 	d := openDeps(r)
 	d.LookPath = func(string) (string, error) { return "", exec.ErrNotFound }
@@ -180,6 +182,7 @@ func TestOpenXdgOpenMissing(t *testing.T) {
 }
 
 func TestOpenBoundedByTimeout(t *testing.T) {
+	withGOOS(t, "linux")
 	r := &openRecorder{available: true}
 	d := openDeps(r)
 	d.OpenTimeout = 50 * time.Millisecond
@@ -223,6 +226,7 @@ func TestOpenBoundedByTimeout(t *testing.T) {
 }
 
 func TestOpenMetacharacterPath(t *testing.T) {
+	withGOOS(t, "linux")
 	r := &openRecorder{available: true}
 	env, _, _ := newEnv(nil)
 
@@ -236,5 +240,75 @@ func TestOpenMetacharacterPath(t *testing.T) {
 	}
 	if want := "/w/$(touch x)/.snapshot"; r.execArgs[0] != want {
 		t.Errorf("Exec args[0] = %q, want %q", r.execArgs[0], want)
+	}
+}
+
+// withGOOS sets the goos seam to value for the duration of the test.
+func withGOOS(t *testing.T, value string) {
+	t.Helper()
+	prev := goos
+	goos = value
+	t.Cleanup(func() { goos = prev })
+}
+
+func TestOpenUsesOpenOnDarwin(t *testing.T) {
+	withGOOS(t, "darwin")
+	r := &openRecorder{available: true}
+	d := openDeps(r)
+	d.LookPath = func(file string) (string, error) {
+		if file != "open" {
+			return "", exec.ErrNotFound
+		}
+		return "/usr/bin/open", nil
+	}
+	env, _, _ := newEnv(nil)
+
+	got := OpenCommand(d).Run(context.Background(), env, []string{"d"})
+
+	if got != 0 {
+		t.Fatalf("open d = %d, want 0", got)
+	}
+	if r.execName != "/usr/bin/open" {
+		t.Errorf("Exec name = %q, want %q", r.execName, "/usr/bin/open")
+	}
+}
+
+func TestOpenUsesXdgOpenOnLinuxUnchanged(t *testing.T) {
+	withGOOS(t, "linux")
+	r := &openRecorder{available: true}
+	env, _, _ := newEnv(nil)
+
+	got := OpenCommand(openDeps(r)).Run(context.Background(), env, []string{"d"})
+
+	if got != 0 {
+		t.Fatalf("open d = %d, want 0", got)
+	}
+	if r.execName != xdgOpenPath {
+		t.Errorf("Exec name = %q, want %q", r.execName, xdgOpenPath)
+	}
+	if want := []string{"/w/d/.snapshot"}; !reflect.DeepEqual(r.execArgs, want) {
+		t.Errorf("Exec args = %q, want %q", r.execArgs, want)
+	}
+}
+
+func TestOpenUnsupportedGOOSReturnsClearError(t *testing.T) {
+	withGOOS(t, "plan9")
+	r := &openRecorder{available: true}
+	env, out, _ := newEnv(nil)
+
+	got := OpenCommand(openDeps(r)).Run(context.Background(), env, []string{"--json", "d"})
+
+	if got != 1 {
+		t.Fatalf("open --json d = %d, want 1", got)
+	}
+	e := decodeEnvelope(t, out.Bytes())
+	if want := string(errcode.PrereqMissing); e.Code != want {
+		t.Errorf("code = %q, want %q", e.Code, want)
+	}
+	if !strings.Contains(e.Error, "/w/d/.snapshot") {
+		t.Errorf("error = %q, want it to name the directory path", e.Error)
+	}
+	if r.execs != 0 {
+		t.Errorf("Exec calls = %d, want 0", r.execs)
 	}
 }
