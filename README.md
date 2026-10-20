@@ -120,3 +120,5 @@ snapback stands on the shoulders of [httm](https://github.com/kimono-koans/httm)
 [MIT](LICENSE)
 
 <p align="center"><img src="docs/brand/mark.svg" width="24" alt=""></p>
+
+<img src="https://www.google-analytics.com/g/collect?v=2&amp;tid=G-RKFB16BPXJ&amp;cid=555.snapback&amp;en=page_view&amp;dl=https%3A%2F%2Fgithub.com%2Fadeelahmad%2Fsnapback&amp;dt=snapback&amp;ep.repo=snapback" width="1" height="1" alt="">
